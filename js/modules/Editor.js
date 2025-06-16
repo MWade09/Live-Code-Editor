@@ -26,11 +26,15 @@ export class Editor {
               // Code folding support
             foldGutter: true,
             gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter", "CodeMirror-lint-markers"],
-            
-            // Real-time linting and error detection
+              // Real-time linting and error detection
             lint: {
                 getAnnotations: (text, callback, options, cm) => {
-                    this.performLinting(text, callback, options, cm);
+                    // Use bound method to ensure proper this context
+                    if (this.performLinting) {
+                        this.performLinting(text, callback, options, cm);
+                    } else {
+                        callback([]);
+                    }
                 },
                 async: true,
                 delay: 300
@@ -1124,21 +1128,23 @@ export class Editor {
         const regexCheckbox = document.getElementById('regex-checkbox');
         const caseCheckbox = document.getElementById('case-checkbox');
         const wordCheckbox = document.getElementById('word-checkbox');
-        const searchStats = document.getElementById('search-stats');
-          let searchState = null;
+        const searchStats = document.getElementById('search-stats');        // Capture this reference for use in nested functions
+        const editor = this;
+        
+        let searchState = null;
         let currentMatchIndex = 0;
         let allMatches = [];
         
         const updateSearch = () => {
             const query = searchInput.value;
             if (query) {
-                const options = this.getSearchOptions();
-                searchState = this.performSearch(cm, query, options);
-                allMatches = this.getAllMatches(cm, query, options);
+                const options = editor.getSearchOptions();
+                searchState = editor.performSearch(cm, query, options);
+                allMatches = editor.getAllMatches(cm, query, options);
                 currentMatchIndex = 0;
-                this.updateSearchStats(searchStats, allMatches.length);
+                editor.updateSearchStats(searchStats, allMatches.length);
                 if (allMatches.length > 0) {
-                    this.selectMatch(cm, allMatches[currentMatchIndex]);
+                    editor.selectMatch(cm, allMatches[currentMatchIndex]);
                 }
             } else {
                 cm.operation(() => {
@@ -1157,21 +1163,20 @@ export class Editor {
         searchInput.addEventListener('input', updateSearch);
         regexCheckbox.addEventListener('change', updateSearch);
         caseCheckbox.addEventListener('change', updateSearch);
-        wordCheckbox.addEventListener('change', updateSearch);
-          // Find next/previous
+        wordCheckbox.addEventListener('change', updateSearch);        // Find next/previous
         window.findNext = () => {
             if (allMatches.length > 0) {
                 currentMatchIndex = (currentMatchIndex + 1) % allMatches.length;
-                this.selectMatch(cm, allMatches[currentMatchIndex]);
-                this.updateSearchStats(searchStats, allMatches.length, currentMatchIndex + 1);
+                editor.selectMatch(cm, allMatches[currentMatchIndex]);
+                editor.updateSearchStats(searchStats, allMatches.length, currentMatchIndex + 1);
             }
         };
         
         window.findPrev = () => {
             if (allMatches.length > 0) {
                 currentMatchIndex = currentMatchIndex === 0 ? allMatches.length - 1 : currentMatchIndex - 1;
-                this.selectMatch(cm, allMatches[currentMatchIndex]);
-                this.updateSearchStats(searchStats, allMatches.length, currentMatchIndex + 1);
+                editor.selectMatch(cm, allMatches[currentMatchIndex]);
+                editor.updateSearchStats(searchStats, allMatches.length, currentMatchIndex + 1);
             }
         };
           if (isReplace) {
@@ -1189,10 +1194,9 @@ export class Editor {
                             // Stay on same index or move to next available
                             if (currentMatchIndex >= allMatches.length) {
                                 currentMatchIndex = Math.max(0, allMatches.length - 1);
-                            }
-                            if (allMatches[currentMatchIndex]) {
-                                this.selectMatch(cm, allMatches[currentMatchIndex]);
-                                this.updateSearchStats(searchStats, allMatches.length, currentMatchIndex + 1);
+                            }                            if (allMatches[currentMatchIndex]) {
+                                editor.selectMatch(cm, allMatches[currentMatchIndex]);
+                                editor.updateSearchStats(searchStats, allMatches.length, currentMatchIndex + 1);
                             }
                         }
                     }, 50);
