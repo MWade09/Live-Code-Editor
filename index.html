@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Preview Code Editor</title>
+    <!-- Google Fonts - Inter and JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/eclipse.min.css">
+    <!-- Code folding CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.css">    <!-- Hint/Autocomplete CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.css">
+    <!-- Linting CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/lint.min.css">
+    <!-- Custom styles loaded after CodeMirror to ensure proper overrides -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/chat-panel-clean.css">
+    <!-- Font Awesome with correct version -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="dark-theme">
+    <div class="container">
+        <header>
+            <div class="logo">Live Preview Code Editor</div>
+            <div class="controls">                <div class="file-controls">
+                    <button id="new-file-btn" title="New File"><i class="fas fa-file"></i></button>
+                    <button id="upload-file-btn" title="Upload File"><i class="fas fa-upload"></i></button>
+                    <button id="upload-folder-btn" title="Upload Folder"><i class="fas fa-folder-plus"></i></button>
+                    <button id="download-file-btn" title="Download File"><i class="fas fa-download"></i></button>
+                    <button id="download-all-btn" title="Download All Files"><i class="fas fa-download"></i><i class="fas fa-layer-group"></i></button>
+                    <input type="file" id="upload-file-input" style="display: none;">
+                    <input type="file" id="upload-folder-input" webkitdirectory directory multiple style="display: none;">
+                </div>
+                <div class="view-controls">
+                    <!-- Removed AI button as it's now replaced by the chat panel -->
+                    <button id="run-btn" title="Run"><i class="fas fa-play"></i></button>
+                    <button id="deploy-btn" class="deploy-btn" title="Deploy to Netlify"><i class="fas fa-cloud-upload-alt"></i> <span>Deploy</span></button>
+                    <button id="theme-toggle" title="Toggle Theme"><i class="fas fa-sun"></i></button>
+                </div>
+            </div>
+        </header>
+        
+        <div class="tabs-container">
+            <div id="file-tabs" class="tabs"></div>
+            <button id="add-file-btn"><i class="fas fa-plus"></i></button>
+        </div>
+
+        <div class="editor-container">
+            <div class="left-pane">
+                <div class="view-toggle">
+                    <button id="editor-toggle" class="toggle-btn active" title="Show Editor"><i class="fas fa-code"></i> Editor</button>
+                    <button id="preview-toggle" class="toggle-btn" title="Show Preview"><i class="fas fa-eye"></i> Preview</button>
+                </div>
+                <div class="content-area">
+                    <div id="editor" class="active-view"></div>
+                    <iframe id="preview-frame" title="Preview" class="hidden-view"></iframe>
+                </div>
+            </div>
+            <div class="resizer" id="dragMe"></div>
+            <div class="chat-pane">
+                <div class="chat-header">
+                    <div class="chat-title">AI Assistant</div>
+                    <div class="chat-controls">
+                        <div class="mode-toggle">
+                            <button id="chat-mode-btn" class="mode-btn active" title="Chat Mode"><i class="fas fa-comments"></i></button>
+                            <button id="agent-mode-btn" class="mode-btn" title="Agent Mode"><i class="fas fa-robot"></i></button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="model-selection">
+                    <div class="form-group">
+                        <label for="chat-ai-model">Model:</label>
+                        <div class="model-selection-container">
+                            <select id="chat-ai-model">
+                                <option value="deepseek/deepseek-r1-0528:free">DeepSeek R1.0528 (Free)</option>
+                                <option value="deepseek/deepseek-chat-v3-0324:free">DeepSeek Chat V3.0324 (Free)</option>
+                                <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                                <option value="anthropic/claude-3.5-haiku">Claude 3.5 Haiku</option>
+                                <option value="anthropic/claude-sonnet-4">Claude Sonnet 4 (Top Coding Agent)</option>
+                                <option value="google/google/gemini-2.5-pro-preview">Gemini 2.5 Pro Preview</option>
+                                <option value="google/gemini-2.5-flash-preview-05-2023">Gemini 2.5 Flash Preview</option>
+                                <option value="google/google/gemma-3-27b-it:free">Gemma 3 27B (Free)</option>
+                                <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                                <option value="openai/gpt-4.1">GPT-4.1</option>
+                                <option value="openai/o3">OpenAI o3</option>
+                                <option value="x-ai/grok-3-beta">Grok 3 Beta</option>
+                                <!-- Custom models will be added here dynamically -->
+                            </select>
+                            <button id="chat-manage-models-btn" type="button" class="small-btn" title="Manage Models">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group api-key-container">
+                        <input type="password" id="chat-api-key" placeholder="OpenRoute API Key">
+                        <button id="save-api-key-btn" class="small-btn" title="Save API Key"><i class="fas fa-save"></i></button>
+                    </div>
+                </div>                <div id="chat-messages" class="chat-messages">
+                    <div class="welcome-message">
+                        <h3>Welcome to the AI Assistant</h3>
+                        <p>I'm here to help you with any questions or tasks. Choose your preferred mode:</p>
+                        <ul>
+                            <li><strong>Chat Mode:</strong> Natural conversation, brainstorming, analysis, and general Q&A (with optional code snippets)</li>
+                            <li><strong>Agent Mode:</strong> Direct file editing - I'll modify your current file based on your instructions</li>
+                        </ul>
+                        <p><em>💡 Tip: Start with Chat Mode for discussions and planning, then use Agent Mode for implementation!</em></p>
+                    </div>
+                </div>
+                
+                <div class="chat-input-area">
+                    <textarea id="chat-input" placeholder="Type your message here..."></textarea>
+                    <button id="chat-send-btn" title="Send Message"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="file-modal" id="newFileModal">
+            <div class="modal-content">
+                <h3>Create New File</h3>
+                <input type="text" id="file-name" placeholder="Filename with extension (e.g., index.html)">
+                <div class="modal-buttons">
+                    <button id="create-file-btn">Create</button>
+                    <button id="cancel-new-file-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="file-modal" id="deployModal">
+            <div class="modal-content deploy-modal-content">
+                <h3>Deploy to Netlify</h3>
+                <p>Deploy your current project to Netlify for free hosting.</p>
+                <div id="deploy-status" class="deploy-status">
+                    Ready to deploy.
+                </div>
+                <div id="deploy-link" class="deploy-link" style="display: none;"></div>
+                <div class="modal-buttons">
+                    <button id="confirm-deploy-btn">Deploy</button>
+                    <button id="cancel-deploy-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Modal for prompting -->
+        <div class="file-modal" id="aiModal">
+            <div class="modal-content ai-modal-content">
+                <h3>AI Code Assistant</h3>
+                <p>Describe what you want to create or ask for help with your code.</p>
+                
+                <div class="form-group">
+                    <label for="ai-api-key">OpenRoute API Key:</label>
+                    <input type="password" id="ai-api-key" placeholder="Enter your OpenRoute API key">
+                    <small>Your API key is stored locally and never sent to our servers.</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="ai-model">AI Model:</label>
+                    <div class="model-selection-container">
+                        <select id="ai-model">
+                            <option value="llama3:8b">Llama 3 8B</option>
+                            <option value="llama3:70b">Llama 3 70B</option>
+                            <option value="mistral:7b">Mistral 7B</option>
+                            <option value="mixtral:8x7b">Mixtral 8x7B</option>
+                            <option value="openai/gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                            <!-- Custom models will be added here dynamically -->
+                        </select>
+                        <button id="manage-models-btn" type="button" class="small-btn">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chat History Section -->
+                <div id="chat-history" class="chat-history">
+                    <!-- Chat messages will be displayed here -->
+                </div>
+                
+                <div class="form-group chat-input-container">
+                    <textarea id="ai-prompt" rows="3" placeholder="Describe what you want to create or ask a question about your code..."></textarea>
+                    <button id="send-message-btn" class="send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                
+                <div id="ai-status" class="ai-status">
+                    Ready to assist with your code.
+                </div>
+                
+                <div class="modal-buttons">
+                    <button id="generate-code-btn">Generate Code</button>
+                    <button id="insert-code-btn">Insert at Cursor</button>
+                    <button id="cancel-ai-btn">Close</button>
+                </div>
+                
+                <!-- Model Management Modal -->
+                <div class="file-modal" id="modelManagementModal">
+                    <div class="modal-content">
+                        <h3>Manage AI Models</h3>
+                        <p>Add or remove custom OpenRouter models.</p>
+                        
+                        <div class="custom-models-list" id="custom-models-list">
+                            <!-- Custom models will be listed here dynamically -->
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="new-model-id">Model ID:</label>
+                            <input type="text" id="new-model-id" placeholder="e.g., anthropic/claude-3-opus">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="new-model-name">Display Name:</label>
+                            <input type="text" id="new-model-name" placeholder="e.g., Claude 3 Opus">
+                        </div>
+                        
+                        <div class="modal-buttons">
+                            <button id="add-model-btn">Add Model</button>
+                            <button id="close-model-manager-btn">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>    <!-- CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    
+    <!-- Core language modes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/xml/xml.min.js"></script>
+    
+    <!-- Additional language modes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/jsx/jsx.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/vue/vue.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/sass/sass.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/markdown/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/sql/sql.min.js"></script>    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/shell/shell.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/yaml/yaml.min.js"></script>
+    <!-- Simple mode addon required for dockerfile mode -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/mode/simple.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/dockerfile/dockerfile.min.js"></script>
+      <!-- Code folding addon -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/brace-fold.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/xml-fold.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/indent-fold.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/comment-fold.min.js"></script>
+      <!-- Multiple cursor/selection support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/selection/active-line.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/selection/selection-pointer.min.js"></script>
+    
+    <!-- Enhanced bracket matching and indentation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchtags.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closetag.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/trailingspace.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/selection/mark-selection.min.js"></script>
+      <!-- Search and replace -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/search/search.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/search/searchcursor.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/search/match-highlighter.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/search/jump-to-line.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/dialog/dialog.min.js"></script>
+    <!-- Search dialog CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/dialog/dialog.min.css">
+      <!-- Hint/Autocomplete CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.css">
+      <!-- Hint/Autocomplete addons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.js"></script>    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/html-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/css-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/javascript-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/xml-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/sql-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/anyword-hint.min.js"></script>
+    
+    <!-- Linting and Code Quality addons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/lint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/javascript-lint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/css-lint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/html-lint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/json-lint.min.js"></script>
+    
+    <!-- External linting libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jshint/2.13.6/jshint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/csslint/1.0.5/csslint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.7/beautify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.7/beautify-css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.7/beautify-html.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <!-- App JS - Using ES6 modules -->
+    <script type="module" src="js/app.js"></script>
+    <script src="js/chat-panel.js"></script>
+    <script src="js/model-manager.js"></script>
+</body>
+</html>
