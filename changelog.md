@@ -2,6 +2,38 @@
 
 All notable changes to the LiveEditorClaude project will be documented in this file.
 
+## [0.6.0] - 2025-06-16
+
+### Major Architecture Refactor ✨
+- **BREAKING**: Completely refactored monolithic `Editor.js` (1576+ lines) into focused modules
+- **NEW**: Modular architecture with single-responsibility modules:
+  - `SearchManager.js` - All find/replace functionality
+  - `LintManager.js` - Real-time linting and error detection
+  - `FormattingManager.js` - Code formatting capabilities
+  - `KeyboardManager.js` - Keyboard shortcuts and commands
+  - `Editor-New.js` - Core editor with clean initialization
+- **Enhanced**: FileManager now creates default files automatically
+- **Fixed**: All keyboard shortcuts now working properly (Ctrl+F, Ctrl+H, etc.)
+- **Improved**: Better error handling and initialization order
+- **Professional**: Maintainable, testable, and extensible codebase
+
+### Restored & Enhanced Features
+- ✅ **File Tabs**: Now displaying properly with default HTML file
+- ✅ **Search/Replace**: Advanced find and replace with match highlighting
+- ✅ **Real-time Linting**: Error detection for JavaScript, CSS, HTML, JSON
+- ✅ **Code Folding**: Fold/unfold controls restored in editor UI
+- ✅ **Multiple Cursors**: Select next/all occurrences functionality
+- ✅ **Autocomplete**: Language-specific code completion working
+- ✅ **Top Navigation**: All header buttons (new file, upload, download, theme, deploy) functional
+- ✅ **Live Preview**: Preview pane updating correctly with file changes
+
+### Technical Improvements
+- **Maintainability**: Code split into focused, single-responsibility modules
+- **Reliability**: Proper error handling prevents broken UI states
+- **Extensibility**: Easy to add new features without touching core editor
+- **Performance**: Better separation of concerns and cleaner execution
+- **Testing Ready**: Each module can be tested independently
+
 ## [0.5.1] - 2025-06-16
 
 ### Fixed

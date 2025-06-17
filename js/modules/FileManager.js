@@ -10,8 +10,7 @@ export class FileManager {
         // Load files from local storage if available
         this.loadFilesFromStorage();
     }
-    
-    loadFilesFromStorage() {
+      loadFilesFromStorage() {
         try {
             const savedFiles = localStorage.getItem('editorFiles');
             if (savedFiles) {
@@ -19,14 +18,63 @@ export class FileManager {
                 this.fileCounter = this.files.length;
                 if (this.files.length > 0) {
                     this.currentFileIndex = 0;
+                } else {
+                    this.createDefaultFile();
                 }
+            } else {
+                this.createDefaultFile();
             }
         } catch (err) {
             console.error('Error loading files from storage:', err);
             this.files = [];
             this.currentFileIndex = -1;
             this.fileCounter = 0;
+            this.createDefaultFile();
         }
+    }
+
+    createDefaultFile() {
+        const defaultContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="header">
+            <h1>Analytics Dashboard</h1>
+            <div class="user-info">
+                <span>Welcome, Admin</span>
+                <div class="user-icon"></div>
+            </div>
+        </header>
+        
+        <div class="card"></div>
+        
+        <div class="main-container">
+            <aside class="sidebar">
+                <nav>
+                    <ul>
+                        <li class="active">Dashboard</li>
+                        <li>Analytics</li>
+                        <li>Reports</li>
+                        <li>Settings</li>
+                    </ul>
+                </nav>
+            </aside>
+            
+            <main class="content">
+                <!-- Main content will go here -->
+            </main>
+        </div>
+    </div>
+</body>
+</html>`;
+        
+        this.createNewFile('index.html', defaultContent);
     }
     
     saveFilesToStorage() {

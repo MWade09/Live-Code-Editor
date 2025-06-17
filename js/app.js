@@ -2,7 +2,7 @@
  * Main Application File - Coordinates all modules and handles initialization
  */
 import { FileManager } from './modules/FileManager.js';
-import { Editor } from './modules/Editor.js';
+import { Editor } from './modules/Editor-New.js';
 import { Preview } from './modules/Preview.js';
 import { Resizer } from './modules/Resizer.js';
 import { ThemeManager } from './modules/ThemeManager.js';
