@@ -545,18 +545,31 @@ button i {
     padding: 5px 0;
 }
 
-/* Editor Controls */
+/* Editor Controls - Simple horizontal row layout */
 .editor-controls {
     position: absolute;
     top: 8px;
     right: 8px;
     z-index: 100;
     display: flex;
-    gap: 4px;
+    flex-direction: row;
+    gap: 6px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    max-width: 400px;
 }
 
-.folding-controls {
-    display: flex;
+/* Remove unnecessary row wrapper */
+.editor-controls-row {
+    display: contents;
+}
+
+/* Control groups - simple inline-flex */
+.folding-controls,
+.line-highlight-controls,
+.minimap-controls,
+.multi-cursor-controls {
+    display: inline-flex;
     gap: 2px;
     background: var(--secondary-bg);
     border-radius: 4px;
@@ -565,9 +578,10 @@ button i {
     border: 1px solid var(--border-color);
 }
 
+/* Simple button styling */
 .editor-control-btn {
-    background: transparent;
-    border: none;
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-color);
     color: var(--secondary-text);
     cursor: pointer;
     padding: 6px 8px;
@@ -577,16 +591,30 @@ button i {
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width: 32px;
+    height: 32px;
 }
 
 .editor-control-btn:hover {
     background: var(--tertiary-bg);
     color: var(--primary-text);
+    border-color: var(--accent-color);
     transform: translateY(-1px);
 }
 
 .editor-control-btn:active {
     transform: translateY(0);
+}
+
+.editor-control-btn.active {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+/* Keep controls in same position always */
+.editor-controls.with-minimap {
+    right: 8px;
 }
 
 /* Code folding gutter enhancements */
@@ -611,18 +639,30 @@ button i {
 }
 
 /* Dark theme specific folding styles */
-.dark-theme .folding-controls {
+.dark-theme .folding-controls,
+.dark-theme .line-highlight-controls,
+.dark-theme .minimap-controls,
+.dark-theme .multi-cursor-controls {
     background: var(--secondary-bg);
     border-color: var(--border-color);
 }
 
 .dark-theme .editor-control-btn {
+    background: var(--secondary-bg);
     color: var(--secondary-text);
+    border-color: var(--border-color);
 }
 
 .dark-theme .editor-control-btn:hover {
     background: var(--tertiary-bg);
     color: var(--primary-text);
+    border-color: var(--accent-color);
+}
+
+.dark-theme .editor-control-btn.active {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
 }
 
 .dark-theme .CodeMirror-gutters {
@@ -1545,8 +1585,8 @@ button i {
 .multi-cursor-controls .editor-control-btn {
     font-size: 12px;
     padding: 4px 6px;
-    min-width: 24px;
-    height: 24px;
+    min-width: 28px;
+    height: 28px;
 }
 
 /* Search dialog enhancements */
@@ -1579,108 +1619,108 @@ button i {
 
 /* Autocomplete Styling - Matches Site Design System */
 .CodeMirror-hints {
-    background: var(--primary-bg) !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: var(--panel-radius) !important;
-    box-shadow: 0 8px 32px var(--shadow-color), 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace !important;
-    font-size: 13px !important;
-    max-height: 300px !important;
-    overflow-y: auto !important;
-    z-index: 1000 !important;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    padding: 0 !important;
-    margin: 0 !important;
-    min-width: 200px !important;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 10000;
 }
 
 .CodeMirror-hint {
-    padding: 10px 14px !important;
-    color: var(--primary-text) !important;
-    cursor: pointer !important;
-    border-bottom: 1px solid var(--tertiary-bg) !important;
-    transition: all var(--transition-speed) !important;
-    display: flex !important;
-    align-items: center !important;
-    position: relative !important;
-    margin: 0 !important;
-    background: transparent !important;
-    white-space: nowrap !important;
+    color: var(--text-color);
+    padding: 4px 8px;
+    font-family: 'Fira Code', 'Monaco', 'Menlo', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    border-radius: 3px;
+    margin: 1px;
+    transition: all 0.15s ease;
 }
 
-.CodeMirror-hint:last-child {
-    border-bottom: none !important;
+.CodeMirror-hint:hover,
+.CodeMirror-hint-active {
+    background: var(--primary-color);
+    color: white;
+    transform: translateX(2px);
 }
 
-.CodeMirror-hint:hover {
-    background: var(--tertiary-bg) !important;
-    color: var(--primary-text) !important;
-    transform: translateX(2px) !important;
+/* Language-specific hint icons */
+.CodeMirror-hint:before {
+    content: "";
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+    border-radius: 2px;
+    vertical-align: middle;
 }
 
-.CodeMirror-hint.CodeMirror-hint-active {
-    background: var(--accent-color) !important;
+/* JavaScript hints */
+.javascript-hint:before {
+    background: #f7df1e;
+    content: "JS";
+    font-size: 8px;
+    text-align: center;
+    line-height: 12px;
+    color: #000;
+    font-weight: bold;
+}
+
+/* HTML hints */
+.html-hint:before {
+    background: #e34f26;
+    content: "HTML";
+    font-size: 7px;
+    text-align: center;
+    line-height: 12px;
+    color: white;
+    font-weight: bold;
+}
+
+/* CSS hints */
+.css-hint:before {
+    background: #1572b6;
+    content: "CSS";
+    font-size: 7px;
+    text-align: center;
+    line-height: 12px;
+    color: white;
+    font-weight: bold;
+}
+
+/* Python hints */
+.python-hint:before {
+    background: #3776ab;
+    content: "PY";
+    font-size: 8px;
+    text-align: center;
+    line-height: 12px;
+    color: white;
+    font-weight: bold;
+}
+
+/* Emmet Suggestions Styling */
+.emmet-suggestion {
+    background: linear-gradient(135deg, #4CAF50, #45a049) !important;
     color: white !important;
-    transform: translateX(2px) !important;
-    box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.3) !important;
+    font-weight: bold;
+    border-radius: 3px;
+    padding: 2px 6px;
+    margin: 1px 0;
+    position: relative;
 }
 
-/* Type indicators with site colors */
-.CodeMirror-hint::before {
-    content: '' !important;
-    display: inline-block !important;
-    width: 16px !important;
-    height: 16px !important;
-    margin-right: 10px !important;
-    border-radius: var(--button-radius) !important;
-    background: var(--tertiary-bg) !important;
-    flex-shrink: 0 !important;
-    border: 2px solid var(--border-color) !important;
-    transition: all var(--transition-speed) !important;
+.emmet-suggestion:before {
+    content: "⚡";
+    margin-right: 4px;
+    font-size: 12px;
 }
 
-/* Language-specific colors using site accent colors */
-.autocomplete-element::before {
-    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
-    border-color: #ff6b6b;
-}
-
-.autocomplete-attribute::before {
-    background: linear-gradient(135deg, #ffa726, #ff9800);
-    border-color: #ffa726;
-}
-
-.autocomplete-property::before {
-    background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
-    border-color: var(--accent-color);
-}
-
-.autocomplete-value::before {
-    background: linear-gradient(135deg, #26de81, #20bf6b);
-    border-color: #26de81;
-}
-
-.autocomplete-keyword::before {
-    background: linear-gradient(135deg, #a55eea, #8854d0);
-    border-color: #a55eea;
-}
-
-.autocomplete-method::before {
-    background: linear-gradient(135deg, #4cc9f0, #38b6db);
-    border-color: #4cc9f0;
-}
-
-.autocomplete-builtin::before {
-    background: linear-gradient(135deg, #fed330, #f39801);
-    border-color: #fed330;
-}
-
-/* Enhanced active state */
-.CodeMirror-hint.CodeMirror-hint-active::before {
-    background: white;
-    border-color: white;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+.emmet-suggestion:hover {
+    background: linear-gradient(135deg, #45a049, #4CAF50) !important;
+    transform: translateX(2px);
 }
 
 /* Scrollbar styling to match site */
@@ -1705,29 +1745,29 @@ button i {
 
 /* Dark theme specific adjustments */
 .dark-theme .CodeMirror-hints {
-    background: var(--primary-bg) !important;
-    border-color: var(--border-color) !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+    background: var(--primary-bg);
+    border-color: var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .dark-theme .CodeMirror-hint {
-    color: var(--primary-text) !important;
-    border-bottom-color: var(--border-color) !important;
+    color: var(--primary-text);
+    border-bottom-color: var(--border-color);
 }
 
 .dark-theme .CodeMirror-hint:hover {
-    background: var(--tertiary-bg) !important;
-    color: var(--primary-text) !important;
+    background: var(--tertiary-bg);
+    color: var(--primary-text);
 }
 
 .dark-theme .CodeMirror-hint.CodeMirror-hint-active {
-    background: var(--accent-color) !important;
-    color: white !important;
+    background: var(--accent-color);
+    color: white;
 }
 
 .dark-theme .CodeMirror-hint::before {
-    background: var(--tertiary-bg) !important;
-    border-color: var(--border-color) !important;
+    background: var(--tertiary-bg);
+    border-color: var(--border-color);
 }
 
 /* Loading animation */
@@ -1766,4 +1806,500 @@ button i {
         transform: translateY(0) scale(1);
     }
 }
+
+/* =====================================================
+   MINIMAP STYLES
+   ===================================================== */
+
+/* Minimap container */
+.minimap-container {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: var(--secondary-bg);
+    border-left: 1px solid var(--border-color);
+    overflow: hidden;
+    z-index: 10;
+    transition: all 0.3s ease;
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.dark-theme .minimap-container {
+    background: var(--secondary-bg);
+    border-left-color: var(--border-color);
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Minimap canvas */
+.minimap-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.minimap-canvas:hover {
+    opacity: 0.9;
+}
+
+/* Minimap viewport indicator */
+.minimap-viewport {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background: var(--accent-color);
+    opacity: 0.3;
+    pointer-events: none;
+    border-radius: 2px;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 8px rgba(67, 97, 238, 0.4);
+}
+
+.dark-theme .minimap-viewport {
+    background: var(--accent-color);
+    box-shadow: 0 0 8px rgba(67, 97, 238, 0.6);
+}
+
+/* Minimap viewport during scrolling */
+.minimap-viewport.scrolling {
+    opacity: 0.6 !important;
+    box-shadow: 0 0 12px rgba(67, 97, 238, 0.6);
+}
+
+.dark-theme .minimap-viewport.scrolling {
+    box-shadow: 0 0 12px rgba(67, 97, 238, 0.8);
+}
+
+/* Minimap toggle button */
+.minimap-toggle {
+    background: var(--tertiary-bg);
+    color: var(--secondary-text);
+    border: 1px solid var(--border-color);
+    border-radius: var(--button-radius);
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    min-width: 32px;
+    height: 32px;
+}
+
+.minimap-toggle:hover {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(67, 97, 238, 0.3);
+}
+
+.minimap-toggle.active {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.2);
+}
+
+.dark-theme .minimap-toggle {
+    background: var(--tertiary-bg);
+    color: var(--secondary-text);
+    border-color: var(--border-color);
+}
+
+.dark-theme .minimap-toggle:hover {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+    box-shadow: 0 2px 8px rgba(67, 97, 238, 0.4);
+}
+
+.dark-theme .minimap-toggle.active {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.3);
+}
+
+/* Editor layout adjustments for minimap */
+.editor-with-minimap {
+    margin-right: 120px;
+    transition: margin-right 0.3s ease;
+}
+
+.editor-without-minimap {
+    margin-right: 0;
+    transition: margin-right 0.3s ease;
+}
+
+/* Minimap responsive behavior */
+@media (max-width: 768px) {
+    .minimap-container {
+        display: none !important;
+    }
+    
+    .editor-with-minimap {
+        margin-right: 0 !important;
+    }
+    
+    .minimap-toggle {
+        display: none !important;
+    }
+}
+
+/* Removed old responsive rules - using simple single-column layout now */
+
+@media (max-width: 768px) {
+    .editor-controls {
+        top: 60px;
+        right: 4px;
+        max-width: 300px;
+        gap: 4px;
+    }
+    
+    .editor-control-btn {
+        min-width: 28px;
+        height: 28px;
+        padding: 4px 6px;
+        font-size: 11px;
+    }
+}
+
+/* Minimap loading state */
+.minimap-container.loading .minimap-canvas {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.minimap-container.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid transparent;
+    border-top: 2px solid var(--accent-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Minimap hover effects */
+.minimap-container:hover .minimap-viewport {
+    opacity: 0.5;
+    box-shadow: 0 0 12px rgba(67, 97, 238, 0.5);
+}
+
+.dark-theme .minimap-container:hover .minimap-viewport {
+    box-shadow: 0 0 12px rgba(67, 97, 238, 0.7);
+}
+
+/* Accessibility improvements */
+.minimap-canvas:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: -2px;
+}
+
+/* Smooth transitions for all minimap elements */
+.minimap-container * {
+    transition: all 0.2s ease;
+}
+
+/* Performance optimization for large files */
+.minimap-container.performance-mode .minimap-canvas {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+/* =====================================================
+   EDITOR NOTIFICATIONS
+   ===================================================== */
+
+/* Notification animations */
+@keyframes slideInFromRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutToRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* Editor notification styling */
+.editor-notification {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.editor-notification.success {
+    background: rgba(38, 222, 129, 0.1);
+    border-color: #26de81;
+    color: #26de81;
+}
+
+.editor-notification.error {
+    background: rgba(255, 107, 107, 0.1);
+    border-color: #ff6b6b;
+    color: #ff6b6b;
+}
+
+.editor-notification.warning {
+    background: rgba(254, 202, 87, 0.1);
+    border-color: #feca57;
+    color: #feca57;
+}
+
+.dark-theme .editor-notification.success {
+    background: rgba(38, 222, 129, 0.15);
+    color: #4ade80;
+}
+
+.dark-theme .editor-notification.error {
+    background: rgba(255, 107, 107, 0.15);
+    color: #f87171;
+}
+
+.dark-theme .editor-notification.warning {
+    background: rgba(254, 202, 87, 0.15);
+    color: #fbbf24;
+}
+
+/* =====================================================
+   LINE HIGHLIGHTING CONTROLS
+   ===================================================== */
+
+/* Line highlight control group */
+.line-highlight-controls {
+    display: flex;
+    gap: 2px;
+    background: var(--secondary-bg);
+    border-radius: 4px;
+    padding: 2px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.dark-theme .line-highlight-controls {
+    background: var(--secondary-bg);
+    border-color: var(--border-color);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Line highlighting specific button styles */
+.relative-numbers-toggle,
+.indent-guides-toggle,
+.cursor-animation-toggle {
+    background: transparent;
+    border: none;
+    color: var(--secondary-text);
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    position: relative;
+}
+
+.relative-numbers-toggle:hover,
+.indent-guides-toggle:hover,
+.cursor-animation-toggle:hover {
+    background: var(--tertiary-bg);
+    color: var(--primary-text);
+    transform: translateY(-1px);
+}
+
+.relative-numbers-toggle.active,
+.indent-guides-toggle.active,
+.cursor-animation-toggle.active {
+    background: var(--accent-color);
+    color: white;
+    box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.2);
+}
+
+.dark-theme .relative-numbers-toggle.active,
+.dark-theme .indent-guides-toggle.active,
+.dark-theme .cursor-animation-toggle.active {
+    box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.3);
+}
+
+/* Tooltips for line highlighting controls */
+.relative-numbers-toggle::after,
+.indent-guides-toggle::after,
+.cursor-animation-toggle::after {
+    content: attr(title);
+    position: absolute;
+    bottom: -32px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--primary-bg);
+    color: var(--primary-text);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.relative-numbers-toggle:hover::after,
+.indent-guides-toggle:hover::after,
+.cursor-animation-toggle:hover::after {
+    opacity: 1;
+}
+
+/* Enhanced cursor and selection animations */
+@keyframes cursorFocus {
+    0% { opacity: 0.5; transform: scaleY(0.8); }
+    100% { opacity: 1; transform: scaleY(1); }
+}
+
+@keyframes selectionExpand {
+    0% { transform: scaleX(0.95); opacity: 0.8; }
+    100% { transform: scaleX(1); opacity: 1; }
+}
+
+/* Focus animations */
+.CodeMirror-focused .CodeMirror-cursor {
+    animation: cursorFocus 0.2s ease-out;
+}
+
+.CodeMirror-focused .CodeMirror-selected {
+    animation: selectionExpand 0.15s ease-out;
+}
+
+/* Enhanced line number interactions */
+.CodeMirror-linenumber {
+    cursor: pointer !important;
+    transition: background-color 0.1s ease !important;
+    border-radius: 2px;
+    margin-right: 2px !important;
+}
+
+.CodeMirror-linenumber:hover {
+    background: var(--tertiary-bg) !important;
+    color: var(--primary-text) !important;
+}
+
+/* Remove transform to prevent flickering */
+.CodeMirror-linenumber:not(.CodeMirror-activeline .CodeMirror-linenumber):hover {
+    transform: none !important;
+}
+
+/* Active line number enhancements - already defined in LineHighlightManager styles */
+
+/* Improved bracket matching visual feedback */
+.CodeMirror-nonmatchingbracket {
+    background: rgba(255, 107, 107, 0.2) !important;
+    color: #ff6b6b !important;
+    border-radius: 2px !important;
+    border: 1px solid #ff6b6b !important;
+    animation: bracketError 0.3s ease !important;
+}
+
+@keyframes bracketError {
+    0%, 100% { transform: scale(1); }
+    25%, 75% { transform: scale(1.05); }
+    50% { transform: scale(0.95); }
+}
+
+/* Enhanced selection match highlighting */
+.CodeMirror .cm-matchhighlight {
+    background: rgba(67, 97, 238, 0.15) !important;
+    border: 1px solid rgba(67, 97, 238, 0.3) !important;
+    border-radius: 2px !important;
+    animation: matchHighlight 0.4s ease !important;
+}
+
+.dark-theme .CodeMirror .cm-matchhighlight {
+    background: rgba(67, 97, 238, 0.25) !important;
+    border-color: rgba(67, 97, 238, 0.5) !important;
+}
+
+@keyframes matchHighlight {
+    0% { opacity: 0; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.02); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+/* Responsive design for line highlighting controls */
+@media (max-width: 768px) {
+    .line-highlight-controls {
+        display: none !important;
+    }
+    
+    /* Keep essential functionality accessible via touch */
+    .CodeMirror-linenumber {
+        font-size: 12px !important;
+        padding: 2px 4px !important;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .CodeMirror-activeline .CodeMirror-linenumber {
+        background: #000 !important;
+        color: #fff !important;
+        border: 2px solid #fff !important;
+    }
+    
+    .CodeMirror-matchingbracket {
+        background: #ff0 !important;
+        color: #000 !important;
+        border: 2px solid #000 !important;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .animated-cursor .CodeMirror-cursor,
+    .animated-cursor .CodeMirror-secondarycursor {
+        animation: none !important;
+        transition: none !important;
+    }
+    
+    .CodeMirror-matchingbracket,
+    .CodeMirror-nonmatchingbracket,
+    .cm-matchhighlight {
+        animation: none !important;
+        transition: none !important;
+    }
+    
+    .editor-control-btn {
+        transition: none !important;
+        transform: none !important;
+    }
 }

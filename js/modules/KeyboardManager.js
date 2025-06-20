@@ -31,28 +31,29 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
             "Ctrl-[": cm => this.indentLess(cm),
             "Ctrl-Shift-I": cm => this.autoIndentSelection(cm),
             "Tab": cm => this.smartTab(cm),
-            "Shift-Tab": cm => this.indentLess(cm),
+            "Shift-Tab": cm => this.smartShiftTab(cm),
             
             // Code folding shortcuts
             "Ctrl-Shift-[": cm => cm.foldCode(cm.getCursor()),
             "Ctrl-Shift-]": cm => cm.unfoldCode(cm.getCursor()),
-            "Ctrl-Alt-[": cm => this.foldAll(),
-            "Ctrl-Alt-]": cm => this.unfoldAll(),
+            "Ctrl-Alt-[": cm => this.editor.foldAll(),
+            "Ctrl-Alt-]": cm => this.editor.unfoldAll(),
             "F9": cm => cm.foldCode(cm.getCursor()),
             "Shift-F9": cm => cm.unfoldCode(cm.getCursor()),
             
             // Multiple cursor shortcuts
-            "Ctrl-D": cm => this.selectNextOccurrence(cm),
-            "Ctrl-Shift-D": cm => this.selectAllOccurrences(cm),
+            "Ctrl-D": cm => this.editor.selectNextOccurrence(cm),
+            "Ctrl-Shift-D": cm => this.editor.selectAllOccurrences(cm),
             "Alt-Click": cm => this.addCursorAtClick(cm),
             "Ctrl-Alt-Up": cm => this.addCursorAbove(cm),
             "Ctrl-Alt-Down": cm => this.addCursorBelow(cm),
-            "Escape": cm => this.clearMultipleSelections(cm),
-              // Enhanced search and replace (both show the same dialog)
-            "Ctrl-F": cm => this.searchManager.showAdvancedFind(),
-            "Ctrl-H": cm => this.searchManager.showAdvancedFind(),
+            "Escape": cm => this.editor.clearMultipleSelections(cm),
+              // Enhanced search and replace
+            "Ctrl-F": cm => this.searchManager.showSearch(),
+            "Ctrl-H": cm => this.searchManager.showReplace(),
             "Ctrl-Shift-F": cm => this.searchManager.showGlobalSearch(),
             "Ctrl-Shift-H": cm => this.searchManager.showGlobalReplace(),
+
             "F3": "findNext",
             "Shift-F3": "findPrev",
             "Ctrl-G": "jumpToLine",
@@ -74,11 +75,71 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
             "F8": cm => this.lintManager.jumpToNextError(),
             "Shift-F8": cm => this.lintManager.jumpToPrevError(),
             "Ctrl-Shift-L": cm => this.lintManager.toggleLinting(),
-            "Ctrl-Shift-M": cm => this.lintManager.showLintStats()
+            "Ctrl-Shift-M": cm => this.lintManager.showLintStats(),
+            
+            // Minimap shortcuts
+            "Ctrl-Shift-Alt-M": cm => this.minimapManager.toggleMinimap(),
+            "Ctrl-K Ctrl-M": cm => this.minimapManager.toggleMinimap(),
+            
+            // Minimap controls
+            "Ctrl-Alt-M": () => this.managers.minimapManager?.toggleMinimap(),
+            "Ctrl-Shift-Alt-M": () => this.managers.minimapManager?.toggleViewport(),
+            
+            // Line highlighting controls
+            "Ctrl-Alt-L": () => this.managers.lineHighlightManager?.toggleRelativeLineNumbers(),
+            "Ctrl-Alt-I": () => this.managers.lineHighlightManager?.toggleIndentGuides(),
+            "Ctrl-Alt-C": () => this.managers.lineHighlightManager?.toggleCursorAnimation(),
+            "F7": () => this.managers.lineHighlightManager?.toggleRelativeLineNumbers(),
+            
+            // Emmet shortcuts  
+            "Shift-Enter": (cm) => this.handleEmmetExpansion(cm, 'shift-enter'),
         };
         
         // Apply keyboard shortcuts to CodeMirror
         this.codeMirror.setOption('extraKeys', extraKeys);
+        
+        // Add keydown listener for more complex Emmet handling
+        this.codeMirror.on('keydown', (cm, e) => this.handleKeyDown(cm, e));
+    }
+
+    /**
+     * Handle keydown events for enhanced functionality
+     */
+    handleKeyDown(cm, e) {
+        const mode = cm.getMode().name;
+        
+        // Enhanced autocomplete triggers with Emmet support
+        if ((e.ctrlKey && e.key === ' ') || 
+            (e.altKey && e.key === ' ') || 
+            (e.ctrlKey && e.key === '.') ||
+            (e.key === 'Tab' && this.shouldTriggerEmmet(cm))) {
+            
+            // Don't prevent default for Tab if it's not an Emmet context
+            if (e.key === 'Tab' && !this.shouldTriggerEmmet(cm)) {
+                return;
+            }
+            
+            e.preventDefault();
+            cm.showHint({
+                hint: cm.getOption('hintOptions').hint,
+                completeSingle: false
+            });
+            return;
+        }
+    }
+
+    /**
+     * Handle Emmet expansion from extraKeys
+     */
+    handleEmmetExpansion(cm, trigger) {
+        const mode = cm.getMode().name;
+        
+        // Only process HTML and CSS modes
+        if (mode !== 'xml' && mode !== 'htmlmixed' && mode !== 'css') {
+            return CodeMirror.Pass; // Let CodeMirror handle normally
+        }
+        
+        this.triggerEmmetExpansion(cm);
     }
 
     // =====================================================
@@ -161,6 +222,18 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
             this.indentMore(cm);
         } else {
             cm.replaceSelection('    '); // Insert 4 spaces
+        }
+    }
+
+    smartShiftTab(cm) {
+        const mode = cm.getMode().name;
+        
+        // Try Emmet expansion first in HTML/CSS modes
+        if ((mode === 'xml' || mode === 'htmlmixed' || mode === 'css') && this.shouldTriggerEmmet(cm)) {
+            this.triggerEmmetExpansion(cm);
+        } else {
+            // Default behavior: reduce indentation
+            this.indentLess(cm);
         }
     }
 
@@ -404,6 +477,96 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
                 head: { line: line - 1, ch: ch }
             };
             cm.addSelection(newSelection.anchor, newSelection.head);
+        }
+    }
+
+    /**
+     * Trigger Emmet expansion
+     */
+    triggerEmmetExpansion(cm = this.codeMirror) {
+        const cursor = cm.getCursor();
+        const line = cm.getLine(cursor.line);
+        const beforeCursor = line.substring(0, cursor.ch);
+        const mode = cm.getMode().name;
+
+        // Try to expand Emmet abbreviation
+        if (this.editor && this.editor.tryEmmetExpansion) {
+            const emmetSuggestion = this.editor.tryEmmetExpansion(beforeCursor, mode);
+            if (emmetSuggestion) {
+                const from = CodeMirror.Pos(cursor.line, emmetSuggestion.from);
+                const to = CodeMirror.Pos(cursor.line, cursor.ch);
+                cm.replaceRange(emmetSuggestion.text, from, to);
+                
+                // Position cursor appropriately
+                this.positionCursorAfterEmmet(emmetSuggestion.text, from, cm);
+            }
+        }
+    }
+
+    /**
+     * Check if Tab should trigger Emmet
+     */
+    shouldTriggerEmmet(cm = this.codeMirror) {
+        const cursor = cm.getCursor();
+        const line = cm.getLine(cursor.line);
+        const beforeCursor = line.substring(0, cursor.ch);
+        const mode = cm.getMode().name;
+
+        // Only in HTML/CSS modes
+        if (mode !== 'xml' && mode !== 'htmlmixed' && mode !== 'css') {
+            return false;
+        }
+
+        // Check if there's a potential Emmet abbreviation
+        const emmetMatch = beforeCursor.match(/([a-zA-Z0-9\.\#\[\]\*\+\>\^\$\{\}]+)$/);
+        return emmetMatch && emmetMatch[1].length > 1;
+    }
+
+    /**
+     * Position cursor after Emmet expansion
+     */
+    positionCursorAfterEmmet(expandedText, startPos, cm = this.codeMirror) {
+        // Look for common cursor positions in expanded text
+        const cursorMarkers = [
+            '></div>',
+            '></span>',
+            '></p>',
+            '></h1>',
+            '></h2>',
+            '></h3>',
+            '></h4>',
+            '></h5>',
+            '></h6>',
+            '></li>',
+            '></a>',
+            '></button>',
+            'href=""',
+            'src=""',
+            'alt=""',
+            'type=""'
+        ];
+
+        let cursorOffset = 0;
+        for (const marker of cursorMarkers) {
+            const index = expandedText.indexOf(marker);
+            if (index !== -1) {
+                if (marker.includes('=""')) {
+                    cursorOffset = index + marker.length - 1; // Position inside quotes
+                } else {
+                    cursorOffset = index + 1; // Position after opening tag
+                }
+                break;
+            }
+        }
+
+        if (cursorOffset > 0) {
+            const lines = expandedText.substring(0, cursorOffset).split('\n');
+            const newLine = startPos.line + lines.length - 1;
+            const newCh = lines.length === 1 ? 
+                startPos.ch + cursorOffset : 
+                lines[lines.length - 1].length;
+            
+            cm.setCursor(newLine, newCh);
         }
     }
 }

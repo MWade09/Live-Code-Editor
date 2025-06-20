@@ -206,21 +206,32 @@ export class LintManager {
         const voidElements = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr', '!doctype', '!DOCTYPE']);
         
         for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
+            let line = lines[i];
             const lineNumber = i;
             
-            // Check for unclosed tags
-            const openTags = line.match(/<([^\/\s>]+)[^>]*>/g);
+            // Remove HTML comments before processing tags to avoid false positives
+            line = line.replace(/<!--[\s\S]*?-->/g, '');
+            
+            // Check for unclosed tags (excluding comments)
+            const openTags = line.match(/<([^\/\s>!]+)[^>]*>/g);
             const closeTags = line.match(/<\/([^>\s]+)>/g);
             
             if (openTags) {
                 for (const tag of openTags) {
-                    const tagName = tag.match(/<([^\/\s>]+)/)[1].toLowerCase();
+                    // Skip processing if this looks like a comment remnant
+                    if (tag.includes('!--') || tag.includes('-->')) {
+                        continue;
+                    }
+                    
+                    const tagMatch = tag.match(/<([^\/\s>!]+)/);
+                    if (!tagMatch) continue;
+                    
+                    const tagName = tagMatch[1].toLowerCase();
                     if (!voidElements.has(tagName) && !selfClosingTags.has(tagName) && !tag.endsWith('/>')) {
                         tagStack.push({
                             name: tagName,
                             line: lineNumber,
-                            position: line.indexOf(tag)
+                            position: lines[i].indexOf(tag) // Use original line for position
                         });
                     }
                 }
@@ -228,22 +239,25 @@ export class LintManager {
             
             if (closeTags) {
                 for (const tag of closeTags) {
-                    const tagName = tag.match(/<\/([^>\s]+)>/)[1].toLowerCase();
+                    const tagMatch = tag.match(/<\/([^>\s]+)>/);
+                    if (!tagMatch) continue;
+                    
+                    const tagName = tagMatch[1].toLowerCase();
                     const lastOpen = tagStack.pop();
                     
                     if (!lastOpen) {
                         annotations.push({
                             message: `Unexpected closing tag: ${tagName}`,
                             severity: 'error',
-                            from: CodeMirror.Pos(lineNumber, line.indexOf(tag)),
-                            to: CodeMirror.Pos(lineNumber, line.indexOf(tag) + tag.length)
+                            from: CodeMirror.Pos(lineNumber, lines[i].indexOf(tag)),
+                            to: CodeMirror.Pos(lineNumber, lines[i].indexOf(tag) + tag.length)
                         });
                     } else if (lastOpen.name !== tagName) {
                         annotations.push({
                             message: `Mismatched closing tag: expected ${lastOpen.name}, found ${tagName}`,
                             severity: 'error',
-                            from: CodeMirror.Pos(lineNumber, line.indexOf(tag)),
-                            to: CodeMirror.Pos(lineNumber, line.indexOf(tag) + tag.length)
+                            from: CodeMirror.Pos(lineNumber, lines[i].indexOf(tag)),
+                            to: CodeMirror.Pos(lineNumber, lines[i].indexOf(tag) + tag.length)
                         });
                         // Put the tag back for potential matching
                         tagStack.push(lastOpen);
@@ -251,24 +265,25 @@ export class LintManager {
                 }
             }
             
-            // Check for missing alt attributes on images
-            if (line.includes('<img') && !line.includes('alt=')) {
-                const imgMatch = line.match(/<img[^>]*>/);
+            // Check for missing alt attributes on images (use original line)
+            const originalLine = lines[i];
+            if (originalLine.includes('<img') && !originalLine.includes('alt=')) {
+                const imgMatch = originalLine.match(/<img[^>]*>/);
                 if (imgMatch) {
                     annotations.push({
                         message: 'Image missing alt attribute for accessibility',
                         severity: 'warning',
-                        from: CodeMirror.Pos(lineNumber, line.indexOf(imgMatch[0])),
-                        to: CodeMirror.Pos(lineNumber, line.indexOf(imgMatch[0]) + imgMatch[0].length)
+                        from: CodeMirror.Pos(lineNumber, originalLine.indexOf(imgMatch[0])),
+                        to: CodeMirror.Pos(lineNumber, originalLine.indexOf(imgMatch[0]) + imgMatch[0].length)
                     });
                 }
             }
             
-            // Check for deprecated attributes
+            // Check for deprecated attributes (use original line)
             const deprecatedAttributes = ['align', 'bgcolor', 'border', 'cellpadding', 'cellspacing', 'color', 'height', 'width'];
             for (const attr of deprecatedAttributes) {
-                if (line.includes(`${attr}=`)) {
-                    const attrIndex = line.indexOf(`${attr}=`);
+                if (originalLine.includes(`${attr}=`)) {
+                    const attrIndex = originalLine.indexOf(`${attr}=`);
                     annotations.push({
                         message: `Deprecated attribute: ${attr}. Use CSS instead.`,
                         severity: 'warning',
@@ -333,55 +348,64 @@ export class LintManager {
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             
+            // Skip empty lines and lines that are only whitespace for trailing whitespace check
+            if (line.trim() === '') {
+                continue;
+            }
+            
             // Check for common syntax issues
             
-            // Unmatched quotes
-            let singleQuotes = 0;
-            let doubleQuotes = 0;
-            let inString = false;
-            let stringChar = '';
-            
-            for (let j = 0; j < line.length; j++) {
-                const char = line[j];
-                const prevChar = j > 0 ? line[j - 1] : '';
+            // Unmatched quotes (but skip HTML comments)
+            if (!line.trim().startsWith('<!--') && !line.trim().endsWith('-->')) {
+                let singleQuotes = 0;
+                let doubleQuotes = 0;
+                let inString = false;
+                let stringChar = '';
                 
-                if ((char === '"' || char === "'") && prevChar !== '\\') {
-                    if (!inString) {
-                        inString = true;
-                        stringChar = char;
-                    } else if (char === stringChar) {
-                        inString = false;
-                        stringChar = '';
-                    }
+                for (let j = 0; j < line.length; j++) {
+                    const char = line[j];
+                    const prevChar = j > 0 ? line[j - 1] : '';
                     
-                    if (char === '"') doubleQuotes++;
-                    else singleQuotes++;
+                    if ((char === '"' || char === "'") && prevChar !== '\\') {
+                        if (!inString) {
+                            inString = true;
+                            stringChar = char;
+                        } else if (char === stringChar) {
+                            inString = false;
+                            stringChar = '';
+                        }
+                        
+                        if (char === '"') doubleQuotes++;
+                        else singleQuotes++;
+                    }
+                }
+                
+                if (singleQuotes % 2 !== 0) {
+                    annotations.push({
+                        message: 'Unmatched single quote',
+                        severity: 'error',
+                        from: CodeMirror.Pos(i, line.lastIndexOf("'")),
+                        to: CodeMirror.Pos(i, line.lastIndexOf("'") + 1)
+                    });
+                }
+                
+                if (doubleQuotes % 2 !== 0) {
+                    annotations.push({
+                        message: 'Unmatched double quote',
+                        severity: 'error',
+                        from: CodeMirror.Pos(i, line.lastIndexOf('"')),
+                        to: CodeMirror.Pos(i, line.lastIndexOf('"') + 1)
+                    });
                 }
             }
             
-            if (singleQuotes % 2 !== 0) {
-                annotations.push({
-                    message: 'Unmatched single quote',
-                    severity: 'error',
-                    from: CodeMirror.Pos(i, line.lastIndexOf("'")),
-                    to: CodeMirror.Pos(i, line.lastIndexOf("'") + 1)
-                });
-            }
-            
-            if (doubleQuotes % 2 !== 0) {
-                annotations.push({
-                    message: 'Unmatched double quote',
-                    severity: 'error',
-                    from: CodeMirror.Pos(i, line.lastIndexOf('"')),
-                    to: CodeMirror.Pos(i, line.lastIndexOf('"') + 1)
-                });
-            }
-            
-            // Check for trailing whitespace
-            if (line.match(/\s+$/)) {
+            // Only check for trailing whitespace if it's excessive (more than 2 spaces/tabs)
+            // and not in certain file types where whitespace might be significant
+            const trailingWhitespace = line.match(/\s{3,}$/);
+            if (trailingWhitespace && mode !== 'markdown' && mode !== 'yaml') {
                 const trimmed = line.trimEnd();
                 annotations.push({
-                    message: 'Trailing whitespace',
+                    message: 'Excessive trailing whitespace (3+ spaces)',
                     severity: 'info',
                     from: CodeMirror.Pos(i, trimmed.length),
                     to: CodeMirror.Pos(i, line.length)

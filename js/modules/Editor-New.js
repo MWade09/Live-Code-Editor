@@ -5,6 +5,8 @@ import { SearchManager } from './SearchManager.js';
 import { LintManager } from './LintManager.js';
 import { FormattingManager } from './FormattingManager.js';
 import { KeyboardManager } from './KeyboardManager.js';
+import { MinimapManager } from './MinimapManager.js';
+import { LineHighlightManager } from './LineHighlightManager.js';
 
 export class Editor {
     constructor(editorElement, fileManager) {
@@ -49,7 +51,9 @@ export class Editor {
             styleActiveLine: true,
             styleSelectedText: true,
             cursorBlinkRate: 530
-        });        // Initialize all managers
+        });
+
+        // Initialize managers that don't need UI elements first
         this.searchManager = new SearchManager(this, this.codeMirror);
         this.lintManager = new LintManager(this, this.codeMirror);
         this.formattingManager = new FormattingManager(this, this.codeMirror);
@@ -57,7 +61,10 @@ export class Editor {
         this.keyboardManager = new KeyboardManager(this, this.codeMirror, {
             searchManager: this.searchManager,
             lintManager: this.lintManager,
-            formattingManager: this.formattingManager
+            formattingManager: this.formattingManager,
+            // Will add these after UI is ready
+            minimapManager: null,
+            lineHighlightManager: null
         });
 
         // Setup event listeners
@@ -80,6 +87,17 @@ export class Editor {
         this.setupAutocomplete();
         this.setupFoldingControls();
         this.initializeLanguageSupport();
+        
+        // Now create managers that need to add UI elements
+        // The controls container now exists, so they can add their buttons
+        this.minimapManager = new MinimapManager(this, this.codeMirror);
+        this.lineHighlightManager = new LineHighlightManager(this, this.codeMirror);
+        
+        // Update keyboard manager with the new managers
+        if (this.keyboardManager) {
+            this.keyboardManager.minimapManager = this.minimapManager;
+            this.keyboardManager.lineHighlightManager = this.lineHighlightManager;
+        }
     }
 
     /**
@@ -118,7 +136,7 @@ export class Editor {
             ]
         };
 
-        // Enhanced autocomplete function
+        // Enhanced autocomplete function with Emmet support
         const customHint = (cm, option) => {
             const cursor = cm.getCursor();
             const token = cm.getTokenAt(cursor);
@@ -128,6 +146,18 @@ export class Editor {
             let start = token.start;
             let end = token.end;
             const word = token.string;
+            const line = cm.getLine(cursor.line);
+            const beforeCursor = line.substring(0, cursor.ch);
+
+            // Check for Emmet abbreviations first
+            const emmetSuggestion = this.tryEmmetExpansion(beforeCursor, mode);
+            if (emmetSuggestion) {
+                return {
+                    list: [emmetSuggestion],
+                    from: CodeMirror.Pos(cursor.line, emmetSuggestion.from),
+                    to: CodeMirror.Pos(cursor.line, cursor.ch)
+                };
+            }
 
             // Get language-specific suggestions
             if (mode === 'javascript' || mode === 'jsx') {
@@ -181,6 +211,255 @@ export class Editor {
     }
 
     /**
+     * Try to expand Emmet abbreviation
+     */
+    tryEmmetExpansion(textBeforeCursor, mode) {
+        // Only process HTML and CSS modes
+        if (mode !== 'xml' && mode !== 'htmlmixed' && mode !== 'css') {
+            return null;
+        }
+
+        // Find the last word that could be an Emmet abbreviation
+        const emmetMatch = textBeforeCursor.match(/([a-zA-Z0-9\.\#\[\]\*\+\>\^\$\{\}]+)$/);
+        if (!emmetMatch) return null;
+
+        const abbreviation = emmetMatch[1];
+        const startPos = textBeforeCursor.length - abbreviation.length;
+
+        // Try to expand the abbreviation
+        const expanded = this.expandEmmetAbbreviation(abbreviation, mode);
+        if (expanded) {
+            return {
+                text: expanded,
+                displayText: `${abbreviation} → Emmet`,
+                from: startPos,
+                className: 'emmet-suggestion'
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * Expand Emmet abbreviation to HTML/CSS
+     */
+    expandEmmetAbbreviation(abbr, mode) {
+        if (mode === 'css') {
+            return this.expandCSSEmmet(abbr);
+        } else {
+            return this.expandHTMLEmmet(abbr);
+        }
+    }
+
+    /**
+     * Expand HTML Emmet abbreviations
+     */
+    expandHTMLEmmet(abbr) {
+        const emmetPatterns = {
+            // Basic elements
+            'div': '<div></div>',
+            'p': '<p></p>',
+            'span': '<span></span>',
+            'a': '<a href=""></a>',
+            'img': '<img src="" alt="">',
+            'input': '<input type="text">',
+            'button': '<button></button>',
+            'form': '<form></form>',
+            'ul': '<ul></ul>',
+            'ol': '<ol></ol>',
+            'li': '<li></li>',
+            'table': '<table></table>',
+            'tr': '<tr></tr>',
+            'td': '<td></td>',
+            'th': '<th></th>',
+            'h1': '<h1></h1>',
+            'h2': '<h2></h2>',
+            'h3': '<h3></h3>',
+            'h4': '<h4></h4>',
+            'h5': '<h5></h5>',
+            'h6': '<h6></h6>',
+            'nav': '<nav></nav>',
+            'header': '<header></header>',
+            'footer': '<footer></footer>',
+            'main': '<main></main>',
+            'section': '<section></section>',
+            'article': '<article></article>',
+            'aside': '<aside></aside>',
+            
+            // Common patterns
+            'html:5': '<!DOCTYPE html>\n<html lang="en">\n<head>\n\t<meta charset="UTF-8">\n\t<meta name="viewport" content="width=device-width, initial-scale=1.0">\n\t<title>Document</title>\n</head>\n<body>\n\t\n</body>\n</html>',
+            'link:css': '<link rel="stylesheet" href="style.css">',
+            'script:src': '<script src=""></script>',
+            'meta:vp': '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+            'meta:utf': '<meta charset="UTF-8">',
+        };
+
+        // Handle class shortcuts (div.class -> <div class="class"></div>)
+        if (abbr.includes('.') && !abbr.includes(' ')) {
+            const parts = abbr.split('.');
+            const tag = parts[0] || 'div';
+            const classes = parts.slice(1).join(' ');
+            if (classes) {
+                return `<${tag} class="${classes}"></${tag}>`;
+            }
+        }
+
+        // Handle ID shortcuts (div#id -> <div id="id"></div>)
+        if (abbr.includes('#') && !abbr.includes(' ')) {
+            const parts = abbr.split('#');
+            const tag = parts[0] || 'div';
+            const id = parts[1];
+            if (id) {
+                return `<${tag} id="${id}"></${tag}>`;
+            }
+        }
+
+        // Handle multiplication (li*3 -> <li></li><li></li><li></li>)
+        if (abbr.includes('*')) {
+            const match = abbr.match(/^([a-zA-Z0-9]+)\*(\d+)$/);
+            if (match) {
+                const tag = match[1];
+                const count = parseInt(match[2]);
+                const element = emmetPatterns[tag] || `<${tag}></${tag}>`;
+                return Array(count).fill(element).join('\n');
+            }
+        }
+
+        // Handle child elements (ul>li -> <ul><li></li></ul>)
+        if (abbr.includes('>')) {
+            const parts = abbr.split('>');
+            let result = '';
+            let closeTags = [];
+            
+            parts.forEach((part, index) => {
+                const tag = part.trim();
+                if (tag) {
+                    result += `<${tag}>`;
+                    closeTags.unshift(tag);
+                }
+            });
+            
+            closeTags.forEach(tag => {
+                result += `</${tag}>`;
+            });
+            
+            return result;
+        }
+
+        // Return direct match
+        return emmetPatterns[abbr] || null;
+    }
+
+    /**
+     * Expand CSS Emmet abbreviations
+     */
+    expandCSSEmmet(abbr) {
+        const cssPatterns = {
+            // Display
+            'd:n': 'display: none;',
+            'd:b': 'display: block;',
+            'd:i': 'display: inline;',
+            'd:ib': 'display: inline-block;',
+            'd:f': 'display: flex;',
+            'd:g': 'display: grid;',
+            
+            // Position
+            'pos:r': 'position: relative;',
+            'pos:a': 'position: absolute;',
+            'pos:f': 'position: fixed;',
+            'pos:s': 'position: sticky;',
+            
+            // Flexbox
+            'jc:c': 'justify-content: center;',
+            'jc:sb': 'justify-content: space-between;',
+            'jc:sa': 'justify-content: space-around;',
+            'ai:c': 'align-items: center;',
+            'ai:fs': 'align-items: flex-start;',
+            'ai:fe': 'align-items: flex-end;',
+            'fd:c': 'flex-direction: column;',
+            'fd:r': 'flex-direction: row;',
+            
+            // Margin & Padding
+            'm:a': 'margin: auto;',
+            'mt:a': 'margin-top: auto;',
+            'mr:a': 'margin-right: auto;',
+            'mb:a': 'margin-bottom: auto;',
+            'ml:a': 'margin-left: auto;',
+            
+            // Width & Height
+            'w:a': 'width: auto;',
+            'w:100': 'width: 100%;',
+            'h:a': 'height: auto;',
+            'h:100': 'height: 100%;',
+            'h:100vh': 'height: 100vh;',
+            'w:100vw': 'width: 100vw;',
+            
+            // Text
+            'ta:c': 'text-align: center;',
+            'ta:l': 'text-align: left;',
+            'ta:r': 'text-align: right;',
+            'td:n': 'text-decoration: none;',
+            'td:u': 'text-decoration: underline;',
+            'fw:b': 'font-weight: bold;',
+            'fw:n': 'font-weight: normal;',
+            
+            // Background
+            'bg:n': 'background: none;',
+            'bg:t': 'background: transparent;',
+            
+            // Border
+            'bd:n': 'border: none;',
+            'bd:0': 'border: 0;',
+            'br:50': 'border-radius: 50%;',
+            
+            // Overflow
+            'ov:h': 'overflow: hidden;',
+            'ov:a': 'overflow: auto;',
+            'ov:s': 'overflow: scroll;',
+            
+            // Visibility
+            'v:h': 'visibility: hidden;',
+            'v:v': 'visibility: visible;',
+            'op:0': 'opacity: 0;',
+            'op:1': 'opacity: 1;',
+        };
+
+        // Handle numeric values (m10 -> margin: 10px;)
+        const numericMatch = abbr.match(/^([a-z]+)(\d+)$/);
+        if (numericMatch) {
+            const prop = numericMatch[1];
+            const value = numericMatch[2];
+            
+            const propertyMap = {
+                'm': 'margin',
+                'p': 'padding',
+                'mt': 'margin-top',
+                'mr': 'margin-right',
+                'mb': 'margin-bottom',
+                'ml': 'margin-left',
+                'pt': 'padding-top',
+                'pr': 'padding-right',
+                'pb': 'padding-bottom',
+                'pl': 'padding-left',
+                'w': 'width',
+                'h': 'height',
+                'fs': 'font-size',
+                'lh': 'line-height',
+                'br': 'border-radius',
+                'z': 'z-index',
+                'op': 'opacity'
+            };
+            
+            if (propertyMap[prop]) {
+                const unit = prop === 'z' || prop === 'op' || prop === 'lh' ? '' : 'px';
+                return `${propertyMap[prop]}: ${value}${unit};`;
+            }
+        }
+
+        return cssPatterns[abbr] || null;
+    }
+
+    /**
      * Update current file content
      */
     updateCurrentFile() {
@@ -216,6 +495,21 @@ export class Editor {
      */
     updateTheme(isDark) {
         this.codeMirror.setOption('theme', isDark ? 'monokai' : 'eclipse');
+        
+        // Notify all managers about theme change
+        if (this.minimapManager) {
+            // Dispatch theme change event for minimap
+            document.dispatchEvent(new CustomEvent('themeChanged', { 
+                detail: { isDark: isDark } 
+            }));
+        }
+        
+        if (this.lineHighlightManager) {
+            // Line highlight manager will listen to the themeChanged event
+            document.dispatchEvent(new CustomEvent('themeChanged', { 
+                detail: { isDark: isDark } 
+            }));
+        }
     }
 
     /**
@@ -556,12 +850,59 @@ export class Editor {
     }
 
     /**
-     * Clear multiple selections, keeping only the primary one
+     * Clear multiple selections
      */
     clearMultipleSelections(cm) {
-        const selections = cm.listSelections();
-        if (selections.length > 1) {
-            cm.setSelection(selections[0].anchor, selections[0].head);
+        cm.setSelections([cm.listSelections()[0]]);
+    }
+    
+    /**
+     * Show notification to user
+     */
+    showNotification(message, type = 'info', duration = 3000) {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `editor-notification ${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: var(--secondary-bg);
+            color: var(--primary-text);
+            padding: 12px 16px;
+            border-radius: var(--panel-radius);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            font-size: 14px;
+            max-width: 300px;
+            animation: slideInFromRight 0.3s ease;
+        `;
+        
+        // Add type-specific styling
+        if (type === 'success') {
+            notification.style.borderLeftColor = '#26de81';
+            notification.style.borderLeftWidth = '4px';
+        } else if (type === 'error') {
+            notification.style.borderLeftColor = '#ff6b6b';
+            notification.style.borderLeftWidth = '4px';
+        } else if (type === 'warning') {
+            notification.style.borderLeftColor = '#feca57';
+            notification.style.borderLeftWidth = '4px';
         }
+        
+        // Add to document
+        document.body.appendChild(notification);
+        
+        // Remove after duration
+        setTimeout(() => {
+            notification.style.animation = 'slideOutToRight 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, duration);
     }
 }
