@@ -2,6 +2,7 @@
  * Main Application File - Coordinates all modules and handles initialization
  */
 import { FileManager } from './modules/FileManager.js';
+import { FileExplorerManager } from './modules/FileExplorerManager.js';
 import { Editor } from './modules/Editor-New.js';
 import { Preview } from './modules/Preview.js';
 import { Resizer } from './modules/Resizer.js';
@@ -64,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeManager = new ThemeManager();
     const deployManager = new DeployManager(fileManager);
     const aiManager = new AIManager(editor, fileManager);
+    const fileExplorerManager = new FileExplorerManager(fileManager, editor);
     
     // Global app state
     window.app = {
@@ -74,14 +76,19 @@ document.addEventListener('DOMContentLoaded', () => {
         themeManager,
         deployManager,
         aiManager,
+        fileExplorerManager,
         showModal,
-        hideModal
+        hideModal,
+        renderFileTabs
     };
     
     // Initialize the application
     initializeApp();
     
     function initializeApp() {
+        // Initialize file explorer manager
+        fileExplorerManager.init();
+        
         // Load current file if available
         editor.loadCurrentFile();
         

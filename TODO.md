@@ -104,21 +104,21 @@ PHASE 1: Enhanced Editor Experience
 [✅] Line highlighting and better cursor visibility
 [✅] Code snippets system
 [✅] Emmet support for HTML/CSS
-[] Better keyboard shortcuts
+[✅] Better keyboard shortcuts
 
 📁 Improved File Management
 
 **File Explorer Sidebar**
 
-[] Tree view of all project files
-[] Folder creation and management
-[] File renaming and moving
-[] Context menu for file operations
-[] File icons based on type
+[✅] Tree view of all project files
+[✅] Folder creation and management
+[✅] File renaming and moving
+[✅] Context menu for file operations
+[✅] File icons based on type
 
 **Enhanced File Operations**
 
-[] Better drag-and-drop support
+[✅] Better drag-and-drop support
 [] File copying between projects
 [] Recently opened files list
 [] File search by name

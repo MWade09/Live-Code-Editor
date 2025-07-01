@@ -12,7 +12,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/eclipse.min.css">
     <!-- Code folding CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.css">    <!-- Hint/Autocomplete CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.css">    
+    <!-- Hint/Autocomplete CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.css">
     <!-- Linting CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/lint.min.css">
@@ -27,6 +28,7 @@
         <header>
             <div class="logo">Live Preview Code Editor</div>
             <div class="controls">                <div class="file-controls">
+                    <button id="file-explorer-toggle" title="Toggle File Explorer"><i class="fas fa-folder-tree"></i></button>
                     <button id="new-file-btn" title="New File"><i class="fas fa-file"></i></button>
                     <button id="upload-file-btn" title="Upload File"><i class="fas fa-upload"></i></button>
                     <button id="upload-folder-btn" title="Upload Folder"><i class="fas fa-folder-plus"></i></button>
@@ -50,6 +52,22 @@
         </div>
 
         <div class="editor-container">
+            <div class="file-explorer-sidebar" id="file-explorer-sidebar" style="display: none;">
+                <div class="file-explorer-header">
+                    <h3>Files</h3>
+                    <div class="file-explorer-actions">
+                        <button id="new-folder-btn" class="explorer-btn" title="New Folder">
+                            <i class="fas fa-folder-plus"></i>
+                        </button>
+                        <button id="close-file-explorer" class="close-btn" title="Close File Explorer">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="file-explorer-content" id="file-explorer-content">
+                    <!-- File tree will be rendered here -->
+                </div>
+            </div>
             <div class="left-pane">
                 <div class="view-toggle">
                     <button id="editor-toggle" class="toggle-btn active" title="Show Editor"><i class="fas fa-code"></i> Editor</button>
@@ -126,6 +144,19 @@
                 <div class="modal-buttons">
                     <button id="create-file-btn">Create</button>
                     <button id="cancel-new-file-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- New Folder Modal -->
+        <div class="file-modal" id="newFolderModal">
+            <div class="modal-content">
+                <h3>Create New Folder</h3>
+                <p>Enter a name for the new folder:</p>
+                <input type="text" id="folder-name-input" placeholder="folder-name" />
+                <div class="modal-buttons">
+                    <button id="create-folder-btn">Create</button>
+                    <button id="cancel-new-folder-btn">Cancel</button>
                 </div>
             </div>
         </div>
@@ -224,7 +255,26 @@
                 </div>
             </div>
         </div>
-    </div>    <!-- CodeMirror JS -->
+    </div>
+
+    <!-- File Explorer Context Menu -->
+    <div id="file-context-menu" class="context-menu" style="display: none;">
+        <div class="context-menu-item" data-action="rename">
+            <i class="fas fa-edit"></i> Rename
+        </div>
+        <div class="context-menu-item" data-action="duplicate">
+            <i class="fas fa-copy"></i> Duplicate
+        </div>
+        <div class="context-menu-item danger" data-action="delete">
+            <i class="fas fa-trash"></i> Delete
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="move-to-root">
+            <i class="fas fa-level-up-alt"></i> Move to Root
+        </div>
+    </div>
+    
+    <!-- CodeMirror JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
     
     <!-- Core language modes -->
