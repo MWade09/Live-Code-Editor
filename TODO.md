@@ -119,7 +119,7 @@ PHASE 1: Enhanced Editor Experience
 **Enhanced File Operations**
 
 [✅] Better drag-and-drop support
-[] File copying between projects
+[✅] File copying between projects
 [] Recently opened files list
 [] File search by name
 [] Better file tab management (close others, close to right, etc.)

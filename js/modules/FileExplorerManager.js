@@ -107,13 +107,28 @@ export class FileExplorerManager {
     renderFileTree() {
         if (!this.contentElement) return;
         
+        console.log('=== FILE EXPLORER DEBUG ===');
+        console.log('FileManager:', this.fileManager);
+        console.log('FileManager.files:', this.fileManager ? this.fileManager.files : 'NO FILEMANAGER');
+        
         const structure = this.getFileStructure();
+        console.log('File structure:', structure);
+        
         if (!structure) {
+            console.log('No structure - showing no files message');
             this.contentElement.innerHTML = '<p style="padding: 16px; color: var(--secondary-text); text-align: center;">No files</p>';
             return;
         }
 
-        let html = '<ul class="file-tree">';
+        let html = '';
+        
+        // Render recent files section
+        html += this.renderRecentFilesSection();
+        
+        // Render main file tree
+        html += '<div class="file-tree-section">';
+        html += '<div class="file-tree-header">Project Files</div>';
+        html += '<ul class="file-tree">';
         
         // Render root files
         structure.files.forEach(file => {
@@ -126,6 +141,8 @@ export class FileExplorerManager {
         });
         
         html += '</ul>';
+        html += '</div>';
+        
         this.contentElement.innerHTML = html;
         
         // Add click listeners
@@ -137,7 +154,8 @@ export class FileExplorerManager {
      */
     renderFileItem(file) {
         const icon = this.getFileIcon(file.name);
-        const isActive = this.fileManager.currentFile && this.fileManager.currentFile.id === file.id;
+        const currentFile = this.fileManager.getCurrentFile();
+        const isActive = currentFile && currentFile.id === file.id;
         const activeClass = isActive ? ' active' : '';
         
         return `
@@ -152,20 +170,24 @@ export class FileExplorerManager {
      * Render a folder item with its contents
      */
     renderFolderItem(folderName, files) {
-        const folderIcon = '<i class="fas fa-folder"></i>';
         let html = `
-            <li class="file-tree-item folder-item" data-folder-name="${folderName}">
-                <span class="file-icon">${folderIcon}</span>
-                <span class="file-name">${folderName}</span>
+            <li class="folder-item" data-folder-name="${folderName}">
+                <span class="folder-toggle">▶</span>
+                <span class="folder-icon"><i class="fas fa-folder"></i></span>
+                <span class="folder-name">${folderName}</span>
             </li>
             <div class="folder-content">
+                <ul class="file-tree">
         `;
         
         files.forEach(file => {
             html += this.renderFileItem(file);
         });
         
-        html += '</div>';
+        html += `
+                </ul>
+            </div>
+        `;
         return html;
     }
 
@@ -187,6 +209,69 @@ export class FileExplorerManager {
     }
 
     /**
+     * Render the recent files section
+     */
+    renderRecentFilesSection() {
+        const recentFiles = this.fileManager.getRecentFiles();
+        
+        if (recentFiles.length === 0) {
+            return ''; // Don't show section if no recent files
+        }
+
+        let html = '<div class="recent-files-section">';
+        html += '<div class="recent-files-header">';
+        html += '<i class="fas fa-clock"></i> Recent Files';
+        html += '<button class="clear-recent-btn" title="Clear Recent Files">';
+        html += '<i class="fas fa-times"></i>';
+        html += '</button>';
+        html += '</div>';
+        html += '<ul class="recent-files-list">';
+        
+        recentFiles.slice(0, 5).forEach(recentFile => { // Show max 5 recent files
+            // Always show recent files, even if not currently loaded
+            const file = this.fileManager.files.find(f => f.id === recentFile.id);
+            const fileName = file ? file.name : recentFile.name;
+            const icon = this.getFileIcon(fileName);
+            const currentFile = this.fileManager.getCurrentFile();
+            const isActive = currentFile && currentFile.id === recentFile.id;
+            const activeClass = isActive ? ' active' : '';
+            const timeAgo = this.getTimeAgo(recentFile.timestamp);
+            
+            html += `
+                <li class="recent-file-item${activeClass}" data-file-id="${recentFile.id}">
+                    <span class="file-icon">${icon}</span>
+                    <div class="file-info">
+                        <span class="file-name">${fileName}</span>
+                        <span class="file-time">${timeAgo}</span>
+                    </div>
+                </li>
+            `;
+        });
+        
+        html += '</ul>';
+        html += '</div>';
+        
+        return html;
+    }
+
+    /**
+     * Get human-readable time ago string
+     */
+    getTimeAgo(timestamp) {
+        const now = Date.now();
+        const diff = now - timestamp;
+        const minutes = Math.floor(diff / (1000 * 60));
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        
+        if (minutes < 1) return 'just now';
+        if (minutes < 60) return `${minutes}m ago`;
+        if (hours < 24) return `${hours}h ago`;
+        if (days < 7) return `${days}d ago`;
+        return new Date(timestamp).toLocaleDateString();
+    }
+
+    /**
      * Add click listeners to file tree items
      */
     addFileTreeListeners() {
@@ -198,7 +283,8 @@ export class FileExplorerManager {
                 const fileId = item.dataset.fileId;
                 if (this.fileManager.setCurrentFileById(fileId)) {
                     this.editor.loadCurrentFile();
-                    this.renderFileTree(); // Re-render to update active state
+                    this.updateActiveStates(); // Update active states without re-rendering
+                    this.updateRecentFilesSection(); // Update recent files section
                     
                     // Update file tabs and preview if needed
                     if (window.app && window.app.preview && window.app.preview.isLivePreview) {
@@ -210,15 +296,6 @@ export class FileExplorerManager {
                         window.app.renderFileTabs();
                     }
                 }
-            });
-
-            // Double click to rename files
-            item.addEventListener('dblclick', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const fileId = item.dataset.fileId;
-                console.log('Double-click detected on file:', fileId);
-                this.startRenaming(fileId, item);
             });
 
             // Right click for context menu
@@ -234,9 +311,19 @@ export class FileExplorerManager {
             this.addDragAndDropListeners(item);
         });
 
-        // Add drop listeners to folder items
-        const folderItems = this.contentElement.querySelectorAll('.file-tree-item.folder-item');
+        // Add recent files listeners
+        this.addRecentFilesListeners();
+
+        // Add listeners for folder toggle functionality
+        const folderItems = this.contentElement.querySelectorAll('.folder-item');
         folderItems.forEach(folderItem => {
+            // Add click listener for folder toggle
+            folderItem.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleFolder(folderItem);
+            });
+
+            // Add drag/drop listeners
             this.addFolderDropListeners(folderItem);
         });
 
@@ -261,7 +348,14 @@ export class FileExplorerManager {
      * Get file structure organized by folders (basic version)
      */
     getFileStructure() {
-        if (!this.fileManager || !this.fileManager.files) return null;
+        console.log('Getting file structure...');
+        if (!this.fileManager || !this.fileManager.files) {
+            console.log('No fileManager or files array');
+            return null;
+        }
+        
+        console.log('Files found:', this.fileManager.files.length);
+        console.log('File details:', this.fileManager.files.map(f => ({ name: f.name, id: f.id, type: f.type })));
         
         const structure = {
             files: [],
@@ -641,6 +735,14 @@ export class FileExplorerManager {
             case 'duplicate':
                 this.duplicateFile(fileId);
                 break;
+
+            case 'copy-content':
+                this.copyFileContent(fileId);
+                break;
+
+            case 'export':
+                this.exportFile(fileId);
+                break;
                 
             case 'delete':
                 this.deleteFile(fileId);
@@ -770,6 +872,129 @@ export class FileExplorerManager {
     }
 
     /**
+     * Copy file content to clipboard for pasting in other projects
+     */
+    copyFileContent(fileId) {
+        const file = this.fileManager.files.find(f => f.id === fileId);
+        if (!file) return;
+
+        try {
+            // Create a text to copy that includes file metadata
+            const copyText = `/* File: ${file.name} */\n${file.content}`;
+            
+            // Use the Clipboard API if available
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(copyText).then(() => {
+                    this.showToast(`File content copied to clipboard: ${file.name}`);
+                    console.log(`Copied content of "${file.name}" to clipboard`);
+                }).catch(err => {
+                    console.error('Failed to copy to clipboard:', err);
+                    this.fallbackCopyToClipboard(copyText, file.name);
+                });
+            } else {
+                // Fallback for older browsers
+                this.fallbackCopyToClipboard(copyText, file.name);
+            }
+        } catch (error) {
+            console.error('Error copying file content:', error);
+            alert('Failed to copy file content to clipboard.');
+        }
+    }
+
+    /**
+     * Fallback method to copy text to clipboard
+     */
+    fallbackCopyToClipboard(text, fileName) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            this.showToast(`File content copied to clipboard: ${fileName}`);
+            console.log(`Copied content of "${fileName}" to clipboard (fallback method)`);
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            alert('Failed to copy file content to clipboard.');
+        } finally {
+            document.body.removeChild(textArea);
+        }
+    }
+
+    /**
+     * Export file as download for use in other projects
+     */
+    exportFile(fileId) {
+        const file = this.fileManager.files.find(f => f.id === fileId);
+        if (!file) return;
+
+        try {
+            // Create a blob with the file content
+            const blob = new Blob([file.content], { type: 'text/plain;charset=utf-8' });
+            
+            // Create a download link
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name.includes('/') ? file.name.split('/').pop() : file.name;
+            a.style.display = 'none';
+            
+            // Trigger download
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            // Clean up
+            URL.revokeObjectURL(url);
+            
+            this.showToast(`File exported: ${a.download}`);
+            console.log(`Exported file: ${a.download}`);
+        } catch (error) {
+            console.error('Error exporting file:', error);
+            alert('Failed to export file.');
+        }
+    }
+
+    /**
+     * Show a temporary toast notification
+     */
+    showToast(message, duration = 3000) {
+        // Remove any existing toast
+        const existingToast = document.querySelector('.file-toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = 'file-toast';
+        toast.textContent = message;
+        
+        // Add to document
+        document.body.appendChild(toast);
+        
+        // Show with animation
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 100);
+        
+        // Hide and remove after duration
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, duration);
+    }
+
+    /**
      * Add drag-and-drop listeners to file items
      */
     addDragAndDropListeners(fileItem) {
@@ -806,7 +1031,6 @@ export class FileExplorerManager {
         });
 
         folderItem.addEventListener('dragleave', (e) => {
-            // Only remove if not dragging over a child element
             if (!folderItem.contains(e.relatedTarget)) {
                 folderItem.classList.remove('drop-target');
             }
@@ -818,21 +1042,21 @@ export class FileExplorerManager {
             folderItem.classList.remove('drop-target');
             
             const fileId = e.dataTransfer.getData('text/plain');
-            if (fileId && folderName) {
+            if (fileId) {
                 this.moveFileToFolder(fileId, folderName);
             }
         });
     }
 
     /**
-     * Add drop listener to root area for moving files to root
+     * Add drop listener to the file tree root for moving to root
      */
     addRootDropListener() {
-        const fileTree = this.contentElement.querySelector('.file-tree');
+        const fileTree = this.contentElement.querySelector('.file-tree-content');
         if (!fileTree) return;
 
         fileTree.addEventListener('dragover', (e) => {
-            // Only allow drop if not over a folder or file item
+            // Only allow drop on the root, not on file items
             if (!e.target.closest('.file-tree-item')) {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
@@ -847,7 +1071,7 @@ export class FileExplorerManager {
         });
 
         fileTree.addEventListener('drop', (e) => {
-            // Only handle drop if not over a folder or file item
+            // Only handle drop on root area
             if (!e.target.closest('.file-tree-item')) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -895,6 +1119,47 @@ export class FileExplorerManager {
     }
 
     /**
+     * Toggle folder open/closed state
+     */
+    toggleFolder(folderElement) {
+        const folderContent = folderElement.nextElementSibling;
+        const toggleIcon = folderElement.querySelector('.folder-toggle');
+        
+        if (!folderContent || !toggleIcon) return;
+        
+        const isExpanded = folderElement.classList.contains('expanded');
+        
+        if (isExpanded) {
+            // Collapse folder
+            folderElement.classList.remove('expanded');
+            toggleIcon.textContent = '▶';
+        } else {
+            // Expand folder
+            folderElement.classList.add('expanded');
+            toggleIcon.textContent = '▼';
+        }
+        
+        console.log(`Folder ${isExpanded ? 'collapsed' : 'expanded'}:`, folderElement.dataset.folderName);
+    }
+
+    /**
+     * Refresh the file tree (useful when files are added/removed)
+     */
+    refresh() {
+        if (this.isVisible) {
+            this.renderFileTree();
+        }
+    }
+
+    /**
+     * Clear recent files list
+     */
+    clearRecentFiles() {
+        this.fileManager.clearRecentFiles();
+        this.updateRecentFilesSection(); // Update just the recent files section
+    }
+
+    /**
      * Test method to verify everything is working
      */
     test() {
@@ -910,5 +1175,151 @@ export class FileExplorerManager {
         }
         
         return true;
+    }
+
+    /**
+     * Update active states of files without re-rendering the entire tree
+     */
+    updateActiveStates() {
+        const currentFile = this.fileManager.getCurrentFile();
+        if (!this.contentElement || !currentFile) {
+            return;
+        }
+        
+        // Remove active class from all file items
+        const allFileItems = this.contentElement.querySelectorAll('.file-tree-item[data-file-id], .recent-file-item[data-file-id]');
+        allFileItems.forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        // Add active class to current file items
+        const currentFileId = currentFile.id;
+        const currentFileItems = this.contentElement.querySelectorAll(`[data-file-id="${currentFileId}"]`);
+        currentFileItems.forEach(item => {
+            item.classList.add('active');
+        });
+    }
+
+    /**
+     * Load a recent file that's not currently in the files array
+     */
+    loadRecentFile(fileId) {
+        const recentFiles = this.fileManager.getRecentFiles();
+        const recentFile = recentFiles.find(rf => rf.id === fileId);
+        
+        if (!recentFile) {
+            console.error('Recent file not found with ID:', fileId);
+            return;
+        }
+        
+        // Try to load from localStorage first
+        const allStoredFiles = localStorage.getItem('editorFiles');
+        if (allStoredFiles) {
+            const storedFiles = JSON.parse(allStoredFiles);
+            const storedFile = storedFiles.find(f => f.id === fileId);
+            
+            if (storedFile) {
+                // Add the file back to the current files array
+                this.fileManager.files.push(storedFile);
+                
+                // Now try to select it
+                if (this.fileManager.setCurrentFileById(fileId)) {
+                    this.editor.loadCurrentFile();
+                    this.renderFileTree(); // Re-render since we added a file
+                    
+                    // Update file tabs and preview if needed
+                    if (window.app && window.app.preview && window.app.preview.isLivePreview) {
+                        window.app.preview.updatePreview();
+                    }
+                    
+                    // Re-render file tabs
+                    if (window.app && window.app.renderFileTabs) {
+                        window.app.renderFileTabs();
+                    }
+                    
+                    console.log('Successfully loaded recent file:', recentFile.name);
+                    return;
+                }
+            }
+        }
+        
+        // If file couldn't be loaded from storage, create a new file with the name
+        console.warn('Could not load recent file from storage, creating new file:', recentFile.name);
+        this.fileManager.createNewFile(recentFile.name, '// File content was not found\n// This is a new file with the same name\n');
+    }
+
+    /**
+     * Update just the recent files section without re-rendering the entire tree
+     */
+    updateRecentFilesSection() {
+        if (!this.contentElement) return;
+        
+        // Find the existing recent files section
+        const existingSection = this.contentElement.querySelector('.recent-files-section');
+        const newSectionHTML = this.renderRecentFilesSection();
+        
+        if (existingSection && newSectionHTML) {
+            // Replace the existing section with updated content
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = newSectionHTML;
+            const newSection = tempDiv.firstElementChild;
+            
+            existingSection.parentNode.replaceChild(newSection, existingSection);
+            
+            // Re-add event listeners for the new recent files section
+            this.addRecentFilesListeners();
+        } else if (!existingSection && newSectionHTML) {
+            // Add recent files section if it doesn't exist
+            const fileTreeSection = this.contentElement.querySelector('.file-tree-section');
+            if (fileTreeSection) {
+                fileTreeSection.insertAdjacentHTML('beforebegin', newSectionHTML);
+                this.addRecentFilesListeners();
+            }
+        } else if (existingSection && !newSectionHTML) {
+            // Remove recent files section if no recent files
+            existingSection.remove();
+        }
+    }
+
+    /**
+     * Add event listeners specifically for recent files section
+     */
+    addRecentFilesListeners() {
+        // Add listeners for recent file items
+        const recentFileItems = this.contentElement.querySelectorAll('.recent-file-item[data-file-id]');
+        recentFileItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const fileId = item.dataset.fileId;
+                
+                // Try to select the file if it's already loaded
+                if (this.fileManager.setCurrentFileById(fileId)) {
+                    this.editor.loadCurrentFile();
+                    this.updateActiveStates();
+                    
+                    // Update file tabs and preview if needed
+                    if (window.app && window.app.preview && window.app.preview.isLivePreview) {
+                        window.app.preview.updatePreview();
+                    }
+                    
+                    // Re-render file tabs
+                    if (window.app && window.app.renderFileTabs) {
+                        window.app.renderFileTabs();
+                    }
+                } else {
+                    // File not currently loaded, try to load it from recent files data
+                    this.loadRecentFile(fileId);
+                }
+            });
+        });
+
+        // Add listener for clear recent files button
+        const clearRecentBtn = this.contentElement.querySelector('.clear-recent-btn');
+        if (clearRecentBtn) {
+            clearRecentBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.clearRecentFiles();
+            });
+        }
     }
 }

@@ -860,37 +860,49 @@ export class Editor {
      * Show notification to user
      */
     showNotification(message, type = 'info', duration = 3000) {
+        // Remove any existing notifications to avoid overlap
+        const existingNotifications = document.querySelectorAll('.editor-notification');
+        existingNotifications.forEach(notif => notif.remove());
+        
         // Create notification element
         const notification = document.createElement('div');
         notification.className = `editor-notification ${type}`;
-        notification.textContent = message;
+        
+        // Get appropriate icon for notification type
+        let icon = '';
+        switch (type) {
+            case 'success':
+                icon = '<i class="fas fa-check-circle"></i>';
+                break;
+            case 'error':
+                icon = '<i class="fas fa-exclamation-circle"></i>';
+                break;
+            case 'warning':
+                icon = '<i class="fas fa-exclamation-triangle"></i>';
+                break;
+            default:
+                icon = '<i class="fas fa-info-circle"></i>';
+        }
+        
+        notification.innerHTML = `${icon}<span>${message}</span>`;
+        
+        // Apply base positioning styles only (let CSS handle the rest)
         notification.style.cssText = `
             position: fixed;
             top: 80px;
             right: 20px;
-            background: var(--secondary-bg);
-            color: var(--primary-text);
-            padding: 12px 16px;
-            border-radius: var(--panel-radius);
-            border: 1px solid var(--border-color);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
-            font-size: 14px;
+            z-index: 2000;
             max-width: 300px;
+            padding: 12px 16px;
+            border-radius: 6px;
+            border: 1px solid;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             animation: slideInFromRight 0.3s ease;
         `;
-        
-        // Add type-specific styling
-        if (type === 'success') {
-            notification.style.borderLeftColor = '#26de81';
-            notification.style.borderLeftWidth = '4px';
-        } else if (type === 'error') {
-            notification.style.borderLeftColor = '#ff6b6b';
-            notification.style.borderLeftWidth = '4px';
-        } else if (type === 'warning') {
-            notification.style.borderLeftColor = '#feca57';
-            notification.style.borderLeftWidth = '4px';
-        }
         
         // Add to document
         document.body.appendChild(notification);

@@ -22,7 +22,7 @@
     <link rel="stylesheet" href="css/chat-panel-clean.css">
     <!-- Font Awesome with correct version -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
+</head> 
 <body class="dark-theme">
     <div class="container">
         <header>
@@ -265,12 +265,19 @@
         <div class="context-menu-item" data-action="duplicate">
             <i class="fas fa-copy"></i> Duplicate
         </div>
-        <div class="context-menu-item danger" data-action="delete">
-            <i class="fas fa-trash"></i> Delete
+        <div class="context-menu-item" data-action="copy-content">
+            <i class="fas fa-clipboard"></i> Copy Content
+        </div>
+        <div class="context-menu-item" data-action="export">
+            <i class="fas fa-download"></i> Export File
         </div>
         <div class="context-menu-separator"></div>
         <div class="context-menu-item" data-action="move-to-root">
             <i class="fas fa-level-up-alt"></i> Move to Root
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item danger" data-action="delete">
+            <i class="fas fa-trash"></i> Delete
         </div>
     </div>
     

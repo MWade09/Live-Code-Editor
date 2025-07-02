@@ -6,11 +6,12 @@ export class FileManager {
         this.files = [];
         this.currentFileIndex = -1;
         this.fileCounter = 0;
+        this.recentFiles = []; // Array of {id, timestamp, name} objects
         
         // Load files from local storage if available
         this.loadFilesFromStorage();
     }
-      loadFilesFromStorage() {
+    loadFilesFromStorage() {
         try {
             const savedFiles = localStorage.getItem('editorFiles');
             if (savedFiles) {
@@ -24,11 +25,22 @@ export class FileManager {
             } else {
                 this.createDefaultFile();
             }
+            
+            // Load recent files
+            const savedRecentFiles = localStorage.getItem('editorRecentFiles');
+            if (savedRecentFiles) {
+                this.recentFiles = JSON.parse(savedRecentFiles);
+                // Filter out files that no longer exist
+                this.recentFiles = this.recentFiles.filter(rf => 
+                    this.files.some(f => f.id === rf.id)
+                );
+            }
         } catch (err) {
             console.error('Error loading files from storage:', err);
             this.files = [];
             this.currentFileIndex = -1;
             this.fileCounter = 0;
+            this.recentFiles = [];
             this.createDefaultFile();
         }
     }
@@ -80,6 +92,7 @@ export class FileManager {
     saveFilesToStorage() {
         try {
             localStorage.setItem('editorFiles', JSON.stringify(this.files));
+            localStorage.setItem('editorRecentFiles', JSON.stringify(this.recentFiles));
         } catch (err) {
             console.error('Error saving files to storage:', err);
             alert('Failed to save to local storage. Your work may not be saved.');
@@ -197,7 +210,36 @@ export class FileManager {
     
     setCurrentFileById(id) {
         const index = this.files.findIndex(file => file.id === id);
-        return this.setCurrentFileIndex(index);
+        if (this.setCurrentFileIndex(index)) {
+            // Add to recent files when a file is opened
+            this.addToRecentFiles(id);
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Add file to recent files list
+     */
+    addToRecentFiles(fileId) {
+        const file = this.files.find(f => f.id === fileId);
+        if (!file) return;
+        
+        // Remove if already exists
+        this.recentFiles = this.recentFiles.filter(rf => rf.id !== fileId);
+        
+        // Add to beginning
+        this.recentFiles.unshift({
+            id: fileId,
+            timestamp: Date.now(),
+            name: file.name
+        });
+        
+        // Keep only last 10 recent files
+        this.recentFiles = this.recentFiles.slice(0, 10);
+        
+        // Save to storage
+        this.saveFilesToStorage();
     }
     
     updateCurrentFile(content) {
@@ -410,4 +452,20 @@ export class FileManager {
         
         return true;
     }
+
+    /**
+     * Get recent files list (basic implementation)
+     */
+    getRecentFiles() {
+        return this.recentFiles || [];
+    }
+    
+    /**
+     * Clear recent files list
+     */
+    clearRecentFiles() {
+        this.recentFiles = [];
+        this.saveFilesToStorage();
+    }
 }
+
