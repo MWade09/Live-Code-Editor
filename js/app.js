@@ -296,17 +296,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const tabsContainer = document.getElementById('file-tabs');
         tabsContainer.innerHTML = '';
         
-        fileManager.files.forEach((file, index) => {
+        // Get open tab files instead of all files
+        const openTabFiles = fileManager.getOpenTabFiles();
+        const activeTabFile = fileManager.getActiveTabFile();
+        
+        // Show/hide welcome screen based on open tabs
+        updateViewState(openTabFiles.length === 0);
+        
+        openTabFiles.forEach((file, index) => {
+            if (!file) return; // Skip if file was deleted but still in tabs
+            
             const tab = document.createElement('div');
-            tab.className = `file-tab ${index === fileManager.currentFileIndex ? 'active' : ''}`;
+            tab.className = `file-tab ${file === activeTabFile ? 'active' : ''}`;
             tab.innerHTML = `
                 <span class="tab-name">${file.name}</span>
-                <button class="close-tab" onclick="closeFile('${file.id}')" title="Close file">×</button>
+                <button class="close-tab" onclick="closeTab('${file.id}')" title="Close tab">×</button>
             `;
             
+            // Tab click to switch files
             tab.addEventListener('click', (e) => {
                 if (e.target.classList.contains('close-tab')) return;
-                switchToFile(index);
+                switchToTab(file.id);
+            });
+            
+            // Right-click context menu for tabs
+            tab.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                showTabContextMenu(e, file.id);
             });
             
             tabsContainer.appendChild(tab);
@@ -321,6 +337,21 @@ document.addEventListener('DOMContentLoaded', () => {
         tabsContainer.appendChild(newTabBtn);
     }
     
+    function switchToTab(fileId) {
+        if (fileManager.setActiveTab(fileId)) {
+            editor.loadCurrentFile();
+            renderFileTabs();
+            if (preview.isLivePreview) {
+                preview.updatePreview();
+            }
+            
+            // Update file explorer active states
+            if (window.fileExplorer && window.fileExplorer.updateActiveStates) {
+                window.fileExplorer.updateActiveStates();
+            }
+        }
+    }
+    
     function switchToFile(index) {
         if (fileManager.setCurrentFileIndex(index)) {
             editor.loadCurrentFile();
@@ -328,20 +359,149 @@ document.addEventListener('DOMContentLoaded', () => {
             if (preview.isLivePreview) {
                 preview.updatePreview();
             }
+            
+            // Update file explorer active states
+            if (window.fileExplorer && window.fileExplorer.updateActiveStates) {
+                window.fileExplorer.updateActiveStates();
+            }
         }
     }
     
     // Global functions for onclick handlers
+    window.closeTab = function(fileId) {
+        if (fileManager.closeTab(fileId)) {
+            // If there are still open tabs, load the active one
+            if (fileManager.openTabs.length > 0) {
+                editor.loadCurrentFile();
+            } else {
+                // No tabs open, clear the editor
+                editor.clearEditor();
+            }
+            renderFileTabs();
+            preview.updatePreview();
+            showStatusMessage('Tab closed');
+            
+            // Update file explorer active states
+            if (window.fileExplorer && window.fileExplorer.updateActiveStates) {
+                window.fileExplorer.updateActiveStates();
+            }
+        }
+    };
+    
+    // Keep the old closeFile function for actual file deletion (used by file explorer)
     window.closeFile = function(fileId) {
         if (fileManager.deleteFile(fileId)) {
             editor.loadCurrentFile();
             renderFileTabs();
             preview.updatePreview();
-            showStatusMessage('File closed');
+            showStatusMessage('File deleted');
+            
+            // Update file explorer
+            if (window.fileExplorer && window.fileExplorer.renderFileTree) {
+                window.fileExplorer.renderFileTree();
+            }
         }
     };
     
     window.switchToFile = switchToFile;
+    window.switchToTab = switchToTab;
+    
+    // Tab context menu functionality
+    function showTabContextMenu(event, fileId) {
+        // Remove any existing tab context menu
+        const existingMenu = document.getElementById('tab-context-menu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+        
+        // Hide file explorer context menu to prevent conflicts
+        const fileContextMenu = document.getElementById('file-context-menu');
+        if (fileContextMenu) {
+            fileContextMenu.classList.remove('show');
+        }
+        
+        // Create context menu with unique class to avoid conflicts
+        const contextMenu = document.createElement('div');
+        contextMenu.id = 'tab-context-menu';
+        contextMenu.className = 'tab-context-menu show'; // Add show class for visibility
+        contextMenu.style.left = `${event.clientX}px`;
+        contextMenu.style.top = `${event.clientY}px`;
+        
+        const openTabFiles = fileManager.getOpenTabFiles();
+        const currentTabIndex = fileManager.openTabs.indexOf(fileId);
+        
+        contextMenu.innerHTML = `
+            <div class="tab-context-menu-item" data-action="close">
+                <i class="fas fa-times"></i> Close Tab
+            </div>
+            <div class="tab-context-menu-item" data-action="close-others" ${openTabFiles.length <= 1 ? 'style="opacity: 0.5; pointer-events: none;"' : ''}>
+                <i class="fas fa-times-circle"></i> Close Others
+            </div>
+            <div class="tab-context-menu-item" data-action="close-to-right" ${currentTabIndex >= openTabFiles.length - 1 ? 'style="opacity: 0.5; pointer-events: none;"' : ''}>
+                <i class="fas fa-arrow-right"></i> Close to Right
+            </div>
+            <div class="tab-context-menu-separator"></div>
+            <div class="tab-context-menu-item" data-action="close-all">
+                <i class="fas fa-times-circle"></i> Close All
+            </div>
+        `;
+        
+        // Add event listeners
+        contextMenu.addEventListener('click', (e) => {
+            const action = e.target.closest('.tab-context-menu-item')?.dataset.action;
+            if (action) {
+                handleTabContextAction(action, fileId);
+                contextMenu.remove();
+            }
+        });
+        
+        // Close menu when clicking outside
+        const closeMenu = (e) => {
+            if (!contextMenu.contains(e.target)) {
+                contextMenu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        
+        document.body.appendChild(contextMenu);
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+        }, 50);
+    }
+    
+    function handleTabContextAction(action, fileId) {
+        switch (action) {
+            case 'close':
+                window.closeTab(fileId);
+                break;
+            case 'close-others':
+                fileManager.closeOtherTabs(fileId);
+                editor.loadCurrentFile();
+                renderFileTabs();
+                preview.updatePreview();
+                showStatusMessage('Other tabs closed');
+                break;
+            case 'close-to-right':
+                fileManager.closeTabsToRight(fileId);
+                editor.loadCurrentFile();
+                renderFileTabs();
+                preview.updatePreview();
+                showStatusMessage('Tabs to right closed');
+                break;
+            case 'close-all':
+                fileManager.closeAllTabs();
+                editor.clearEditor();
+                renderFileTabs();
+                preview.updatePreview();
+                showStatusMessage('All tabs closed');
+                break;
+        }
+        
+        // Update file explorer active states
+        if (window.fileExplorer && window.fileExplorer.updateActiveStates) {
+            window.fileExplorer.updateActiveStates();
+        }
+    }
     
     function showStatusMessage(message) {
         // Create or update status message
@@ -366,4 +526,144 @@ document.addEventListener('DOMContentLoaded', () => {
             statusEl.style.display = 'none';
         }, 3000);
     }
+    
+    // ============================================
+    // WELCOME SCREEN FUNCTIONALITY
+    // ============================================
+    
+    function updateViewState(showWelcome = false) {
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const editor = document.getElementById('editor');
+        const previewFrame = document.getElementById('preview-frame');
+        
+        if (showWelcome) {
+            // Show welcome screen, hide editor
+            welcomeScreen.className = 'welcome-screen active-view fade-in';
+            editor.className = 'hidden-view';
+            previewFrame.className = 'hidden-view';
+            
+            // Update welcome screen content
+            updateWelcomeScreen();
+        } else {
+            // Hide welcome screen, show editor based on current view mode
+            welcomeScreen.className = 'welcome-screen hidden-view';
+            
+            // Restore editor/preview view state
+            const editorToggle = document.getElementById('editor-toggle');
+            const previewToggle = document.getElementById('preview-toggle');
+            
+            if (editorToggle.classList.contains('active')) {
+                editor.className = 'active-view';
+                previewFrame.className = 'hidden-view';
+            } else if (previewToggle.classList.contains('active')) {
+                editor.className = 'hidden-view';
+                previewFrame.className = 'active-view';
+            }
+        }
+    }
+    
+    function updateWelcomeScreen() {
+        // Update recent files section
+        const recentSection = document.getElementById('welcome-recent-section');
+        const recentContainer = document.getElementById('welcome-recent-files');
+        
+        const recentFiles = fileManager.getRecentFiles();
+        
+        if (recentFiles.length > 0) {
+            recentSection.style.display = 'block';
+            recentContainer.innerHTML = '';
+            
+            // Show up to 6 recent files
+            recentFiles.slice(0, 6).forEach(recentFile => {
+                const file = fileManager.files.find(f => f.id === recentFile.id);
+                const fileName = file ? file.name : recentFile.name;
+                const icon = getFileIcon(fileName);
+                const timeAgo = getTimeAgo(recentFile.timestamp);
+                
+                const recentBtn = document.createElement('button');
+                recentBtn.className = 'recent-file-btn';
+                recentBtn.innerHTML = `
+                    <i class="${icon}"></i>
+                    <div class="file-info">
+                        <span class="file-name" title="${fileName}">${fileName}</span>
+                        <span class="file-time">${timeAgo}</span>
+                    </div>
+                `;
+                
+                recentBtn.addEventListener('click', () => {
+                    if (fileManager.setCurrentFileById(recentFile.id)) {
+                        fileManager.openFileInTab(recentFile.id);
+                        editor.loadCurrentFile();
+                        renderFileTabs();
+                        if (preview.isLivePreview) {
+                            preview.updatePreview();
+                        }
+                    }
+                });
+                
+                recentContainer.appendChild(recentBtn);
+            });
+        } else {
+            recentSection.style.display = 'none';
+        }
+    }
+    
+    function getFileIcon(fileName) {
+        const ext = fileName.split('.').pop().toLowerCase();
+        switch (ext) {
+            case 'html': return 'fab fa-html5';
+            case 'css': return 'fab fa-css3-alt';
+            case 'js': return 'fab fa-js-square';
+            case 'json': return 'fas fa-brackets-curly';
+            case 'md': return 'fab fa-markdown';
+            case 'txt': return 'fas fa-file-text';
+            case 'py': return 'fab fa-python';
+            default: return 'fas fa-file';
+        }
+    }
+    
+    function getTimeAgo(timestamp) {
+        const now = Date.now();
+        const diff = now - timestamp;
+        const minutes = Math.floor(diff / (1000 * 60));
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        
+        if (minutes < 1) return 'just now';
+        if (minutes < 60) return `${minutes}m ago`;
+        if (hours < 24) return `${hours}h ago`;
+        if (days < 7) return `${days}d ago`;
+        return new Date(timestamp).toLocaleDateString();
+    }
+    
+    function setupWelcomeScreenListeners() {
+        // New file button
+        const newFileBtn = document.getElementById('welcome-new-file');
+        if (newFileBtn) {
+            newFileBtn.addEventListener('click', () => {
+                showNewFileModal();
+            });
+        }
+        
+        // New folder button
+        const newFolderBtn = document.getElementById('welcome-new-folder');
+        if (newFolderBtn) {
+            newFolderBtn.addEventListener('click', () => {
+                if (fileExplorerManager.showNewFolderModal) {
+                    fileExplorerManager.showNewFolderModal();
+                }
+            });
+        }
+        
+        // File explorer button
+        const fileExplorerBtn = document.getElementById('welcome-file-explorer');
+        if (fileExplorerBtn) {
+            fileExplorerBtn.addEventListener('click', () => {
+                fileExplorerManager.showSidebar();
+            });
+        }
+    }
+    
+    // Initialize welcome screen listeners
+    setupWelcomeScreenListeners();
 });

@@ -8,6 +8,10 @@ export class FileManager {
         this.fileCounter = 0;
         this.recentFiles = []; // Array of {id, timestamp, name} objects
         
+        // New: Track open tabs separately from project files
+        this.openTabs = []; // Array of file IDs that are currently open in tabs
+        this.activeTabIndex = -1; // Index within openTabs array
+        
         // Load files from local storage if available
         this.loadFilesFromStorage();
     }
@@ -19,6 +23,12 @@ export class FileManager {
                 this.fileCounter = this.files.length;
                 if (this.files.length > 0) {
                     this.currentFileIndex = 0;
+                    // Defer opening the first file in a tab to avoid method order issues
+                    setTimeout(() => {
+                        if (this.files.length > 0) {
+                            this.openFileInTab(this.files[0].id);
+                        }
+                    }, 0);
                 } else {
                     this.createDefaultFile();
                 }
@@ -35,12 +45,33 @@ export class FileManager {
                     this.files.some(f => f.id === rf.id)
                 );
             }
+            
+            // Load open tabs
+            const savedOpenTabs = localStorage.getItem('editorOpenTabs');
+            if (savedOpenTabs) {
+                this.openTabs = JSON.parse(savedOpenTabs);
+                // Filter out tabs for files that no longer exist
+                this.openTabs = this.openTabs.filter(tabId => 
+                    this.files.some(f => f.id === tabId)
+                );
+                
+                // Load active tab index
+                const savedActiveTabIndex = localStorage.getItem('editorActiveTabIndex');
+                if (savedActiveTabIndex !== null) {
+                    this.activeTabIndex = parseInt(savedActiveTabIndex);
+                    if (this.activeTabIndex >= this.openTabs.length) {
+                        this.activeTabIndex = this.openTabs.length - 1;
+                    }
+                }
+            }
         } catch (err) {
             console.error('Error loading files from storage:', err);
             this.files = [];
             this.currentFileIndex = -1;
             this.fileCounter = 0;
             this.recentFiles = [];
+            this.openTabs = [];
+            this.activeTabIndex = -1;
             this.createDefaultFile();
         }
     }
@@ -93,6 +124,8 @@ export class FileManager {
         try {
             localStorage.setItem('editorFiles', JSON.stringify(this.files));
             localStorage.setItem('editorRecentFiles', JSON.stringify(this.recentFiles));
+            localStorage.setItem('editorOpenTabs', JSON.stringify(this.openTabs));
+            localStorage.setItem('editorActiveTabIndex', this.activeTabIndex.toString());
         } catch (err) {
             console.error('Error saving files to storage:', err);
             alert('Failed to save to local storage. Your work may not be saved.');
@@ -110,6 +143,10 @@ export class FileManager {
         
         this.files.push(newFile);
         this.currentFileIndex = this.files.length - 1;
+        
+        // Automatically open new files in a tab
+        this.openFileInTab(newFile.id);
+        
         this.saveFilesToStorage();
         
         return newFile;
@@ -194,15 +231,18 @@ export class FileManager {
     }
     
     getCurrentFile() {
-        if (this.currentFileIndex >= 0 && this.currentFileIndex < this.files.length) {
-            return this.files[this.currentFileIndex];
-        }
-        return null;
+        // Use the active tab file if available, otherwise fall back to currentFileIndex
+        return this.getActiveTabFile() || (this.currentFileIndex >= 0 && this.currentFileIndex < this.files.length ? this.files[this.currentFileIndex] : null);
     }
     
     setCurrentFileIndex(index) {
         if (index >= 0 && index < this.files.length) {
+            const file = this.files[index];
             this.currentFileIndex = index;
+            
+            // Also open in tab and set as active
+            this.openFileInTab(file.id);
+            
             return true;
         }
         return false;
@@ -210,9 +250,12 @@ export class FileManager {
     
     setCurrentFileById(id) {
         const index = this.files.findIndex(file => file.id === id);
-        if (this.setCurrentFileIndex(index)) {
-            // Add to recent files when a file is opened
-            this.addToRecentFiles(id);
+        if (index >= 0) {
+            this.currentFileIndex = index;
+            
+            // Open in tab and set as active
+            this.openFileInTab(id);
+            
             return true;
         }
         return false;
@@ -253,6 +296,10 @@ export class FileManager {
     deleteFile(id) {
         const index = this.files.findIndex(file => file.id === id);
         if (index !== -1) {
+            // First close the tab if it's open
+            this.closeTab(id);
+            
+            // Then remove the file from the project
             this.files.splice(index, 1);
             
             // Update current file index if needed
@@ -263,6 +310,9 @@ export class FileManager {
             } else if (this.currentFileIndex === index && index > 0) {
                 this.currentFileIndex = index - 1;
             }
+            
+            // Remove from recent files as well
+            this.recentFiles = this.recentFiles.filter(rf => rf.id !== id);
             
             this.saveFilesToStorage();
             return true;
@@ -466,6 +516,138 @@ export class FileManager {
     clearRecentFiles() {
         this.recentFiles = [];
         this.saveFilesToStorage();
+    }
+    
+    // ============================================
+    // TAB MANAGEMENT METHODS
+    // ============================================
+    
+    /**
+     * Open a file in a new tab (if not already open)
+     */
+    openFileInTab(fileId) {
+        if (!this.openTabs.includes(fileId)) {
+            this.openTabs.push(fileId);
+        }
+        this.setActiveTab(fileId);
+        this.saveFilesToStorage();
+    }
+    
+    /**
+     * Close a tab (remove from open tabs, but keep file in project)
+     */
+    closeTab(fileId) {
+        const tabIndex = this.openTabs.indexOf(fileId);
+        if (tabIndex === -1) return false;
+        
+        this.openTabs.splice(tabIndex, 1);
+        
+        // Update active tab index
+        if (this.openTabs.length === 0) {
+            this.activeTabIndex = -1;
+            this.currentFileIndex = -1;
+        } else {
+            // If we closed the active tab, switch to the next one (or previous if it was the last)
+            if (this.activeTabIndex >= this.openTabs.length) {
+                this.activeTabIndex = this.openTabs.length - 1;
+            }
+            
+            // Update current file index to match the new active tab
+            if (this.activeTabIndex >= 0) {
+                const activeTabFileId = this.openTabs[this.activeTabIndex];
+                this.currentFileIndex = this.files.findIndex(f => f.id === activeTabFileId);
+            }
+        }
+        
+        this.saveFilesToStorage();
+        return true;
+    }
+    
+    /**
+     * Set the active tab by file ID
+     */
+    setActiveTab(fileId) {
+        const tabIndex = this.openTabs.indexOf(fileId);
+        if (tabIndex === -1) return false;
+        
+        this.activeTabIndex = tabIndex;
+        this.currentFileIndex = this.files.findIndex(f => f.id === fileId);
+        
+        // Add to recent files when a file is opened
+        this.addToRecentFiles(fileId);
+        
+        this.saveFilesToStorage();
+        return true;
+    }
+    
+    /**
+     * Get the currently active tab file
+     */
+    getActiveTabFile() {
+        if (this.activeTabIndex >= 0 && this.activeTabIndex < this.openTabs.length) {
+            const activeTabFileId = this.openTabs[this.activeTabIndex];
+            return this.files.find(f => f.id === activeTabFileId);
+        }
+        return null;
+    }
+    
+    /**
+     * Get all open tab files in order
+     */
+    getOpenTabFiles() {
+        return this.openTabs.map(tabId => this.files.find(f => f.id === tabId)).filter(Boolean);
+    }
+    
+    /**
+     * Close all tabs except the specified one
+     */
+    closeOtherTabs(keepFileId) {
+        if (!this.openTabs.includes(keepFileId)) return false;
+        
+        this.openTabs = [keepFileId];
+        this.activeTabIndex = 0;
+        this.currentFileIndex = this.files.findIndex(f => f.id === keepFileId);
+        
+        this.saveFilesToStorage();
+        return true;
+    }
+    
+    /**
+     * Close all tabs to the right of the specified tab
+     */
+    closeTabsToRight(fileId) {
+        const tabIndex = this.openTabs.indexOf(fileId);
+        if (tabIndex === -1) return false;
+        
+        this.openTabs = this.openTabs.slice(0, tabIndex + 1);
+        
+        // Update active tab index if needed
+        if (this.activeTabIndex > tabIndex) {
+            this.activeTabIndex = tabIndex;
+            const activeTabFileId = this.openTabs[this.activeTabIndex];
+            this.currentFileIndex = this.files.findIndex(f => f.id === activeTabFileId);
+        }
+        
+        this.saveFilesToStorage();
+        return true;
+    }
+    
+    /**
+     * Close all tabs
+     */
+    closeAllTabs() {
+        this.openTabs = [];
+        this.activeTabIndex = -1;
+        this.currentFileIndex = -1;
+        this.saveFilesToStorage();
+        return true;
+    }
+    
+    /**
+     * Check if a file is currently open in a tab
+     */
+    isFileOpenInTab(fileId) {
+        return this.openTabs.includes(fileId);
     }
 }
 

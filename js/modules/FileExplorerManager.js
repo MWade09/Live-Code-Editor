@@ -38,6 +38,9 @@ export class FileExplorerManager {
         
         // Step 4: Set up new folder button
         this.setupNewFolderButton();
+        
+        // Step 5: Set up file search functionality
+        this.setupFileSearch();
     }
 
     /**
@@ -300,10 +303,11 @@ export class FileExplorerManager {
 
             // Right click for context menu
             item.addEventListener('contextmenu', (e) => {
+                console.log('Right-click event triggered on main file item');
                 e.preventDefault();
                 e.stopPropagation();
                 const fileId = item.dataset.fileId;
-                console.log('Right-click detected on file:', fileId);
+                console.log('File ID:', fileId);
                 this.showContextMenu(e, fileId);
             });
 
@@ -672,15 +676,136 @@ export class FileExplorerManager {
      */
     showContextMenu(event, fileId) {
         const contextMenu = document.getElementById('file-context-menu');
-        if (!contextMenu) return;
+        if (!contextMenu) {
+            console.error('Context menu element not found!');
+            return;
+        }
 
-        // Position the context menu
-        contextMenu.style.display = 'block';
-        contextMenu.style.left = `${event.pageX}px`;
-        contextMenu.style.top = `${event.pageY}px`;
+        // Hide any existing context menu first
+        this.hideContextMenu();
+        
+        // Hide tab context menu to prevent conflicts
+        const tabContextMenu = document.getElementById('tab-context-menu');
+        if (tabContextMenu) {
+            tabContextMenu.remove();
+        }
 
         // Store the current file ID
         contextMenu.dataset.fileId = fileId;
+
+        // Calculate proper positioning
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const menuWidth = 160; // min-width from CSS
+        const menuHeight = 200; // estimated height
+        
+        let left = event.clientX + 5;
+        let top = event.clientY + 5;
+        
+        // Adjust if menu would go off-screen
+        if (left + menuWidth > viewportWidth) {
+            left = event.clientX - menuWidth - 5;
+        }
+        if (top + menuHeight > viewportHeight) {
+            top = event.clientY - menuHeight - 5;
+        }
+        
+        // Ensure minimum positioning
+        left = Math.max(5, left);
+        top = Math.max(5, top);
+        
+        // Position the context menu with proper viewport coordinates
+        contextMenu.style.left = `${left}px`;
+        contextMenu.style.top = `${top}px`;
+        contextMenu.style.position = 'fixed'; // Ensure it's fixed to viewport
+        contextMenu.style.zIndex = '15000'; // Ensure it's on top
+        
+        // Apply all styles directly via JavaScript to override any CSS conflicts
+        contextMenu.style.cssText = `
+            position: fixed !important;
+            left: ${left}px !important;
+            top: ${top}px !important;
+            z-index: 15000 !important;
+            display: block !important;
+            visibility: visible !important;
+            pointer-events: auto !important;
+            background-color: ${document.body.classList.contains('dark-theme') ? '#1a1a2e' : '#ffffff'} !important;
+            border: 1px solid ${document.body.classList.contains('dark-theme') ? '#343a40' : '#dee2e6'} !important;
+            border-radius: 6px !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, ${document.body.classList.contains('dark-theme') ? '0.4' : '0.15'}) !important;
+            min-width: 160px !important;
+            padding: 4px 0 !important;
+            font-family: 'Inter', 'Segoe UI', sans-serif !important;
+            font-size: 13px !important;
+            line-height: 1.4 !important;
+            list-style: none !important;
+            margin: 0 !important;
+        `;
+        
+        // Also style the menu items directly
+        const menuItemsForStyling = contextMenu.querySelectorAll('.context-menu-item');
+        menuItemsForStyling.forEach(item => {
+            item.style.cssText = `
+                padding: 8px 16px !important;
+                cursor: pointer !important;
+                font-size: 13px !important;
+                color: ${document.body.classList.contains('dark-theme') ? '#e9ecef' : '#212529'} !important;
+                display: block !important;
+                border: none !important;
+                background: transparent !important;
+                text-align: left !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                font-family: 'Inter', 'Segoe UI', sans-serif !important;
+                margin: 0 !important;
+                list-style: none !important;
+                transition: background-color 0.2s ease !important;
+            `;
+            
+            // Add hover effect
+            item.addEventListener('mouseenter', () => {
+                item.style.backgroundColor = document.body.classList.contains('dark-theme') ? '#0f3460' : '#e9ecef';
+            });
+            item.addEventListener('mouseleave', () => {
+                item.style.backgroundColor = 'transparent';
+            });
+        });
+        
+        // Style separators
+        const separators = contextMenu.querySelectorAll('.context-menu-separator');
+        separators.forEach(sep => {
+            sep.style.cssText = `
+                height: 1px !important;
+                background-color: ${document.body.classList.contains('dark-theme') ? '#343a40' : '#dee2e6'} !important;
+                margin: 4px 0 !important;
+                border: none !important;
+            `;
+        });
+        
+        contextMenu.classList.add('show');
+        
+        // Debug logging
+        console.log('Context menu positioned at:', { left, top });
+        console.log('Context menu element:', contextMenu);
+        console.log('Context menu classes:', contextMenu.className);
+        console.log('Context menu computed style:', window.getComputedStyle(contextMenu));
+
+        // Add click outside handler to hide context menu
+        const hideOnOutsideClick = (e) => {
+            if (!contextMenu.contains(e.target)) {
+                this.hideContextMenu();
+                document.removeEventListener('click', hideOnOutsideClick);
+            }
+        };
+        
+        // Use setTimeout to avoid immediate hiding from this same click
+        setTimeout(() => {
+            document.addEventListener('click', hideOnOutsideClick, { once: false });
+        }, 50);
+        
+        // Prevent context menu from being hidden by this right-click
+        event.stopPropagation();
+        event.preventDefault();
 
         // Add event listeners to menu items
         const menuItems = contextMenu.querySelectorAll('.context-menu-item[data-action]');
@@ -692,18 +817,6 @@ export class FileExplorerManager {
                 this.hideContextMenu();
             };
         });
-
-        // Hide menu when clicking outside
-        const hideOnClickOutside = (e) => {
-            if (!contextMenu.contains(e.target)) {
-                this.hideContextMenu();
-                document.removeEventListener('click', hideOnClickOutside);
-            }
-        };
-        
-        setTimeout(() => {
-            document.addEventListener('click', hideOnClickOutside);
-        }, 100);
     }
 
     /**
@@ -712,7 +825,10 @@ export class FileExplorerManager {
     hideContextMenu() {
         const contextMenu = document.getElementById('file-context-menu');
         if (contextMenu) {
+            contextMenu.classList.remove('show');
             contextMenu.style.display = 'none';
+            contextMenu.style.visibility = 'hidden';
+            contextMenu.dataset.fileId = '';
         }
     }
 
@@ -724,6 +840,30 @@ export class FileExplorerManager {
         if (!file) return;
 
         switch (action) {
+            case 'close-tab':
+                // Close tab but keep file in project
+                if (this.fileManager.closeTab(fileId)) {
+                    // If there are still open tabs, load the active one
+                    if (this.fileManager.openTabs.length > 0) {
+                        this.editor.loadCurrentFile();
+                    } else {
+                        // No tabs open, clear the editor
+                        this.editor.clearEditor();
+                    }
+                    
+                    // Update UI
+                    this.updateActiveStates();
+                    if (window.app && window.app.renderFileTabs) {
+                        window.app.renderFileTabs();
+                    }
+                    if (window.app && window.app.preview) {
+                        window.app.preview.updatePreview();
+                    }
+                    
+                    console.log(`Closed tab for file: ${file.name}`);
+                }
+                break;
+                
             case 'rename':
                 // Find the file tree item and start renaming
                 const fileItem = this.contentElement.querySelector(`[data-file-id="${fileId}"]`);
@@ -1158,141 +1298,201 @@ export class FileExplorerManager {
         this.fileManager.clearRecentFiles();
         this.updateRecentFilesSection(); // Update just the recent files section
     }
-
+    
+    // ============================================
+    // FILE SEARCH FUNCTIONALITY
+    // ============================================
+    
     /**
-     * Test method to verify everything is working
+     * Set up file search functionality
      */
-    test() {
-        console.log('FileExplorerManager test:');
-        console.log('- FileManager exists:', !!this.fileManager);
-        console.log('- Editor exists:', !!this.editor);
-        console.log('- Initialized:', this.isInitialized);
+    setupFileSearch() {
+        const searchInput = document.getElementById('file-search-input');
+        const clearSearchBtn = document.getElementById('clear-search');
         
-        const structure = this.getFileStructure();
-        if (structure) {
-            console.log('- Root files:', structure.files.length);
-            console.log('- Folders:', structure.folders.size);
-        }
+        if (!searchInput || !clearSearchBtn) return;
         
-        return true;
-    }
-
-    /**
-     * Update active states of files without re-rendering the entire tree
-     */
-    updateActiveStates() {
-        const currentFile = this.fileManager.getCurrentFile();
-        if (!this.contentElement || !currentFile) {
-            return;
-        }
+        let searchTimeout;
         
-        // Remove active class from all file items
-        const allFileItems = this.contentElement.querySelectorAll('.file-tree-item[data-file-id], .recent-file-item[data-file-id]');
-        allFileItems.forEach(item => {
-            item.classList.remove('active');
-        });
-        
-        // Add active class to current file items
-        const currentFileId = currentFile.id;
-        const currentFileItems = this.contentElement.querySelectorAll(`[data-file-id="${currentFileId}"]`);
-        currentFileItems.forEach(item => {
-            item.classList.add('active');
-        });
-    }
-
-    /**
-     * Load a recent file that's not currently in the files array
-     */
-    loadRecentFile(fileId) {
-        const recentFiles = this.fileManager.getRecentFiles();
-        const recentFile = recentFiles.find(rf => rf.id === fileId);
-        
-        if (!recentFile) {
-            console.error('Recent file not found with ID:', fileId);
-            return;
-        }
-        
-        // Try to load from localStorage first
-        const allStoredFiles = localStorage.getItem('editorFiles');
-        if (allStoredFiles) {
-            const storedFiles = JSON.parse(allStoredFiles);
-            const storedFile = storedFiles.find(f => f.id === fileId);
+        // Real-time search as user types
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
             
-            if (storedFile) {
-                // Add the file back to the current files array
-                this.fileManager.files.push(storedFile);
-                
-                // Now try to select it
-                if (this.fileManager.setCurrentFileById(fileId)) {
-                    this.editor.loadCurrentFile();
-                    this.renderFileTree(); // Re-render since we added a file
-                    
-                    // Update file tabs and preview if needed
-                    if (window.app && window.app.preview && window.app.preview.isLivePreview) {
-                        window.app.preview.updatePreview();
-                    }
-                    
-                    // Re-render file tabs
-                    if (window.app && window.app.renderFileTabs) {
-                        window.app.renderFileTabs();
-                    }
-                    
-                    console.log('Successfully loaded recent file:', recentFile.name);
-                    return;
-                }
+            // Show/hide clear button
+            clearSearchBtn.style.display = query ? 'flex' : 'none';
+            
+            // Debounce search to avoid too frequent updates
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                this.performFileSearch(query);
+            }, 300);
+        });
+        
+        // Clear search functionality
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearSearchBtn.style.display = 'none';
+            this.clearFileSearch();
+            searchInput.focus();
+        });
+        
+        // Handle Enter key to focus first result
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.focusFirstSearchResult();
+            } else if (e.key === 'Escape') {
+                this.clearFileSearch();
+                searchInput.blur();
             }
+        });
+    }
+    
+    /**
+     * Perform file search
+     */
+    performFileSearch(query) {
+        if (!query) {
+            this.clearFileSearch();
+            return;
         }
         
-        // If file couldn't be loaded from storage, create a new file with the name
-        console.warn('Could not load recent file from storage, creating new file:', recentFile.name);
-        this.fileManager.createNewFile(recentFile.name, '// File content was not found\n// This is a new file with the same name\n');
+        const searchResults = this.searchFiles(query);
+        this.renderSearchResults(searchResults, query);
     }
-
+    
     /**
-     * Update just the recent files section without re-rendering the entire tree
+     * Search files by name
      */
-    updateRecentFilesSection() {
+    searchFiles(query) {
+        const searchTerm = query.toLowerCase();
+        const results = [];
+        
+        this.fileManager.files.forEach(file => {
+            const fileName = file.name.toLowerCase();
+            const fileNameOnly = fileName.includes('/') ? fileName.split('/').pop() : fileName;
+            
+            // Check if query matches file name or path
+            if (fileName.includes(searchTerm) || fileNameOnly.includes(searchTerm)) {
+                results.push({
+                    ...file,
+                    matchScore: this.calculateMatchScore(fileName, fileNameOnly, searchTerm)
+                });
+            }
+        });
+        
+        // Sort by relevance (match score)
+        results.sort((a, b) => b.matchScore - a.matchScore);
+        
+        return results;
+    }
+    
+    /**
+     * Calculate match score for search relevance
+     */
+    calculateMatchScore(fullName, fileName, searchTerm) {
+        let score = 0;
+        
+        // Exact match in file name gets highest score
+        if (fileName === searchTerm) score += 100;
+        
+        // Starts with search term gets high score
+        if (fileName.startsWith(searchTerm)) score += 50;
+        
+        // Contains search term gets medium score
+        if (fileName.includes(searchTerm)) score += 25;
+        
+        // Full path match gets bonus
+        if (fullName.includes(searchTerm)) score += 10;
+        
+        // Shorter file names get slight bonus for relevance
+        score += Math.max(0, 20 - fileName.length);
+        
+        return score;
+    }
+    
+    /**
+     * Render search results
+     */
+    renderSearchResults(results, query) {
         if (!this.contentElement) return;
         
-        // Find the existing recent files section
-        const existingSection = this.contentElement.querySelector('.recent-files-section');
-        const newSectionHTML = this.renderRecentFilesSection();
+        let html = '';
         
-        if (existingSection && newSectionHTML) {
-            // Replace the existing section with updated content
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = newSectionHTML;
-            const newSection = tempDiv.firstElementChild;
+        if (results.length === 0) {
+            html = `
+                <div class="search-results-section">
+                    <div class="search-results-header">Search Results</div>
+                    <div class="search-no-results">
+                        No files found matching "${query}"
+                    </div>
+                </div>
+            `;
+        } else {
+            html = `
+                <div class="search-results-section">
+                    <div class="search-results-header">
+                        Search Results (${results.length} file${results.length !== 1 ? 's' : ''})
+                    </div>
+                    <ul class="file-tree">
+            `;
             
-            existingSection.parentNode.replaceChild(newSection, existingSection);
+            results.forEach(file => {
+                const highlightedName = this.highlightSearchTerm(file.name, query);
+                const icon = this.getFileIcon(file.name);
+                const currentFile = this.fileManager.getCurrentFile();
+                const isActive = currentFile && currentFile.id === file.id;
+                const activeClass = isActive ? ' active' : '';
+                
+                html += `
+                    <li class="file-tree-item search-result-item${activeClass}" data-file-id="${file.id}" draggable="true">
+                        <span class="file-icon">${icon}</span>
+                        <span class="file-name">${highlightedName}</span>
+                    </li>
+                `;
+            });
             
-            // Re-add event listeners for the new recent files section
-            this.addRecentFilesListeners();
-        } else if (!existingSection && newSectionHTML) {
-            // Add recent files section if it doesn't exist
-            const fileTreeSection = this.contentElement.querySelector('.file-tree-section');
-            if (fileTreeSection) {
-                fileTreeSection.insertAdjacentHTML('beforebegin', newSectionHTML);
-                this.addRecentFilesListeners();
-            }
-        } else if (existingSection && !newSectionHTML) {
-            // Remove recent files section if no recent files
-            existingSection.remove();
+            html += `
+                    </ul>
+                </div>
+            `;
         }
+        
+        this.contentElement.innerHTML = html;
+        
+        // Add event listeners to search results
+        this.addSearchResultListeners();
     }
-
+    
     /**
-     * Add event listeners specifically for recent files section
+     * Highlight search term in file names
      */
-    addRecentFilesListeners() {
-        // Add listeners for recent file items
-        const recentFileItems = this.contentElement.querySelectorAll('.recent-file-item[data-file-id]');
-        recentFileItems.forEach(item => {
+    highlightSearchTerm(fileName, searchTerm) {
+        if (!searchTerm) return fileName;
+        
+        const regex = new RegExp(`(${this.escapeRegex(searchTerm)})`, 'gi');
+        return fileName.replace(regex, '<span class="search-highlight">$1</span>');
+    }
+    
+    /**
+     * Escape regex special characters
+     */
+    escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    
+    /**
+     * Add event listeners to search results
+     */
+    addSearchResultListeners() {
+        const searchResultItems = this.contentElement.querySelectorAll('.search-result-item[data-file-id]');
+        
+        searchResultItems.forEach(item => {
+            // Single click to open file
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const fileId = item.dataset.fileId;
                 
-                // Try to select the file if it's already loaded
                 if (this.fileManager.setCurrentFileById(fileId)) {
                     this.editor.loadCurrentFile();
                     this.updateActiveStates();
@@ -1306,20 +1506,167 @@ export class FileExplorerManager {
                     if (window.app && window.app.renderFileTabs) {
                         window.app.renderFileTabs();
                     }
-                } else {
-                    // File not currently loaded, try to load it from recent files data
-                    this.loadRecentFile(fileId);
+                    
+                    // Clear search and show normal file tree
+                    this.clearFileSearch();
                 }
             });
-        });
-
-        // Add listener for clear recent files button
-        const clearRecentBtn = this.contentElement.querySelector('.clear-recent-btn');
-        if (clearRecentBtn) {
-            clearRecentBtn.addEventListener('click', (e) => {
+            
+            // Right click for context menu
+            item.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                this.clearRecentFiles();
+                const fileId = item.dataset.fileId;
+                this.showContextMenu(e, fileId);
             });
+            
+            // Add drag-and-drop functionality
+            this.addDragAndDropListeners(item);
+        });
+    }
+    
+    /**
+     * Focus first search result
+     */
+    focusFirstSearchResult() {
+        const firstResult = this.contentElement.querySelector('.search-result-item[data-file-id]');
+        if (firstResult) {
+            firstResult.click();
+        }
+    }
+    
+    /**
+     * Clear file search and show normal file tree
+     */
+    clearFileSearch() {
+        const searchInput = document.getElementById('file-search-input');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        
+        const clearSearchBtn = document.getElementById('clear-search');
+        if (clearSearchBtn) {
+            clearSearchBtn.style.display = 'none';
+        }
+        
+        // Re-render normal file tree
+        this.renderFileTree();
+    }
+    
+    // ============================================
+    // MISSING METHODS (RESTORED)
+    // ============================================
+    
+    /**
+     * Update active states of file tree items
+     */
+    updateActiveStates() {
+        if (!this.contentElement) return;
+        
+        // Remove active class from all file items
+        const allFileItems = this.contentElement.querySelectorAll('.file-tree-item');
+        allFileItems.forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        // Add active class to current file
+        const currentFile = this.fileManager.getCurrentFile();
+        if (currentFile) {
+            const activeItem = this.contentElement.querySelector(`[data-file-id="${currentFile.id}"]`);
+            if (activeItem) {
+                activeItem.classList.add('active');
+            }
+        }
+        
+        // Also update tab active states in recent files
+        const recentFileItems = this.contentElement.querySelectorAll('.recent-file-item');
+        recentFileItems.forEach(item => {
+            item.classList.remove('active');
+            if (currentFile && item.dataset.fileId === currentFile.id) {
+                item.classList.add('active');
+            }
+        });
+    }
+    
+    /**
+     * Add event listeners to recent file items
+     */
+    addRecentFilesListeners() {
+        if (!this.contentElement) return;
+        
+        const recentFileItems = this.contentElement.querySelectorAll('.recent-file-item');
+        recentFileItems.forEach(item => {
+            // Remove existing listeners to prevent duplicates
+            const newItem = item.cloneNode(true);
+            item.parentNode.replaceChild(newItem, item);
+            
+            // Add click listener
+            newItem.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const fileId = newItem.dataset.fileId;
+                if (this.fileManager.setCurrentFileById(fileId)) {
+                    this.editor.loadCurrentFile();
+                    this.updateActiveStates();
+                    
+                    // Update file tabs and preview if needed
+                    if (window.app && window.app.preview && window.app.preview.isLivePreview) {
+                        window.app.preview.updatePreview();
+                    }
+                    
+                    // Re-render file tabs
+                    if (window.app && window.app.renderFileTabs) {
+                        window.app.renderFileTabs();
+                    }
+                }
+            });
+            
+            // Add context menu listener
+            newItem.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const fileId = newItem.dataset.fileId;
+                this.showContextMenu(e, fileId);
+            });
+        });
+    }
+    
+    /**
+     * Update the recent files section only (without full re-render)
+     */
+    updateRecentFilesSection() {
+        if (!this.contentElement) return;
+        
+        const recentFilesContainer = this.contentElement.querySelector('.recent-files-section');
+        if (!recentFilesContainer) return;
+        
+        const recentFiles = this.fileManager.getRecentFiles();
+        const currentFile = this.fileManager.getCurrentFile();
+        
+        // Clear current recent files
+        const recentFilesList = recentFilesContainer.querySelector('.recent-files-list');
+        if (recentFilesList) {
+            recentFilesList.innerHTML = '';
+            
+            if (recentFiles.length > 0) {
+                recentFiles.forEach(file => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = `recent-file-item${currentFile && currentFile.id === file.id ? ' active' : ''}`;
+                    fileItem.dataset.fileId = file.id;
+                    
+                    const icon = this.getFileIcon(file.name);
+                    fileItem.innerHTML = `
+                        <span class="file-icon">${icon}</span>
+                        <span class="file-name" title="${file.name}">${file.name}</span>
+                    `;
+                    
+                    recentFilesList.appendChild(fileItem);
+                });
+                
+                // Add listeners to new recent file items
+                this.addRecentFilesListeners();
+            } else {
+                recentFilesList.innerHTML = '<div class="no-recent-files">No recent files</div>';
+            }
         }
     }
 }

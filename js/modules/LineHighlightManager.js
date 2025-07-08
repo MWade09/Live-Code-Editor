@@ -309,6 +309,10 @@ export class LineHighlightManager {
         const charWidth = this.codeMirror.defaultCharWidth();
         const currentLineIndent = this.getIndentLevel(this.codeMirror.getLine(cursor.line) || '', tabSize);
         
+        // Get scroll information to position guides correctly
+        const scrollInfo = this.codeMirror.getScrollInfo();
+        const topVisibleLine = this.codeMirror.lineAtHeight(scrollInfo.top, 'local');
+        
         // Create document fragment for better performance
         const fragment = document.createDocumentFragment();
         
@@ -319,8 +323,14 @@ export class LineHighlightManager {
             const indent = this.getIndentLevel(lineText, tabSize);
             if (indent === 0) continue;
             
-            const lineTop = this.codeMirror.heightAtLine(line, 'local');
+            // Get the line position relative to the viewport (visible area)
+            const lineTop = this.codeMirror.heightAtLine(line, 'local') - scrollInfo.top;
             const lineHeight = this.codeMirror.defaultTextHeight();
+            
+            // Only render guides that are actually visible
+            if (lineTop < -lineHeight || lineTop > scrollInfo.clientHeight + lineHeight) {
+                continue;
+            }
             
             for (let level = 1; level <= indent; level++) {
                 const guide = document.createElement('div');

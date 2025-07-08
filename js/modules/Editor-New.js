@@ -524,7 +524,10 @@ export class Editor {
      * Load a file into the editor
      */
     loadFile(file) {
-        if (!file) return;
+        if (!file) {
+            this.clearEditor();
+            return;
+        }
         
         // Enhanced file type to CodeMirror mode mapping
         const mode = this.getModeFromFileType(file.type, file.name);
@@ -537,7 +540,18 @@ export class Editor {
         setTimeout(() => {
             this.codeMirror.refresh();
         }, 100);
-    }    /**
+    }
+
+    /**
+     * Clear the editor content
+     */
+    clearEditor() {
+        this.codeMirror.setValue('');
+        this.codeMirror.clearHistory();
+        this.codeMirror.setOption('mode', 'text/plain');
+    }
+
+    /**
      * Update current file content
      */
     updateCurrentFile() {
