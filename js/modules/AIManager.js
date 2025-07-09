@@ -7,7 +7,11 @@ export class AIManager {    constructor(editor, fileManager) {
         this.fileManager = fileManager;
         this.aiModal = document.getElementById('aiModal');
         this.aiStatus = document.getElementById('ai-status');
-        this.chatHistory = document.getElementById('chat-history');
+        
+        // Use the correct chat container - try chat-messages first (current panel), then fallback to chat-history (old modal)
+        this.chatHistory = document.getElementById('chat-messages') || document.getElementById('chat-history');
+        
+        console.log('💬 AIManager: Chat container found:', this.chatHistory ? this.chatHistory.id : 'none');
         
         // Initialize chat messages array
         this.messages = [];
@@ -15,7 +19,7 @@ export class AIManager {    constructor(editor, fileManager) {
         this.loadChatHistory();
         
         // Load API key from local storage if available
-        this.apiKey = localStorage.getItem('openroute_api_key') || '';
+        this.apiKey = localStorage.getItem('openrouter_api_key') || '';
         const apiKeyElement = document.getElementById('ai-api-key');
         if (this.apiKey && apiKeyElement) {
             apiKeyElement.value = this.apiKey;
@@ -170,6 +174,37 @@ export class AIManager {    constructor(editor, fileManager) {
         this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
     }
     
+    // Add message to chat - supports both regular and code action messages
+    addMessageToChat(messageData) {
+        console.log('📨 AIManager.addMessageToChat called with:', {
+            role: messageData.role,
+            hasContent: !!messageData.content,
+            hasMetadata: !!messageData.metadata,
+            metadataType: messageData.metadata?.type
+        });
+        
+        const message = {
+            role: messageData.role || 'assistant',
+            content: messageData.content,
+            codeBlock: messageData.codeBlock || null,
+            metadata: messageData.metadata || null,
+            timestamp: new Date().toISOString()
+        };
+        
+        console.log('💾 Saving message to history...');
+        this.messages.push(message);
+        this.saveChatHistory();
+        
+        console.log('🎨 Rendering message...');
+        this.renderMessage(message);
+        
+        console.log('📜 Scrolling to bottom...');
+        // Scroll to the bottom
+        this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+        
+        console.log('✅ addMessageToChat completed');
+    }
+    
     renderChatHistory() {
         this.chatHistory.innerHTML = '';
         this.messages.forEach(message => {
@@ -181,9 +216,18 @@ export class AIManager {    constructor(editor, fileManager) {
     }    renderMessage(message) {
         const messageEl = document.createElement('div');
         const isUserMessage = message.role === 'user';
+        const isCodeAction = message.metadata && message.metadata.type === 'code-action';
         
-        messageEl.className = `chat-message ${isUserMessage ? 'user-message' : 'ai-message'}`;
-          // For AI messages with code blocks, remove code blocks from content before formatting
+        messageEl.className = `chat-message ${isUserMessage ? 'user-message' : 'ai-message'}${isCodeAction ? ' code-action' : ''}`;
+        
+        // Handle code action messages differently
+        if (isCodeAction) {
+            this.renderCodeActionMessage(messageEl, message);
+            this.chatHistory.appendChild(messageEl);
+            return;
+        }
+        
+        // For AI messages with code blocks, remove code blocks from content before formatting
         let contentToFormat = message.content;
         if (!isUserMessage && message.codeBlock) {
             // Remove code blocks from the content since we'll show them separately
@@ -254,7 +298,50 @@ export class AIManager {    constructor(editor, fileManager) {
         
         this.chatHistory.appendChild(messageEl);
     }
-      formatMessageContent(content) {
+      renderCodeActionMessage(messageEl, message) {
+        console.log('🎭 Rendering code action message:', {
+            actionType: message.metadata?.actionType,
+            title: message.metadata?.title,
+            hasContent: !!message.content
+        });
+        
+        const metadata = message.metadata;
+        const actionIcons = {
+            explain: '💡',
+            refactor: '🔧',
+            tests: '🧪',
+            fix: '🩹',
+            documentation: '📝'
+        };
+        
+        const icon = actionIcons[metadata.actionType] || '🤖';
+        
+        messageEl.innerHTML = `
+            <div class="code-action-header">
+                <span class="code-action-icon">${icon}</span>
+                <span class="code-action-title">${metadata.title}</span>
+            </div>
+            
+            <div class="code-action-original">
+                <div class="code-action-original-title">
+                    Original Code (lines ${metadata.lineNumbers.start}-${metadata.lineNumbers.end} in ${metadata.fileName})
+                </div>
+                <div class="code-action-original-code">${this.escapeHtml(metadata.originalCode)}</div>
+            </div>
+            
+            <div class="code-action-content">
+                ${this.formatMessageContent(message.content)}
+            </div>
+            
+            <div class="message-time">
+                ${this.formatTimestamp(message.timestamp)}
+            </div>
+        `;
+        
+        console.log('✅ Code action message HTML generated');
+    }
+    
+    formatMessageContent(content) {
         // Escape HTML to prevent XSS and unwanted image loading
         const escapeHtml = (text) => {
             const div = document.createElement('div');
@@ -329,7 +416,7 @@ export class AIManager {    constructor(editor, fileManager) {
         }
         
         // Save API key for future use
-        localStorage.setItem('openroute_api_key', apiKey);
+        localStorage.setItem('openrouter_api_key', apiKey);
         this.apiKey = apiKey;
         
         // Add user message to chat
@@ -424,7 +511,7 @@ export class AIManager {    constructor(editor, fileManager) {
         }
         
         // Save API key for future use
-        localStorage.setItem('openroute_api_key', apiKey);
+        localStorage.setItem('openrouter_api_key', apiKey);
         this.apiKey = apiKey;
         
         // Add user message to chat
@@ -553,6 +640,12 @@ export class AIManager {    constructor(editor, fileManager) {
         // Define the API endpoint
         const API_URL = "https://openrouter.ai/api/v1/chat/completions";
         
+        // Get fresh API key from localStorage (to ensure we have the latest from chat panel)
+        const apiKey = localStorage.getItem('openrouter_api_key');
+        if (!apiKey) {
+            throw new Error('No auth credentials found');
+        }
+        
         // Prepare the request body
         const requestBody = {
             model: model,
@@ -564,91 +657,18 @@ export class AIManager {    constructor(editor, fileManager) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`,
-                'HTTP-Referer': window.location.href // Required by OpenRouter
+                'Authorization': `Bearer ${apiKey}`,
+                'HTTP-Referer': window.location.origin,
+                'X-Title': 'Live Editor Claude'
             },
             body: JSON.stringify(requestBody)
         });
-        
-        // Check if request was successful
+
         if (!response.ok) {
-            const errorData = await response.json().catch(() => null);
-            throw new Error(errorData?.error?.message || `API request failed with status ${response.status}`);
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
-        // Parse and return the response
-        return await response.json();
-    }
-    
-    getPromptPrefix(fileType) {
-        switch (fileType) {
-            case 'html':
-                return "Generate clean, modern HTML code for the following: ";
-            case 'css':
-            case 'scss':
-            case 'sass':
-            case 'less':
-                return "Generate CSS/SCSS code for the following: ";
-            case 'javascript':
-            case 'jsx':
-            case 'typescript':
-                return "Generate JavaScript/TypeScript code for the following: ";
-            case 'python':
-                return "Generate Python code for the following: ";
-            case 'vue':
-                return "Generate Vue.js component code for the following: ";
-            case 'markdown':
-                return "Generate Markdown content for the following: ";
-            case 'sql':
-                return "Generate SQL queries for the following: ";
-            case 'shell':
-                return "Generate shell script for the following: ";
-            case 'yaml':
-                return "Generate YAML configuration for the following: ";
-            case 'json':
-                return "Generate JSON data structure for the following: ";
-            case 'java':
-                return "Generate Java code for the following: ";
-            case 'cpp':
-            case 'c':
-                return "Generate C/C++ code for the following: ";
-            case 'csharp':
-                return "Generate C# code for the following: ";
-            case 'php':
-                return "Generate PHP code for the following: ";
-            case 'ruby':
-                return "Generate Ruby code for the following: ";
-            case 'go':
-                return "Generate Go code for the following: ";
-            case 'rust':
-                return "Generate Rust code for the following: ";
-            case 'dockerfile':
-                return "Generate Dockerfile for the following: ";
-            default:
-                return "Generate code for the following: ";
-        }
-    }
-      extractCodeFromResponse(responseText, fileType) {
-        // Try to find code blocks in the response with more flexible regex
-        const codeBlockRegex = /```[\w]*\n?([\s\S]*?)```/g;
-        const matches = [...responseText.matchAll(codeBlockRegex)];
-        
-        if (matches.length > 0) {
-            // If multiple code blocks, combine them or take the largest one
-            const codeBlocks = matches.map(match => match[1].trim()).filter(code => code.length > 0);
-            
-            if (codeBlocks.length === 1) {
-                return codeBlocks[0];
-            } else if (codeBlocks.length > 1) {
-                // Return the longest code block (likely the main code)
-                return codeBlocks.reduce((longest, current) => 
-                    current.length > longest.length ? current : longest
-                );
-            }
-        }
-        
-        // If no proper code blocks found, don't return anything
-        // This prevents non-code content from being treated as code
-        return null;
+
+        const data = await response.json();
+        return data;
     }
 }

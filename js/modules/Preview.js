@@ -58,30 +58,64 @@ export class Preview {
 </html>`;
         } else {
             // Inject CSS and JS files into existing HTML document
-            // Assuming the HTML file already has proper structure
-            let headEndPos = htmlContent.indexOf('</head>');
-            if (headEndPos !== -1) {
-                let cssInjection = '';
-                cssFiles.forEach(file => {
-                    if (file !== htmlFile) {
-                        cssInjection += `<style>${file.content}</style>\n`;
-                    }
-                });
+            // Handle both inline injection and replacement of external references
+            
+            let modifiedContent = htmlContent;
+            
+            // Replace external CSS references with inline styles
+            cssFiles.forEach(file => {
+                if (file !== htmlFile) {
+                    // Replace <link> tags that reference this CSS file
+                    const linkPattern = new RegExp(`<link[^>]*href=["']([^"']*${file.name}[^"']*)["'][^>]*>`, 'gi');
+                    modifiedContent = modifiedContent.replace(linkPattern, `<style>${file.content}</style>`);
+                    
+                    // Also handle href="css/filename.css" patterns
+                    const relativeLinkPattern = new RegExp(`<link[^>]*href=["']([^"']*/?${file.name})["'][^>]*>`, 'gi');
+                    modifiedContent = modifiedContent.replace(relativeLinkPattern, `<style>${file.content}</style>`);
+                }
+            });
+            
+            // Replace external JS references with inline scripts
+            jsFiles.forEach(file => {
+                if (file !== htmlFile) {
+                    // Replace <script src=""> tags that reference this JS file
+                    const scriptPattern = new RegExp(`<script[^>]*src=["']([^"']*${file.name}[^"']*)["'][^>]*></script>`, 'gi');
+                    modifiedContent = modifiedContent.replace(scriptPattern, `<script>${file.content}</script>`);
+                    
+                    // Also handle src="js/filename.js" patterns
+                    const relativeScriptPattern = new RegExp(`<script[^>]*src=["']([^"']*/?${file.name})["'][^>]*></script>`, 'gi');
+                    modifiedContent = modifiedContent.replace(relativeScriptPattern, `<script>${file.content}</script>`);
+                }
+            });
+            
+            // If no replacements were made, inject at the appropriate locations
+            if (modifiedContent === htmlContent) {
+                let headEndPos = modifiedContent.indexOf('</head>');
+                if (headEndPos !== -1) {
+                    let cssInjection = '';
+                    cssFiles.forEach(file => {
+                        if (file !== htmlFile) {
+                            cssInjection += `<style>${file.content}</style>\n`;
+                        }
+                    });
+                    
+                    modifiedContent = modifiedContent.slice(0, headEndPos) + cssInjection + modifiedContent.slice(headEndPos);
+                }
                 
-                htmlContent = htmlContent.slice(0, headEndPos) + cssInjection + htmlContent.slice(headEndPos);
+                let bodyEndPos = modifiedContent.indexOf('</body>');
+                if (bodyEndPos !== -1) {
+                    let jsInjection = '';
+                    jsFiles.forEach(file => {
+                        if (file !== htmlFile) {
+                            jsInjection += `<script>${file.content}</script>\n`;
+                        }
+                    });
+                    
+                    modifiedContent = modifiedContent.slice(0, bodyEndPos) + jsInjection + modifiedContent.slice(bodyEndPos);
+                }
             }
             
-            let bodyEndPos = htmlContent.indexOf('</body>');
-            if (bodyEndPos !== -1) {
-                let jsInjection = '';
-                jsFiles.forEach(file => {
-                    if (file !== htmlFile) {
-                        jsInjection += `<script>${file.content}</script>\n`;
-                    }
-                });
-                
-                htmlContent = htmlContent.slice(0, bodyEndPos) + jsInjection + htmlContent.slice(bodyEndPos);
-            }
+            htmlContent = modifiedContent;
         }
         
         try {

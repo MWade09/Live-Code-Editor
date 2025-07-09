@@ -9,6 +9,8 @@ import { Resizer } from './modules/Resizer.js';
 import { ThemeManager } from './modules/ThemeManager.js';
 import { DeployManager } from './modules/DeployManager.js';
 import { AIManager } from './modules/AIManager.js';
+import { InlineAIManager } from './modules/InlineAIManager.js';
+import { AICodeActionsManager } from './modules/AICodeActionsManager.js';
 
 // Load chat panel scripts - CSS is now loaded directly in HTML
 (function() {
@@ -65,6 +67,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeManager = new ThemeManager();
     const deployManager = new DeployManager(fileManager);
     const aiManager = new AIManager(editor, fileManager);
+    
+    // Initialize InlineAIManager with error handling
+    let inlineAIManager;
+    try {
+        inlineAIManager = new InlineAIManager(editor, aiManager, fileManager);
+        console.log('✅ InlineAIManager initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize InlineAIManager:', error);
+        inlineAIManager = null;
+    }
+    
+    // Initialize AICodeActionsManager with error handling
+    let aiCodeActionsManager;
+    try {
+        aiCodeActionsManager = new AICodeActionsManager(editor, aiManager, fileManager);
+        console.log('✅ AICodeActionsManager initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize AICodeActionsManager:', error);
+        aiCodeActionsManager = null;
+    }
+    
     const fileExplorerManager = new FileExplorerManager(fileManager, editor);
     
     // Global app state
@@ -76,11 +99,25 @@ document.addEventListener('DOMContentLoaded', () => {
         themeManager,
         deployManager,
         aiManager,
+        inlineAIManager,
+        aiCodeActionsManager,
         fileExplorerManager,
         showModal,
         hideModal,
         renderFileTabs
     };
+    
+    // Expose inline AI manager globally for debugging
+    if (inlineAIManager) {
+        window.inlineAI = inlineAIManager;
+        console.log('🐞 Debug: window.inlineAI available for debugging');
+    }
+    
+    // Expose AI code actions manager globally for debugging
+    if (aiCodeActionsManager) {
+        window.aiCodeActions = aiCodeActionsManager;
+        console.log('🐞 Debug: window.aiCodeActions available for debugging');
+    }
     
     // Initialize the application
     initializeApp();
@@ -128,6 +165,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
           // Theme toggle
         document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+        
+        // Inline AI toggle
+        document.getElementById('inline-ai-toggle-btn').addEventListener('click', toggleInlineAI);
         
         // Note: Preview toggle is now handled by chat-panel.js
         
@@ -184,6 +224,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.ctrlKey && e.shiftKey && e.key === 'P') {
             e.preventDefault();
             aiManager.showAIModal();
+        }
+        
+        // Ctrl+Shift+I - Toggle Inline AI
+        if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+            e.preventDefault();
+            toggleInlineAI();
         }
     }
     
@@ -287,6 +333,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const isDark = themeManager.toggleTheme();
         editor.setTheme(isDark);
         showStatusMessage(`Switched to ${isDark ? 'dark' : 'light'} theme`);
+    }
+    
+    function toggleInlineAI() {
+        if (!inlineAIManager) {
+            console.error('InlineAIManager not available');
+            showStatusMessage('Inline AI not available');
+            return;
+        }
+        
+        const isEnabled = inlineAIManager.toggle();
+        const button = document.getElementById('inline-ai-toggle-btn');
+        
+        if (isEnabled) {
+            button.classList.add('active');
+            button.title = 'Disable Inline AI Suggestions (Ctrl+Shift+I)';
+            showStatusMessage('Inline AI suggestions enabled');
+        } else {
+            button.classList.remove('active');
+            button.title = 'Enable Inline AI Suggestions (Ctrl+Shift+I)';
+            showStatusMessage('Inline AI suggestions disabled');
+        }
     }
     
     // Note: togglePreview function moved to chat-panel.js

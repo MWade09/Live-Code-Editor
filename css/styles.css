@@ -1513,6 +1513,106 @@ button i {
 }
 
 /* =====================================================
+   CODEMIRROR AUTOCOMPLETE STYLES
+   ===================================================== */
+
+/* CodeMirror autocomplete/hints dropdown - Match AI suggestion styling */
+.CodeMirror-hints {
+    position: absolute !important;
+    z-index: 999999 !important;
+    background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%) !important;
+    border: 2px solid #357abd !important;
+    border-radius: 6px !important;
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4) !important;
+    padding: 8px 0 !important;
+    margin: 0 !important;
+    max-height: 200px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace !important;
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    color: #ffffff !important;
+    min-width: 150px !important;
+    max-width: 400px !important;
+    word-wrap: break-word !important;
+    filter: drop-shadow(0 0 10px rgba(74, 144, 226, 0.3)) !important;
+}
+
+/* Individual hint items */
+.CodeMirror-hint {
+    color: #ffffff !important;
+    background: transparent !important;
+    padding: 6px 12px !important;
+    margin: 0 !important;
+    cursor: pointer !important;
+    font-weight: 500 !important;
+    border: none !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    transition: all 0.2s ease !important;
+    letter-spacing: 0.3px !important;
+}
+
+/* Active/focused hint item */
+.CodeMirror-hint-active,
+.CodeMirror-hint:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Selected hint item */
+.CodeMirror-hint-active {
+    background: rgba(255, 255, 255, 0.3) !important;
+    border-left: 3px solid #ffffff !important;
+    padding-left: 9px !important;
+}
+
+/* Scrollbar for hints dropdown */
+.CodeMirror-hints::-webkit-scrollbar {
+    width: 6px !important;
+}
+
+.CodeMirror-hints::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 3px !important;
+}
+
+.CodeMirror-hints::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3) !important;
+    border-radius: 3px !important;
+}
+
+.CodeMirror-hints::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Dark theme adjustments for CodeMirror hints */
+.dark-theme .CodeMirror-hints {
+    background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%) !important;
+    border-color: #357abd !important;
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4) !important;
+}
+
+.dark-theme .CodeMirror-hint {
+    color: #ffffff !important;
+}
+
+.dark-theme .CodeMirror-hint-active,
+.dark-theme .CodeMirror-hint:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+}
+
+.dark-theme .CodeMirror-hint-active {
+    background: rgba(255, 255, 255, 0.3) !important;
+    border-left-color: #ffffff !important;
+}
+
+/* =====================================================
    WELCOME SCREEN STYLES
    ===================================================== */
 
