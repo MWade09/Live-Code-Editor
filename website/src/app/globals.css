@@ -1,0 +1,193 @@
+@import "tailwindcss";
+
+@theme {
+  /* LiveEditor Core Brand Colors - High Contrast */
+  --color-primary-50: #f0f4ff;
+  --color-primary-100: #e0eaff;
+  --color-primary-200: #c7d7ff;
+  --color-primary-300: #a5bbff;
+  --color-primary-400: #8296ff;
+  --color-primary-500: #4361ee;
+  --color-primary-600: #3b4fd6;
+  --color-primary-700: #2d3cb8;
+  --color-primary-800: #1f2a94;
+  --color-primary-900: #141d6b;
+  --color-primary-950: #0a1242;
+
+  /* Neon Cyan Accents */
+  --color-secondary-50: #e6ffff;
+  --color-secondary-100: #ccfffe;
+  --color-secondary-200: #99fffc;
+  --color-secondary-300: #66fff9;
+  --color-secondary-400: #33fff7;
+  --color-secondary-500: #4cc9f0;
+  --color-secondary-600: #00d4f7;
+  --color-secondary-700: #00b8d4;
+  --color-secondary-800: #00838f;
+  --color-secondary-900: #004d5c;
+  --color-secondary-950: #002629;
+
+  /* Electric Purple */
+  --color-accent-50: #f8f0ff;
+  --color-accent-100: #f0e0ff;
+  --color-accent-200: #e1c2ff;
+  --color-accent-300: #cc99ff;
+  --color-accent-400: #b366ff;
+  --color-accent-500: #9933ff;
+  --color-accent-600: #7209b7;
+  --color-accent-700: #5c00a3;
+  --color-accent-800: #47008a;
+  --color-accent-900: #330066;
+  --color-accent-950: #1a0033;
+
+  /* Dark Theme Hierarchy */
+  --color-dark-primary: #0a0a0f;
+  --color-dark-secondary: #1a1a2e;
+  --color-dark-tertiary: #16213e;
+  --color-dark-elevated: #22304a;
+
+  /* Success, Warning, Error with punch */
+  --color-success-500: #00ff88;
+  --color-warning-500: #ffaa00;
+  --color-error-500: #ff3366;
+
+  /* Typography scale */
+  --font-family-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family-mono: "JetBrains Mono", "Fira Code", monospace;
+  --font-family-display: "Inter", sans-serif;
+  
+  /* Advanced shadows */
+  --shadow-glow-primary: 0 0 30px rgba(67, 97, 238, 0.4);
+  --shadow-glow-secondary: 0 0 30px rgba(76, 201, 240, 0.4);
+  --shadow-glow-accent: 0 0 30px rgba(114, 9, 183, 0.4);
+  --shadow-brutal: 8px 8px 0px rgba(67, 97, 238, 1);
+  --shadow-depth: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-family-sans);
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+  color: #ffffff;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-dark-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary-500);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary-400);
+}
+
+/* Custom animations for LiveEditor */
+@keyframes grid-move {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(50px, 50px); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes float-delayed {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+}
+
+@keyframes gradient {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(67, 97, 238, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(67, 97, 238, 0.6); }
+}
+
+/* Animation utility classes */
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-delayed 8s ease-in-out infinite;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient 3s ease infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+.shadow-brutal {
+  box-shadow: var(--shadow-brutal);
+}
+
+.shadow-glow-primary {
+  box-shadow: var(--shadow-glow-primary);
+}
+
+/* Responsive spacing utilities */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Responsive typography improvements */
+@media (max-width: 640px) {
+  .text-responsive-9xl {
+    font-size: 3rem;
+    line-height: 1;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 768px) {
+  .text-responsive-9xl {
+    font-size: 4rem;
+    line-height: 1;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .text-responsive-9xl {
+    font-size: 5rem;
+    line-height: 1;
+  }
+}
+
+@media (min-width: 1025px) {
+  .text-responsive-9xl {
+    font-size: 6rem;
+    line-height: 1;
+  }
+}
