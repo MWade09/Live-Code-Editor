@@ -22,7 +22,7 @@ LiveEditorClaude/
 ## 🚀 Deployments
 
 - **Live Editor**: https://ai-assisted-editor.netlify.app (deploys from `/editor`)
-- **Website**: https://ai-assisted-editor-community.netlify.app (deploys from `/website`)
+- **Website**: https://ailiveeditor.netlify.app (deploys from `/website`)
 
 ## 💻 Local Development
 
