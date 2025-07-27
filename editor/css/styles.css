@@ -1102,6 +1102,19 @@ button i {
     transform: translateY(-1px);
 }
 
+/* Community Button */
+.community-btn {
+    background: linear-gradient(135deg, #8b5cf6, #d946ef) !important;
+    color: white !important;
+    font-weight: 600;
+    padding: 8px 14px !important;
+}
+
+.community-btn:hover {
+    background: linear-gradient(135deg, #7c3aed, #c026d3) !important;
+    transform: translateY(-1px);
+}
+
 /* Deploy Modal */
 .deploy-modal-content {
     max-width: 500px;

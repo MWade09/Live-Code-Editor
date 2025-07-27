@@ -63,10 +63,10 @@ export function DashboardContent({ user }: DashboardContentProps) {
   }, [profile, profileLoading, user, updateProfile])
 
   const quickActions = [
-    { icon: Code, label: 'New Project', href: '/projects/create', color: 'from-cyan-500 to-blue-500' },
-    { icon: FileText, label: 'Templates', href: '/templates', color: 'from-purple-500 to-pink-500' },
-    { icon: Folder, label: 'Import Code', href: '/import', color: 'from-green-500 to-emerald-500' },
-    { icon: Play, label: 'Live Editor', href: '/editor', color: 'from-orange-500 to-red-500' },
+    { icon: Code, label: 'New Project', href: '/projects/create', color: 'from-cyan-500 to-blue-500', description: 'Create a new project from scratch' },
+    { icon: FileText, label: 'Templates', href: '/templates', color: 'from-purple-500 to-pink-500', description: 'Start with pre-built templates' },
+    { icon: Folder, label: 'Import Code', href: '/import', color: 'from-green-500 to-emerald-500', description: 'Upload files or import from GitHub' },
+    { icon: Play, label: 'Live Editor', href: '/editor', color: 'from-orange-500 to-red-500', description: 'Open the code editor directly' },
   ]
 
   // Helper function to format project status
@@ -223,7 +223,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
                     <action.icon className="w-6 h-6 text-white" />
                   </div>
                   <h3 className="font-semibold text-white mb-1">{action.label}</h3>
-                  <p className="text-slate-400 text-sm">Get started quickly</p>
+                  <p className="text-slate-400 text-sm">{action.description}</p>
                 </Link>
               ))}
             </div>

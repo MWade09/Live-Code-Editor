@@ -56,11 +56,11 @@ export default function CreateProjectPage() {
   const [formData, setFormData] = useState<ProjectFormData>({
     title: '',
     description: '',
-    content: '',
-    language: '',
+    content: '// Start coding here...\n\n',
+    language: 'JavaScript',
     framework: '',
     tags: [],
-    is_public: true,
+    is_public: false,
     difficulty_level: 'beginner',
     estimated_time: 30,
     demo_url: '',
@@ -86,11 +86,11 @@ export default function CreateProjectPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user || !formData.title.trim() || !formData.content.trim()) return
+    if (!user || !formData.title.trim()) return
 
     setSaving(true)
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('projects')
         .insert({
           user_id: user.id,
@@ -105,15 +105,20 @@ export default function CreateProjectPage() {
           estimated_time: formData.estimated_time,
           demo_url: formData.demo_url.trim(),
           github_url: formData.github_url.trim(),
-          status: 'published'
+          status: 'draft'
         })
+        .select()
 
       if (error) throw error
+      if (!data || data.length === 0) throw new Error('No project data returned')
 
-      setMessage({ type: 'success', text: 'Project created successfully!' })
+      const projectId = data[0].id
+      setMessage({ type: 'success', text: 'Project created successfully! Redirecting to editor...' })
+      
       setTimeout(() => {
-        router.push('/projects')
-      }, 2000)
+        // Redirect to editor with the new project
+        window.location.href = `/editor?project=${projectId}`
+      }, 1500)
     } catch (error) {
       console.error('Error creating project:', error)
       setMessage({ type: 'error', text: 'Failed to create project. Please try again.' })
@@ -170,15 +175,15 @@ export default function CreateProjectPage() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-cyan-200 to-purple-200 bg-clip-text text-transparent">
-                  Share Your Project
+                  Create New Project
                 </h1>
                 <p className="text-slate-400 mt-1">
-                  Upload and share your code with the community
+                  Set up your project details and start coding
                 </p>
               </div>
             </div>
             <Link 
-              href="/projects"
+              href="/dashboard"
               className="text-slate-400 hover:text-white transition-colors"
             >
               <X className="w-6 h-6" />
@@ -280,21 +285,17 @@ export default function CreateProjectPage() {
           <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-6">
             <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
               <Code className="w-5 h-5 text-cyan-400 mr-2" />
-              Code Content
+              Project Setup
             </h2>
             
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Your Code *
-              </label>
-              <textarea
-                required
-                value={formData.content}
-                onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-                rows={12}
-                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors resize-none font-mono text-sm"
-                placeholder="Paste your code here..."
-              />
+            <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-600">
+              <div className="text-center">
+                <Code className="w-12 h-12 text-cyan-400 mx-auto mb-3" />
+                <h3 className="text-white font-medium mb-2">Ready to Start Coding</h3>
+                <p className="text-slate-400 text-sm">
+                  Your project will be created with a blank canvas. You&apos;ll be redirected to the editor where you can start building your project.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -470,14 +471,14 @@ export default function CreateProjectPage() {
           {/* Submit Button */}
           <div className="flex justify-end space-x-4">
             <Link
-              href="/projects"
+              href="/dashboard"
               className="px-6 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
             >
               Cancel
             </Link>
             <button
               type="submit"
-              disabled={saving || !formData.title.trim() || !formData.content.trim()}
+              disabled={saving || !formData.title.trim()}
               className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded-lg hover:from-cyan-500 hover:to-purple-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
               {saving ? (
@@ -488,7 +489,7 @@ export default function CreateProjectPage() {
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  <span>Create Project</span>
+                  <span>Create & Open Editor</span>
                 </>
               )}
             </button>

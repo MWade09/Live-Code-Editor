@@ -181,6 +181,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('cancel-deploy-btn').addEventListener('click', () => {
             deployManager.hideDeployModal();
         });
+        
+        // Community button click
+        document.getElementById('community-btn').addEventListener('click', () => {
+            // Open community website in new tab
+            window.open('https://ailiveeditor.netlify.app/community', '_blank');
+        });
           // AI Assistant functionality (handled by chat panel)
         // The AI functionality is now integrated into the chat panel
         if (document.getElementById('cancel-ai-btn')) {
