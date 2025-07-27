@@ -1,6 +1,7 @@
 "use client"
 
 import { ArrowRight, Code2, Zap, Brain, Download, Sparkles, Terminal, Cpu, Layers } from "lucide-react"
+import Link from "next/link"
 
 export default function HomePage() {
   return (
@@ -88,21 +89,25 @@ export default function HomePage() {
 
           {/* CTA Buttons - Responsive sizing and spacing */}
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center mb-12 sm:mb-14 lg:mb-16">
-            <button className="group relative bg-gradient-to-r from-primary-500 to-secondary-500 px-8 sm:px-10 lg:px-12 py-4 sm:py-5 lg:py-6 rounded-2xl font-bold text-base sm:text-lg shadow-brutal hover:shadow-glow-primary transition-all duration-300 transform hover:-translate-y-2 w-full sm:w-auto">
-              <span className="flex items-center justify-center gap-3">
-                <Download className="w-5 h-5 sm:w-6 sm:h-6" />
-                Experience LiveEditor
-                <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-2 transition-transform" />
-              </span>
-            </button>
+            <Link href="/auth/signup">
+              <button className="group relative bg-gradient-to-r from-primary-500 to-secondary-500 px-8 sm:px-10 lg:px-12 py-4 sm:py-5 lg:py-6 rounded-2xl font-bold text-base sm:text-lg shadow-brutal hover:shadow-glow-primary transition-all duration-300 transform hover:-translate-y-2 w-full sm:w-auto">
+                <span className="flex items-center justify-center gap-3">
+                  <Download className="w-5 h-5 sm:w-6 sm:h-6" />
+                  Experience LiveEditor
+                  <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-2 transition-transform" />
+                </span>
+              </button>
+            </Link>
             
-            <button className="group relative border-2 border-primary-500 bg-primary-500/10 backdrop-blur-sm px-8 sm:px-10 lg:px-12 py-4 sm:py-5 lg:py-6 rounded-2xl font-bold text-base sm:text-lg hover:bg-primary-500/20 transition-all duration-300 w-full sm:w-auto">
-              <span className="flex items-center justify-center gap-3 text-primary-300">
-                <Terminal className="w-5 h-5 sm:w-6 sm:h-6" />
-                Watch AI in Action
-                <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-12 transition-transform" />
-              </span>
-            </button>
+            <Link href="/docs">
+              <button className="group relative border-2 border-primary-500 bg-primary-500/10 backdrop-blur-sm px-8 sm:px-10 lg:px-12 py-4 sm:py-5 lg:py-6 rounded-2xl font-bold text-base sm:text-lg hover:bg-primary-500/20 transition-all duration-300 w-full sm:w-auto">
+                <span className="flex items-center justify-center gap-3 text-primary-300">
+                  <Terminal className="w-5 h-5 sm:w-6 sm:h-6" />
+                  Watch AI in Action
+                  <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-12 transition-transform" />
+                </span>
+              </button>
+            </Link>
           </div>
 
           {/* Metrics - Better responsive grid and spacing */}

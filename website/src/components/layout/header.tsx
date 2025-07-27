@@ -2,11 +2,18 @@
 
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import { Menu, X, Code2, Zap, Download } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Menu, X, Code2, Zap, Download, User, LogOut, Settings } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+import { User as SupabaseUser } from "@supabase/supabase-js"
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [user, setUser] = useState<SupabaseUser | null>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const supabase = createClient()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -17,8 +24,60 @@ const Header = () => {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  // Get initial user and set up auth listener
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+      setLoading(false)
+    }
+
+    getUser()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user ?? null)
+        setLoading(false)
+        
+        // If user signs out and they're on a protected page, redirect to home
+        if (event === 'SIGNED_OUT' && session === null) {
+          const currentPath = window.location.pathname
+          const protectedPaths = ['/dashboard', '/profile', '/settings', '/editor']
+          
+          if (protectedPaths.some(path => currentPath.startsWith(path))) {
+            router.push('/')
+          }
+        }
+      }
+    )
+
+    return () => subscription.unsubscribe()
+  }, [supabase.auth, router])
+
+  const handleSignOut = async () => {
+    try {
+      // Check if we're on a protected page before signing out
+      const currentPath = window.location.pathname
+      const protectedPaths = ['/dashboard', '/profile', '/settings', '/editor']
+      const isOnProtectedPage = protectedPaths.some(path => currentPath.startsWith(path))
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut()
+      
+      // Redirect to home page if we were on a protected page
+      if (isOnProtectedPage) {
+        router.push('/')
+      }
+    } catch (error) {
+      console.error('Error signing out:', error)
+      // Still redirect to home even if there's an error
+      router.push('/')
+    }
+  }
+
   const navigation = [
     { name: "Features", href: "/features" },
+    { name: "Projects", href: "/projects" },
     { name: "Documentation", href: "/docs" },
     { name: "Community", href: "/community" },
     { name: "About", href: "/about" },
@@ -60,21 +119,68 @@ const Header = () => {
 
           {/* Desktop CTA - Enhanced */}
           <div className="hidden lg:flex items-center space-x-4">
-            <Link 
-              href="/login"
-              className="text-gray-300 hover:text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-primary-500/10"
-            >
-              Sign In
-            </Link>
-            <Link href="/register">
-              <button className="group relative bg-gradient-to-r from-primary-500 to-secondary-500 px-6 py-2.5 rounded-xl font-bold text-white shadow-lg hover:shadow-primary-500/25 transition-all duration-300 transform hover:-translate-y-0.5">
-                <span className="flex items-center gap-2">
-                  <Download className="w-4 h-4" />
-                  Get Started
-                  <Zap className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-                </span>
-              </button>
-            </Link>
+            {user ? (
+              <div className="flex items-center gap-4">
+                <Link
+                  href="/dashboard"
+                  className="text-gray-300 hover:text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-primary-500/10"
+                >
+                  Dashboard
+                </Link>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full flex items-center justify-center">
+                    <User className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-gray-300 font-medium">
+                    {user.user_metadata?.full_name || user.email}
+                  </span>
+                  <Link
+                    href="/settings"
+                    className="text-gray-400 hover:text-white p-2 rounded-lg transition-colors"
+                    title="Settings"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </Link>
+                  <button
+                    onClick={handleSignOut}
+                    className="text-gray-400 hover:text-white p-2 rounded-lg transition-colors"
+                    title="Sign out"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                  <Link
+                    href="/clear-auth.html"
+                    className="text-red-400 hover:text-red-300 p-2 rounded-lg transition-colors"
+                    title="Clear all auth data"
+                  >
+                    🧹
+                  </Link>
+                </div>
+              </div>
+            ) : loading ? (
+              <div className="flex items-center gap-4">
+                <div className="w-20 h-8 bg-gray-800/50 rounded-lg animate-pulse"></div>
+                <div className="w-24 h-10 bg-gray-800/50 rounded-xl animate-pulse"></div>
+              </div>
+            ) : (
+              <>
+                <Link 
+                  href="/auth/login"
+                  className="text-gray-300 hover:text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-primary-500/10"
+                >
+                  Sign In
+                </Link>
+                <Link href="/auth/signup">
+                  <button className="group relative bg-gradient-to-r from-primary-500 to-secondary-500 px-6 py-2.5 rounded-xl font-bold text-white shadow-lg hover:shadow-primary-500/25 transition-all duration-300 transform hover:-translate-y-0.5">
+                    <span className="flex items-center gap-2">
+                      <Download className="w-4 h-4" />
+                      Get Started
+                      <Zap className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                    </span>
+                  </button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -100,18 +206,50 @@ const Header = () => {
               </Link>
             ))}
             <div className="pt-4 space-y-2">
-              <Link 
-                href="/login"
-                className="block w-full text-center px-3 py-2 text-gray-400 hover:text-white bg-gray-800/50 rounded-lg transition-colors"
-              >
-                Sign In
-              </Link>
-              <Link 
-                href="/register"
-                className="block w-full text-center px-3 py-2 bg-gradient-to-r from-primary-500 to-secondary-500 text-white font-semibold rounded-lg hover:shadow-lg transition-all"
-              >
-                Get Started
-              </Link>
+              {user ? (
+                <>
+                  <Link 
+                    href="/dashboard"
+                    className="block w-full text-center px-3 py-2 text-gray-400 hover:text-white bg-gray-800/50 rounded-lg transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                  <Link 
+                    href="/settings"
+                    className="block w-full text-center px-3 py-2 text-gray-400 hover:text-white bg-gray-800/50 rounded-lg transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Settings
+                  </Link>
+                  <button 
+                    onClick={async () => {
+                      await handleSignOut()
+                      setIsMenuOpen(false)
+                    }}
+                    className="block w-full text-center px-3 py-2 text-gray-400 hover:text-white bg-gray-800/50 rounded-lg transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link 
+                    href="/auth/login"
+                    className="block w-full text-center px-3 py-2 text-gray-400 hover:text-white bg-gray-800/50 rounded-lg transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Sign In
+                  </Link>
+                  <Link 
+                    href="/auth/signup"
+                    className="block w-full text-center px-3 py-2 bg-gradient-to-r from-primary-500 to-secondary-500 text-white font-semibold rounded-lg hover:shadow-lg transition-all"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Get Started
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}

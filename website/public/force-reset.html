@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Force Auth Reset</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            background: #0a0a0a;
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.05);
+            padding: 40px;
+            border-radius: 20px;
+        }
+        .btn {
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .step {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Force Authentication Reset</h1>
+        <p>Complete reset protocol for authentication issues</p>
+        
+        <div class="step">
+            <h3>Step 1: Clear All Browser Data</h3>
+            <button class="btn" onclick="clearEverything()">Clear All Data</button>
+            <p>This will clear all storage, cookies, and caches.</p>
+        </div>
+        
+        <div class="step">
+            <h3>Step 2: Reset OAuth Providers</h3>
+            <a href="https://myaccount.google.com/permissions" target="_blank" class="btn">Google Permissions</a>
+            <a href="https://github.com/settings/applications" target="_blank" class="btn">GitHub Apps</a>
+            <p>Revoke access to your app from these pages.</p>
+        </div>
+        
+        <div class="step">
+            <h3>Step 3: Force Browser Restart</h3>
+            <button class="btn" onclick="forceRestart()">Force Close & Restart</button>
+            <p>This will attempt to close all tabs and force a restart.</p>
+        </div>
+        
+        <div class="step">
+            <h3>Step 4: Test Fresh Sign Up</h3>
+            <a href="/auth/signup" class="btn">Go to Sign Up</a>
+            <p>Try signing up with a fresh browser session.</p>
+        </div>
+        
+        <div id="status"></div>
+    </div>
+
+    <script>
+        function clearEverything() {
+            // Super aggressive clearing
+            try {
+                // Clear all storage
+                localStorage.clear();
+                sessionStorage.clear();
+                
+                // Clear all cookies aggressively
+                document.cookie.split(";").forEach(function(c) {
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/;domain=localhost");
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/;domain=.localhost");
+                });
+                
+                // Clear all caches
+                if ('caches' in window) {
+                    caches.keys().then(names => {
+                        names.forEach(name => {
+                            caches.delete(name);
+                        });
+                    });
+                }
+                
+                // Clear IndexedDB
+                if ('indexedDB' in window && indexedDB.databases) {
+                    indexedDB.databases().then(dbs => {
+                        dbs.forEach(db => indexedDB.deleteDatabase(db.name));
+                    });
+                }
+                
+                // Clear Web SQL (if supported)
+                if (window.openDatabase) {
+                    try {
+                        const db = window.openDatabase('', '', '', '');
+                        db.transaction(tx => tx.executeSql('DELETE FROM __WebKitDatabaseInfoTable__'));
+                    } catch(e) {}
+                }
+                
+                document.getElementById('status').innerHTML = '✅ All data cleared! Close browser completely and restart.';
+                document.getElementById('status').style.color = '#4ade80';
+                
+            } catch (error) {
+                document.getElementById('status').innerHTML = '❌ Error: ' + error.message;
+                document.getElementById('status').style.color = '#f87171';
+            }
+        }
+        
+        function forceRestart() {
+            clearEverything();
+            
+            // Try to close the window
+            setTimeout(() => {
+                try {
+                    window.close();
+                } catch(e) {
+                    alert('Please manually close all browser tabs and restart your browser completely.');
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

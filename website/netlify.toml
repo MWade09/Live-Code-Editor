@@ -1,0 +1,24 @@
+# Netlify Configuration for Next.js Website
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_VERSION = "9"
+
+# Next.js specific settings
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Headers for security
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Redirects for Next.js App Router (handled by Next.js)
+# The @netlify/plugin-nextjs handles most routing automatically
