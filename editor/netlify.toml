@@ -1,0 +1,15 @@
+[build]
+  publish = "."
+  command = "echo 'Static site - no build needed'"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Netlify Edge Functions (if needed later)
+# [functions]
+#   directory = "netlify/functions"

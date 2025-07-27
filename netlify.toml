@@ -1,0 +1,20 @@
+# Netlify Configuration for Next.js Website
+[build]
+  base = "website"
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_VERSION = "9"
+
+# Next.js specific settings
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Redirects for Next.js App Router
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  conditions = {Role = ["admin"]}
