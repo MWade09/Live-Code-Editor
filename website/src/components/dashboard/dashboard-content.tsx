@@ -1,6 +1,7 @@
 'use client'
 
 import { User } from '@supabase/supabase-js'
+import { useEffect } from 'react'
 import { 
   Code, 
   Play,
@@ -23,10 +24,43 @@ interface DashboardContentProps {
 
 export function DashboardContent({ user }: DashboardContentProps) {
   // Database hooks for real user data
-  const { profile, loading: profileLoading } = useUserProfile(user.id)
-  const { projects, loading: projectsLoading } = useUserProjects(user.id)
+  const { profile, loading: profileLoading, updateProfile } = useUserProfile(user.id)
+  const { projects, loading: projectsLoading, error: projectsError } = useUserProjects(user.id)
   const { stats, loading: statsLoading } = useUserStats(user.id)
   const { activity, loading: activityLoading, error: activityError } = useUserActivity(user.id)
+
+  // Debug logging
+  useEffect(() => {
+    if (projectsError) {
+      console.error('Projects error:', projectsError)
+    }
+    if (activityError) {
+      console.error('Activity error:', activityError)
+    }
+  }, [projectsError, activityError])
+
+  // Create initial profile if user doesn't have one
+  useEffect(() => {
+    if (!profileLoading && !profile && user) {
+      // Create basic profile from auth metadata
+      const basicProfile = {
+        username: user.email?.split('@')[0] || `user_${Date.now()}`,
+        full_name: user.user_metadata?.full_name || undefined,
+        avatar_url: user.user_metadata?.avatar_url || undefined,
+        bio: undefined,
+        skills: [],
+        interests: [],
+        preferred_languages: [],
+        coding_experience: 'beginner' as const,
+        profile_visibility: 'public' as const,
+        email_notifications: true,
+        marketing_emails: false,
+        onboarding_completed: false
+      }
+      
+      updateProfile(basicProfile)
+    }
+  }, [profile, profileLoading, user, updateProfile])
 
   const quickActions = [
     { icon: Code, label: 'New Project', href: '/editor', color: 'from-cyan-500 to-blue-500' },
@@ -203,6 +237,12 @@ export function DashboardContent({ user }: DashboardContentProps) {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto"></div>
                     <p className="text-slate-400 mt-2">Loading projects...</p>
                   </div>
+                ) : projectsError ? (
+                  <div className="text-center py-8">
+                    <div className="text-red-400 text-4xl mb-2">⚠️</div>
+                    <p className="text-red-400 font-medium">Error loading projects</p>
+                    <p className="text-slate-400 text-sm mt-1">{projectsError}</p>
+                  </div>
                 ) : projects && projects.data && projects.data.length > 0 ? (
                   projects.data.slice(0, 3).map((project) => {
                     const statusInfo = getProjectStatus(project.status)
@@ -264,9 +304,12 @@ export function DashboardContent({ user }: DashboardContentProps) {
               <p className="text-slate-300 text-sm mb-4">
                 Get intelligent code suggestions, bug fixes, and optimizations powered by AI.
               </p>
-              <button className="w-full py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-medium rounded-lg hover:from-cyan-600 hover:to-purple-600 transition-all">
+              <Link
+                href="/editor"
+                className="block w-full py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-medium rounded-lg hover:from-cyan-600 hover:to-purple-600 transition-all text-center"
+              >
                 Start Coding
-              </button>
+              </Link>
             </div>
 
             {/* Tips Card */}
@@ -291,12 +334,6 @@ export function DashboardContent({ user }: DashboardContentProps) {
                   <div className="text-center py-4">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-400 mx-auto"></div>
                     <p className="text-slate-400 text-sm mt-2">Loading activity...</p>
-                  </div>
-                ) : activityError ? (
-                  <div className="text-center py-4">
-                    <Activity className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                    <p className="text-amber-400 text-sm font-medium mb-1">Coming Soon</p>
-                    <p className="text-slate-400 text-xs">{activityError}</p>
                   </div>
                 ) : activity && activity.length > 0 ? (
                   activity.slice(0, 3).map((item, index) => (
@@ -326,10 +363,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
                 ) : (
                   <div className="text-center py-4">
                     <Activity className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                    <p className="text-slate-400 text-sm font-medium mb-1">No activity yet</p>
-                    <p className="text-slate-500 text-xs">
-                      Create projects and interact with the community to see activity here
-                    </p>
+                    <p className="text-slate-400 text-sm">No recent activity</p>
                   </div>
                 )}
               </div>

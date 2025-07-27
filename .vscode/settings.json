@@ -1,7 +1,7 @@
 {
     "liveServer.settings.port": 5501,
     "liveServer.settings.mount": [
-        ["/", "./editor"]
+        ["/", "./"]
     ],
     "liveServer.settings.donotShowInfoMsg": true,
     "liveServer.settings.CustomBrowser": null,

@@ -35,61 +35,21 @@ export function useUserProfile(userId?: string) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [hasAttempted, setHasAttempted] = useState(false)
 
   const fetchProfile = useCallback(async () => {
-    if (!userId || hasAttempted) return
+    if (!userId) return
 
     setLoading(true)
     setError(null)
-    setHasAttempted(true)
 
-    try {
-      const result = await db.getUserProfile(userId)
-      if (result.success && result.data) {
-        setProfile(result.data)
-      } else if (result.error?.includes('No profile found')) {
-        // Profile doesn't exist, create a basic one
-        const createResult = await db.createUserProfile({
-          id: userId,
-          username: `user_${Date.now()}`,
-          full_name: null,
-          bio: null,
-          avatar_url: null,
-          github_username: null,
-          twitter_handle: null,
-          website_url: null,
-          linkedin_url: null,
-          preferred_languages: [],
-          coding_experience: 'beginner',
-          location: null,
-          timezone: null,
-          company: null,
-          job_title: null,
-          skills: [],
-          interests: [],
-          profile_visibility: 'public',
-          email_notifications: true,
-          marketing_emails: false,
-          last_seen_at: new Date().toISOString(),
-          onboarding_completed: false
-        })
-        
-        if (createResult.success && createResult.data) {
-          setProfile(createResult.data)
-        } else {
-          setError(createResult.error || 'Failed to create profile')
-        }
-      } else {
-        setError(result.error || 'Failed to fetch profile')
-      }
-    } catch (err) {
-      setError('Network error occurred')
-      console.error('Profile fetch error:', err)
+    const result = await db.getUserProfile(userId)
+    if (result.success && result.data) {
+      setProfile(result.data)
+    } else {
+      setError(result.error || 'Failed to fetch profile')
     }
-    
     setLoading(false)
-  }, [userId, hasAttempted])
+  }, [userId])
 
   useEffect(() => {
     if (!userId) {
@@ -135,51 +95,21 @@ export function useUserStats(userId?: string) {
   const [stats, setStats] = useState<UserStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [hasAttempted, setHasAttempted] = useState(false)
 
   const fetchStats = useCallback(async () => {
-    if (!userId || hasAttempted) return
+    if (!userId) return
 
     setLoading(true)
     setError(null)
-    setHasAttempted(true)
 
-    try {
-      const result = await db.getUserStats(userId)
-      if (result.success && result.data) {
-        setStats(result.data)
-      } else {
-        setError(result.error || 'Failed to fetch stats')
-        // Set default stats if fetch fails
-        setStats({
-          projects_count: 0,
-          followers_count: 0,
-          following_count: 0,
-          total_likes_received: 0,
-          total_views_received: 0,
-          total_comments_received: 0,
-          joined_date: new Date().toISOString(),
-          last_active: new Date().toISOString()
-        })
-      }
-    } catch (err) {
-      setError('Network error occurred')
-      console.error('Stats fetch error:', err)
-      // Set default stats
-      setStats({
-        projects_count: 0,
-        followers_count: 0,
-        following_count: 0,
-        total_likes_received: 0,
-        total_views_received: 0,
-        total_comments_received: 0,
-        joined_date: new Date().toISOString(),
-        last_active: new Date().toISOString()
-      })
+    const result = await db.getUserStats(userId)
+    if (result.success && result.data) {
+      setStats(result.data)
+    } else {
+      setError(result.error || 'Failed to fetch stats')
     }
-    
     setLoading(false)
-  }, [userId, hasAttempted])
+  }, [userId])
 
   useEffect(() => {
     if (!userId) {
@@ -194,10 +124,7 @@ export function useUserStats(userId?: string) {
     stats,
     loading,
     error,
-    refetch: () => {
-      setHasAttempted(false)
-      setError(null)
-    }
+    refetch: fetchStats
   }
 }
 
@@ -237,29 +164,21 @@ export function useUserProjects(userId?: string, includePrivate = false, paginat
   const [projects, setProjects] = useState<PaginatedResponse<Project> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [hasAttempted, setHasAttempted] = useState(false)
 
   const fetchProjects = useCallback(async () => {
-    if (!userId || hasAttempted) return
+    if (!userId) return
 
     setLoading(true)
     setError(null)
-    setHasAttempted(true)
 
-    try {
-      const result = await db.getUserProjects(userId, includePrivate, pagination)
-      if (result.success && result.data) {
-        setProjects(result.data)
-      } else {
-        setError(result.error || 'Failed to fetch projects')
-      }
-    } catch (err) {
-      setError('Network error occurred')
-      console.error('Projects fetch error:', err)
+    const result = await db.getUserProjects(userId, includePrivate, pagination)
+    if (result.success && result.data) {
+      setProjects(result.data)
+    } else {
+      setError(result.error || 'Failed to fetch projects')
     }
-    
     setLoading(false)
-  }, [userId, includePrivate, pagination, hasAttempted])
+  }, [userId, includePrivate, pagination])
 
   useEffect(() => {
     if (!userId) {
@@ -274,10 +193,7 @@ export function useUserProjects(userId?: string, includePrivate = false, paginat
     projects,
     loading,
     error,
-    refetch: () => {
-      setHasAttempted(false)
-      setError(null)
-    }
+    refetch: fetchProjects
   }
 }
 
@@ -358,53 +274,25 @@ export function useUserActivity(userId?: string, limit = 20) {
   const [activity, setActivity] = useState<ActivityWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [hasAttempted, setHasAttempted] = useState(false)
 
   const fetchActivity = useCallback(async () => {
-    if (!userId || hasAttempted) return
+    if (!userId) return
 
     setLoading(true)
     setError(null)
-    setHasAttempted(true)
 
-    try {
-      const result = await db.getUserActivity(userId, limit)
-      if (result.success && result.data) {
-        setActivity(result.data)
-      } else if (result.error?.includes('relation "user_activity" does not exist') || 
-                 result.error?.includes('PGRST116')) {
-        // Handle missing table gracefully
-        setError('Activity tracking is being set up. Check back soon!')
-        setActivity([])
-      } else if (result.error?.includes('Could not find a relationship') || 
-                 result.error?.includes('PGRST200')) {
-        // Handle missing foreign key relationships
-        setError('Database relationships are being configured. Check back soon!')
-        setActivity([])
-      } else {
-        setError(result.error || 'Failed to fetch activity')
-        setActivity([])
-      }
-    } catch (err: unknown) {
-      const error = err as { code?: string; message?: string }
-      if (error.code === 'PGRST116' || error.message?.includes('relation "user_activity" does not exist')) {
-        setError('Activity tracking is being set up. Check back soon!')
-      } else if (error.code === 'PGRST200' || error.message?.includes('Could not find a relationship')) {
-        setError('Database relationships are being configured. Check back soon!')
-      } else {
-        setError('Network error occurred')
-      }
-      console.error('Activity fetch error:', err)
-      setActivity([])
+    const result = await db.getUserActivity(userId, limit)
+    if (result.success && result.data) {
+      setActivity(result.data)
+    } else {
+      setError(result.error || 'Failed to fetch activity')
     }
-    
     setLoading(false)
-  }, [userId, limit, hasAttempted])
+  }, [userId, limit])
 
   useEffect(() => {
     if (!userId) {
       setLoading(false)
-      setActivity([])
       return
     }
 

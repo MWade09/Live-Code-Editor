@@ -28,13 +28,7 @@ export class DatabaseService {
         .eq('id', userId)
         .single()
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // No rows returned - profile doesn't exist
-          return { success: false, error: 'No profile found' }
-        }
-        throw error
-      }
+      if (error) throw error
 
       return { success: true, data }
     } catch (error) {
@@ -560,8 +554,8 @@ export class DatabaseService {
 
   async getUserActivity(userId: string, limit = 20): Promise<ApiResponse<ActivityWithDetails[]>> {
     try {
-      // Query user_activity with user profiles
-      const { data, error } = await this.supabase
+      // First get the activity data without the problematic join
+      const { data: activities, error: activityError } = await this.supabase
         .from('user_activity')
         .select(`
           *,
@@ -576,59 +570,34 @@ export class DatabaseService {
         .order('created_at', { ascending: false })
         .limit(limit)
 
-      if (error) {
-        // Handle missing table gracefully
-        if (error.code === 'PGRST116' || error.message.includes('relation "user_activity" does not exist')) {
-          return { 
-            success: false, 
-            error: 'Activity tracking is being set up. Check back soon!',
-            data: [] 
-          }
-        }
-        
-        // Handle relationship errors
-        if (error.code === 'PGRST200' || error.message.includes('Could not find a relationship')) {
-          return { 
-            success: false, 
-            error: 'Database relationships are being configured. Check back soon!',
-            data: [] 
-          }
-        }
-        
-        throw error
-      }
+      if (activityError) throw activityError
 
-      // Transform the data to match ActivityWithDetails type
-      // Since we use !inner, user_profiles comes as an object, not array
-      const activityWithDetails: ActivityWithDetails[] = data?.map((item) => ({
-        ...item,
-        user_profiles: item.user_profiles as Pick<UserProfile, 'id' | 'username' | 'full_name' | 'avatar_url'>,
-        projects: undefined // We'll add this later if needed
-      })) || []
-      
-      return { success: true, data: activityWithDetails }
-    } catch (error: unknown) {
-      const err = error as { code?: string; message?: string }
+      // Then manually fetch related project data for project-related activities
+      const enrichedActivities = await Promise.all(
+        (activities || []).map(async (activity) => {
+          let relatedProject = null
+          
+          if (activity.related_id && 
+              ['project_created', 'project_liked', 'project_commented'].includes(activity.activity_type)) {
+            const { data: project } = await this.supabase
+              .from('projects')
+              .select('id, title')
+              .eq('id', activity.related_id)
+              .single()
+            
+            relatedProject = project
+          }
+
+          return {
+            ...activity,
+            projects: relatedProject // Keep the same field name for compatibility
+          }
+        })
+      )
+
+      return { success: true, data: enrichedActivities || [] }
+    } catch (error) {
       console.error('Error fetching user activity:', error)
-      
-      // Handle missing table gracefully
-      if (err.code === 'PGRST116' || err.message?.includes('relation "user_activity" does not exist')) {
-        return { 
-          success: false, 
-          error: 'Activity tracking is being set up. Check back soon!',
-          data: [] 
-        }
-      }
-      
-      // Handle relationship errors
-      if (err.code === 'PGRST200' || err.message?.includes('Could not find a relationship')) {
-        return { 
-          success: false, 
-          error: 'Database relationships are being configured. Check back soon!',
-          data: [] 
-        }
-      }
-      
       return { success: false, error: 'Failed to fetch user activity' }
     }
   }

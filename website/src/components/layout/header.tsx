@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { Menu, X, Code2, Zap, Download, User, LogOut, Settings } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { User as SupabaseUser } from "@supabase/supabase-js"
@@ -12,7 +11,6 @@ const Header = () => {
   const [scrolled, setScrolled] = useState(false)
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
@@ -38,46 +36,18 @@ const Header = () => {
       async (event, session) => {
         setUser(session?.user ?? null)
         setLoading(false)
-        
-        // If user signs out and they're on a protected page, redirect to home
-        if (event === 'SIGNED_OUT' && session === null) {
-          const currentPath = window.location.pathname
-          const protectedPaths = ['/dashboard', '/profile', '/settings', '/editor']
-          
-          if (protectedPaths.some(path => currentPath.startsWith(path))) {
-            router.push('/')
-          }
-        }
       }
     )
 
     return () => subscription.unsubscribe()
-  }, [supabase.auth, router])
+  }, [supabase.auth])
 
   const handleSignOut = async () => {
-    try {
-      // Check if we're on a protected page before signing out
-      const currentPath = window.location.pathname
-      const protectedPaths = ['/dashboard', '/profile', '/settings', '/editor']
-      const isOnProtectedPage = protectedPaths.some(path => currentPath.startsWith(path))
-      
-      // Sign out from Supabase
-      await supabase.auth.signOut()
-      
-      // Redirect to home page if we were on a protected page
-      if (isOnProtectedPage) {
-        router.push('/')
-      }
-    } catch (error) {
-      console.error('Error signing out:', error)
-      // Still redirect to home even if there's an error
-      router.push('/')
-    }
+    await supabase.auth.signOut()
   }
 
   const navigation = [
     { name: "Features", href: "/features" },
-    { name: "Projects", href: "/projects" },
     { name: "Documentation", href: "/docs" },
     { name: "Community", href: "/community" },
     { name: "About", href: "/about" },
@@ -134,13 +104,12 @@ const Header = () => {
                   <span className="text-gray-300 font-medium">
                     {user.user_metadata?.full_name || user.email}
                   </span>
-                  <Link
-                    href="/settings"
+                  <button
                     className="text-gray-400 hover:text-white p-2 rounded-lg transition-colors"
                     title="Settings"
                   >
                     <Settings className="w-4 h-4" />
-                  </Link>
+                  </button>
                   <button
                     onClick={handleSignOut}
                     className="text-gray-400 hover:text-white p-2 rounded-lg transition-colors"
@@ -148,13 +117,6 @@ const Header = () => {
                   >
                     <LogOut className="w-4 h-4" />
                   </button>
-                  <Link
-                    href="/clear-auth.html"
-                    className="text-red-400 hover:text-red-300 p-2 rounded-lg transition-colors"
-                    title="Clear all auth data"
-                  >
-                    🧹
-                  </Link>
                 </div>
               </div>
             ) : loading ? (
@@ -215,16 +177,15 @@ const Header = () => {
                   >
                     Dashboard
                   </Link>
-                  <Link 
-                    href="/settings"
+                  <button 
                     className="block w-full text-center px-3 py-2 text-gray-400 hover:text-white bg-gray-800/50 rounded-lg transition-colors"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Settings
-                  </Link>
+                  </button>
                   <button 
-                    onClick={async () => {
-                      await handleSignOut()
+                    onClick={() => {
+                      handleSignOut()
                       setIsMenuOpen(false)
                     }}
                     className="block w-full text-center px-3 py-2 text-gray-400 hover:text-white bg-gray-800/50 rounded-lg transition-colors"

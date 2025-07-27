@@ -270,7 +270,7 @@ export default function FeaturesPage() {
                 </p>
                 
                 <div className="flex flex-col sm:flex-row gap-6 justify-center mb-12">
-                  <Link href="/download">
+                  <a href="https://github.com/MWade09/Live-Code-Editor" target="_blank" rel="noopener noreferrer">
                     <button className="group relative px-8 py-4 bg-gradient-to-r from-primary-500 to-cyan-500 rounded-xl font-bold text-white shadow-lg hover:shadow-primary-500/25 transition-all duration-300 transform hover:-translate-y-1">
                       <span className="flex items-center gap-3">
                         <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
@@ -279,7 +279,7 @@ export default function FeaturesPage() {
                       </span>
                       <div className="absolute inset-0 bg-gradient-to-r from-primary-400 to-cyan-400 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity" />
                     </button>
-                  </Link>
+                  </a>
                   
                   <Link href="/docs">
                     <button className="group px-8 py-4 bg-gray-800/50 border border-gray-700/50 rounded-xl font-semibold text-white hover:border-primary-500/50 hover:bg-gray-700/50 transition-all duration-300">
