@@ -17,6 +17,34 @@ import type {
 
 export class DatabaseService {
   private supabase = createClient()
+  private maxRetries = 3
+  private retryDelay = 1000
+
+  // Helper method for retrying failed requests
+  private async withRetry<T>(operation: () => Promise<T>, retryCount = 0): Promise<T> {
+    try {
+      return await operation()
+    } catch (error) {
+      if (retryCount < this.maxRetries && this.isRetryableError(error)) {
+        await new Promise(resolve => setTimeout(resolve, this.retryDelay * (retryCount + 1)))
+        return this.withRetry(operation, retryCount + 1)
+      }
+      throw error
+    }
+  }
+
+  private isRetryableError(error: unknown): boolean {
+    if (error && typeof error === 'object' && 'message' in error) {
+      const message = (error as { message: string }).message
+      if (message?.includes('Failed to fetch')) return true
+      if (message?.includes('ERR_INSUFFICIENT_RESOURCES')) return true
+      if (message?.includes('ERR_NETWORK')) return true
+    }
+    if (error && typeof error === 'object' && 'code' in error) {
+      if ((error as { code: string }).code === 'NETWORK_ERROR') return true
+    }
+    return false
+  }
 
   // ===== USER PROFILE METHODS =====
 
@@ -414,36 +442,40 @@ export class DatabaseService {
     pagination: PaginationParams = { page: 1, limit: 10 }
   ): Promise<ApiResponse<PaginatedResponse<Project>>> {
     try {
-      let query = this.supabase
-        .from('projects')
-        .select('*', { count: 'exact' })
-        .eq('user_id', userId)
+      const result = await this.withRetry(async () => {
+        let query = this.supabase
+          .from('projects')
+          .select('*', { count: 'exact' })
+          .eq('user_id', userId)
 
-      if (!includePrivate) {
-        query = query.eq('is_public', true).eq('status', 'published')
-      }
+        if (!includePrivate) {
+          query = query.eq('is_public', true).eq('status', 'published')
+        }
 
-      const offset = (pagination.page - 1) * pagination.limit
-      query = query
-        .order(pagination.sort_by || 'created_at', { ascending: pagination.sort_order === 'asc' })
-        .range(offset, offset + pagination.limit - 1)
+        const offset = (pagination.page - 1) * pagination.limit
+        query = query
+          .order(pagination.sort_by || 'created_at', { ascending: pagination.sort_order === 'asc' })
+          .range(offset, offset + pagination.limit - 1)
 
-      const { data, error, count } = await query
+        const { data, error, count } = await query
 
-      if (error) throw error
+        if (error) throw error
 
-      const total = count || 0
-      const totalPages = Math.ceil(total / pagination.limit)
+        const total = count || 0
+        const totalPages = Math.ceil(total / pagination.limit)
 
-      const result: PaginatedResponse<Project> = {
-        data: data || [],
-        total,
-        page: pagination.page,
-        limit: pagination.limit,
-        total_pages: totalPages,
-        has_next: pagination.page < totalPages,
-        has_prev: pagination.page > 1
-      }
+        const result: PaginatedResponse<Project> = {
+          data: data || [],
+          total,
+          page: pagination.page,
+          limit: pagination.limit,
+          total_pages: totalPages,
+          has_next: pagination.page < totalPages,
+          has_prev: pagination.page > 1
+        }
+
+        return result
+      })
 
       return { success: true, data: result }
     } catch (error) {

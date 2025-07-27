@@ -63,7 +63,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
   }, [profile, profileLoading, user, updateProfile])
 
   const quickActions = [
-    { icon: Code, label: 'New Project', href: '/editor', color: 'from-cyan-500 to-blue-500' },
+    { icon: Code, label: 'New Project', href: '/projects/create', color: 'from-cyan-500 to-blue-500' },
     { icon: FileText, label: 'Templates', href: '/templates', color: 'from-purple-500 to-pink-500' },
     { icon: Folder, label: 'Import Code', href: '/import', color: 'from-green-500 to-emerald-500' },
     { icon: Play, label: 'Live Editor', href: '/editor', color: 'from-orange-500 to-red-500' },
@@ -237,11 +237,20 @@ export function DashboardContent({ user }: DashboardContentProps) {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto"></div>
                     <p className="text-slate-400 mt-2">Loading projects...</p>
                   </div>
-                ) : projectsError ? (
+                ) : projectsError || !projects ? (
                   <div className="text-center py-8">
-                    <div className="text-red-400 text-4xl mb-2">⚠️</div>
-                    <p className="text-red-400 font-medium">Error loading projects</p>
-                    <p className="text-slate-400 text-sm mt-1">{projectsError}</p>
+                    <Code className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                    <h3 className="text-slate-300 font-medium mb-2">No projects yet</h3>
+                    <p className="text-slate-400 text-sm mb-4">
+                      Create your first project to get started!
+                    </p>
+                    <Link 
+                      href="/projects/create"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-medium rounded-lg hover:from-cyan-600 hover:to-purple-600 transition-all"
+                    >
+                      <Code className="w-4 h-4" />
+                      Create Project
+                    </Link>
                   </div>
                 ) : projects && projects.data && projects.data.length > 0 ? (
                   projects.data.slice(0, 3).map((project) => {
@@ -281,7 +290,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
                       Create your first project to get started!
                     </p>
                     <Link 
-                      href="/editor"
+                      href="/projects/create"
                       className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-medium rounded-lg hover:from-cyan-600 hover:to-purple-600 transition-all"
                     >
                       <Code className="w-4 h-4" />
@@ -305,7 +314,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
                 Get intelligent code suggestions, bug fixes, and optimizations powered by AI.
               </p>
               <Link
-                href="/editor"
+                href="/projects/create"
                 className="block w-full py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-medium rounded-lg hover:from-cyan-600 hover:to-purple-600 transition-all text-center"
               >
                 Start Coding

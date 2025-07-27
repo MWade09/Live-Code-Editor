@@ -162,38 +162,112 @@ export function useProjects(filter: ProjectFilter = {}, pagination: PaginationPa
 // Hook for user's own projects
 export function useUserProjects(userId?: string, includePrivate = false, pagination: PaginationParams = { page: 1, limit: 10 }) {
   const [projects, setProjects] = useState<PaginatedResponse<Project> | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchProjects = useCallback(async () => {
+  useEffect(() => {
+    if (!userId) {
+      setProjects({
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 10,
+        total_pages: 0,
+        has_next: false,
+        has_prev: false
+      })
+      setLoading(false)
+      setError(null)
+      return
+    }
+
+    const fetchProjects = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const result = await db.getUserProjects(userId, includePrivate, pagination)
+        if (result.success && result.data) {
+          setProjects(result.data)
+          setError(null)
+        } else {
+          setError(result.error || 'Failed to fetch user projects')
+          setProjects({
+            data: [],
+            total: 0,
+            page: 1,
+            limit: 10,
+            total_pages: 0,
+            has_next: false,
+            has_prev: false
+          })
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch user projects'
+        setError(errorMessage)
+        setProjects({
+          data: [],
+          total: 0,
+          page: 1,
+          limit: 10,
+          total_pages: 0,
+          has_next: false,
+          has_prev: false
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProjects()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]) // Only userId dependency to prevent infinite loops
+
+  const refetch = useCallback(async () => {
     if (!userId) return
 
     setLoading(true)
     setError(null)
 
-    const result = await db.getUserProjects(userId, includePrivate, pagination)
-    if (result.success && result.data) {
-      setProjects(result.data)
-    } else {
-      setError(result.error || 'Failed to fetch projects')
-    }
-    setLoading(false)
-  }, [userId, includePrivate, pagination])
-
-  useEffect(() => {
-    if (!userId) {
+    try {
+      const result = await db.getUserProjects(userId, includePrivate, pagination)
+      if (result.success && result.data) {
+        setProjects(result.data)
+        setError(null)
+      } else {
+        setError(result.error || 'Failed to fetch user projects')
+        setProjects({
+          data: [],
+          total: 0,
+          page: 1,
+          limit: 10,
+          total_pages: 0,
+          has_next: false,
+          has_prev: false
+        })
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch user projects'
+      setError(errorMessage)
+      setProjects({
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 10,
+        total_pages: 0,
+        has_next: false,
+        has_prev: false
+      })
+    } finally {
       setLoading(false)
-      return
     }
-
-    fetchProjects()
-  }, [fetchProjects, userId])
+  }, [userId, includePrivate, pagination])
 
   return {
     projects,
     loading,
     error,
-    refetch: fetchProjects
+    refetch
   }
 }
 

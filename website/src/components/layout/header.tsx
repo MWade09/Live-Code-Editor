@@ -47,6 +47,7 @@ const Header = () => {
   }
 
   const navigation = [
+    { name: "Projects", href: "/projects" },
     { name: "Features", href: "/features" },
     { name: "Documentation", href: "/docs" },
     { name: "Community", href: "/community" },
@@ -104,12 +105,13 @@ const Header = () => {
                   <span className="text-gray-300 font-medium">
                     {user.user_metadata?.full_name || user.email}
                   </span>
-                  <button
+                  <Link
+                    href="/settings"
                     className="text-gray-400 hover:text-white p-2 rounded-lg transition-colors"
                     title="Settings"
                   >
                     <Settings className="w-4 h-4" />
-                  </button>
+                  </Link>
                   <button
                     onClick={handleSignOut}
                     className="text-gray-400 hover:text-white p-2 rounded-lg transition-colors"
@@ -177,12 +179,13 @@ const Header = () => {
                   >
                     Dashboard
                   </Link>
-                  <button 
+                  <Link 
+                    href="/settings"
                     className="block w-full text-center px-3 py-2 text-gray-400 hover:text-white bg-gray-800/50 rounded-lg transition-colors"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Settings
-                  </button>
+                  </Link>
                   <button 
                     onClick={() => {
                       handleSignOut()
