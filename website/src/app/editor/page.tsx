@@ -52,6 +52,7 @@ export default function EditorBridgePage() {
         // Redirect to editor with project id param so it can sync from website
         const editorUrl = new URL('https://ai-assisted-editor.netlify.app')
         editorUrl.searchParams.set('project', projectData.id)
+        editorUrl.searchParams.set('site', window.location.origin)
         window.location.href = editorUrl.toString()
 
       } catch (error) {

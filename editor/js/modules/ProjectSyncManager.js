@@ -1,7 +1,14 @@
 export class ProjectSyncManager {
   constructor(fileManager) {
     this.fileManager = fileManager
-    this.websiteAPI = 'https://ailiveeditor.netlify.app/api' // website base
+    // Determine website API base from URL param if present (site=https://domain)
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const siteBase = params.get('site')
+      this.websiteAPI = (siteBase ? siteBase.replace(/\/$/, '') : 'https://ailiveeditor.netlify.app') + '/api'
+    } catch {
+      this.websiteAPI = 'https://ailiveeditor.netlify.app/api'
+    }
     this.currentProject = null
     this.syncEnabled = false
   }

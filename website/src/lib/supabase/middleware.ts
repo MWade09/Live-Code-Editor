@@ -46,7 +46,9 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname !== '/docs' &&
     request.nextUrl.pathname !== '/community' &&
     // Allow guest access to editor try pages
-    !request.nextUrl.pathname.startsWith('/editor')
+    !request.nextUrl.pathname.startsWith('/editor') &&
+    // Allow API access for project sync endpoints (route enforces auth for writes)
+    !request.nextUrl.pathname.startsWith('/api/projects')
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone()
