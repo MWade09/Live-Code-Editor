@@ -59,11 +59,11 @@ const Footer = () => {
                 <span className="w-1 h-1 bg-gray-600 rounded-full mr-3 group-hover:bg-primary-400 transition-colors duration-300"></span>
                 Documentation
               </Link></li>
-              <li><Link href="/download" className="text-gray-400 hover:text-primary-400 transition-colors duration-300 flex items-center group">
+              <li><Link href="/features" className="text-gray-400 hover:text-primary-400 transition-colors duration-300 flex items-center group">
                 <span className="w-1 h-1 bg-gray-600 rounded-full mr-3 group-hover:bg-primary-400 transition-colors duration-300"></span>
                 Download
               </Link></li>
-              <li><Link href="/changelog" className="text-gray-400 hover:text-primary-400 transition-colors duration-300 flex items-center group">
+              <li><Link href="/docs" className="text-gray-400 hover:text-primary-400 transition-colors duration-300 flex items-center group">
                 <span className="w-1 h-1 bg-gray-600 rounded-full mr-3 group-hover:bg-primary-400 transition-colors duration-300"></span>
                 Changelog
               </Link></li>
@@ -81,15 +81,15 @@ const Footer = () => {
                 <span className="w-1 h-1 bg-gray-600 rounded-full mr-3 group-hover:bg-cyan-400 transition-colors duration-300"></span>
                 Discussions
               </Link></li>
-              <li><Link href="/showcase" className="text-gray-400 hover:text-cyan-400 transition-colors duration-300 flex items-center group">
+              <li><Link href="/community" className="text-gray-400 hover:text-cyan-400 transition-colors duration-300 flex items-center group">
                 <span className="w-1 h-1 bg-gray-600 rounded-full mr-3 group-hover:bg-cyan-400 transition-colors duration-300"></span>
                 Showcase
               </Link></li>
-              <li><Link href="/contributors" className="text-gray-400 hover:text-cyan-400 transition-colors duration-300 flex items-center group">
+              <li><Link href="/about" className="text-gray-400 hover:text-cyan-400 transition-colors duration-300 flex items-center group">
                 <span className="w-1 h-1 bg-gray-600 rounded-full mr-3 group-hover:bg-cyan-400 transition-colors duration-300"></span>
                 Contributors
               </Link></li>
-              <li><Link href="/support" className="text-gray-400 hover:text-cyan-400 transition-colors duration-300 flex items-center group">
+              <li><Link href="/community" className="text-gray-400 hover:text-cyan-400 transition-colors duration-300 flex items-center group">
                 <span className="w-1 h-1 bg-gray-600 rounded-full mr-3 group-hover:bg-cyan-400 transition-colors duration-300"></span>
                 Support
               </Link></li>
@@ -107,15 +107,15 @@ const Footer = () => {
                 <span className="w-1 h-1 bg-gray-600 rounded-full mr-3 group-hover:bg-purple-400 transition-colors duration-300"></span>
                 About
               </Link></li>
-              <li><Link href="/contact" className="text-gray-400 hover:text-purple-400 transition-colors duration-300 flex items-center group">
+              <li><Link href="/about" className="text-gray-400 hover:text-purple-400 transition-colors duration-300 flex items-center group">
                 <span className="w-1 h-1 bg-gray-600 rounded-full mr-3 group-hover:bg-purple-400 transition-colors duration-300"></span>
                 Contact
               </Link></li>
-              <li><Link href="/privacy" className="text-gray-400 hover:text-purple-400 transition-colors duration-300 flex items-center group">
+              <li><Link href="/docs" className="text-gray-400 hover:text-purple-400 transition-colors duration-300 flex items-center group">
                 <span className="w-1 h-1 bg-gray-600 rounded-full mr-3 group-hover:bg-purple-400 transition-colors duration-300"></span>
                 Privacy
               </Link></li>
-              <li><Link href="/terms" className="text-gray-400 hover:text-purple-400 transition-colors duration-300 flex items-center group">
+              <li><Link href="/docs" className="text-gray-400 hover:text-purple-400 transition-colors duration-300 flex items-center group">
                 <span className="w-1 h-1 bg-gray-600 rounded-full mr-3 group-hover:bg-purple-400 transition-colors duration-300"></span>
                 Terms
               </Link></li>

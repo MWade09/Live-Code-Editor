@@ -334,12 +334,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
               <p className="text-slate-300 text-sm mb-4">
                 Use <kbd className="bg-white/10 px-2 py-1 rounded text-xs">Ctrl+Space</kbd> to trigger AI suggestions while coding.
               </p>
-              <Link 
-                href="/docs/shortcuts" 
-                className="text-cyan-400 hover:text-cyan-300 text-sm font-medium transition-colors"
-              >
-                View all shortcuts →
-              </Link>
+              <span className="text-slate-500 text-sm">View all shortcuts →</span>
             </div>
 
             {/* Activity Feed */}

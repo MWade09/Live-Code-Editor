@@ -54,6 +54,7 @@ export class ProjectSyncManager {
         // For public reads, no credentials; attach Authorization when provided
         const res = await fetch(url, { headers: { ...authHeader } })
         if (!res.ok) {
+          // Distinguish 404 for clarity
           lastError = new Error(`HTTP ${res.status}`)
           continue
         }
