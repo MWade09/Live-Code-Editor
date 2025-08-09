@@ -11,6 +11,7 @@ import { DeployManager } from './modules/DeployManager.js';
 import { AIManager } from './modules/AIManager.js';
 import { InlineAIManager } from './modules/InlineAIManager.js';
 import { AICodeActionsManager } from './modules/AICodeActionsManager.js';
+import { ProjectSyncManager } from './modules/ProjectSyncManager.js';
 
 // Load chat panel scripts - CSS is now loaded directly in HTML
 (function() {
@@ -89,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     const fileExplorerManager = new FileExplorerManager(fileManager, editor);
+    const projectSync = new ProjectSyncManager(fileManager);
     
     // Global app state
     window.app = {
@@ -121,6 +123,33 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize the application
     initializeApp();
+
+    // Guest banner logic
+    try {
+        const guestBanner = document.getElementById('guest-banner');
+        const remainingEl = document.getElementById('guest-remaining');
+        const addKeyBtn = document.getElementById('guest-add-key-btn');
+        const hasKey = !!localStorage.getItem('openrouter_api_key');
+        if (guestBanner && !hasKey) {
+            const LIMIT = 10;
+            const used = parseInt(localStorage.getItem('guest_ai_requests_used') || '0', 10);
+            const remaining = Math.max(LIMIT - used, 0);
+            if (remainingEl) remainingEl.textContent = `(Remaining: ${remaining}/${LIMIT})`;
+            guestBanner.classList.add('show');
+        }
+        if (addKeyBtn) {
+            addKeyBtn.addEventListener('click', () => {
+                // Focus API key field in chat panel if present
+                const keyInput = document.getElementById('chat-api-key') || document.getElementById('ai-api-key');
+                if (keyInput) {
+                    keyInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    keyInput.focus();
+                }
+            });
+        }
+    } catch (e) {
+        console.warn('Guest banner init failed:', e);
+    }
     
     function initializeApp() {
         // Initialize file explorer manager
@@ -141,6 +170,31 @@ document.addEventListener('DOMContentLoaded', () => {
         setupEventListeners();
         
         console.log('Application initialized successfully');
+
+        // If URL contains ?project=, load from website and enable auto-save
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const projectId = params.get('project');
+            if (projectId) {
+                projectSync.loadWebsiteProject(projectId)
+                    .then(() => {
+                        // Hook up auto-save (debounced)
+                        let saveTimer = null;
+                        editor.codeMirror.on('change', () => {
+                            clearTimeout(saveTimer);
+                            saveTimer = setTimeout(async () => {
+                                const result = await projectSync.saveToWebsite();
+                                if (!result.ok) {
+                                    console.warn('Save failed:', result.error);
+                                }
+                            }, 1000);
+                        });
+                    })
+                    .catch(err => console.error('Failed to load website project:', err));
+            }
+        } catch (e) {
+            console.warn('Project sync init failed:', e);
+        }
     }
     
     function setupEventListeners() {

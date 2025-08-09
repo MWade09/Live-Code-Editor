@@ -2,20 +2,23 @@
 
 ## 🎯 Core Development Principles
 
-### 1. TODO-Driven Development
-- **ALWAYS** reference the TODO.md file before starting any work
-- Check off completed items with `[x]` in TODO.md
-- Only work on items from the current active phase unless explicitly agreed otherwise
-- Update TODO.md if new requirements emerge during development
+### 1. Checklist-Driven Development
+- ALWAYS consult project checklists before starting work:
+  - `docs/TODO.md`
+  - `WEBSITE_EDITOR_INTEGRATION_STRATEGY_TODO.md`
+  - `WEBSITE_IMPLEMENTATION_PLAN.md` (when relevant)
+- Check off completed items with `[x]` in the source checklist where the work is tracked (prefer the strategy TODO for website↔editor work)
+- Only work on items from the current focus unless explicitly agreed otherwise
+- Update the relevant checklist immediately when scope changes
 
 ### 2. Changelog Documentation
-- **EVERY** change must be documented in changelog.md
+- EVERY meaningful change should be documented in `docs/changelog.md`
 - Use semantic versioning and clear descriptions
 - Include both technical changes and user-facing improvements
 - Follow the established changelog format (see CHANGELOG_FORMAT.md)
 
 ### 3. Phase-Based Development
-- **Current Phase**: Phase 1 (Enhanced Editor Experience)
+- **Current Focus**: Guest Trial Mode + Project Sync (Phase 3 foundation)
 - Complete phases sequentially unless there's a specific reason to jump ahead
 - Each phase should be fully functional before moving to the next
 
@@ -28,7 +31,8 @@
 - Maintain README.md with setup instructions
 
 ### Change Documentation
-- Update changelog.md for every significant change
+- Update `docs/changelog.md` for significant changes
+- Update `WEBSITE_EDITOR_INTEGRATION_STRATEGY_TODO.md` checkboxes as soon as items are completed
 - Include version numbers and dates
 - Categorize changes (Added, Changed, Fixed, Removed)
 - Reference TODO items that were completed
@@ -56,22 +60,30 @@
 ## 🚀 Development Workflow
 
 ### Before Starting Work
-1. Review current phase in TODO.md
+1. Review current focus in `WEBSITE_EDITOR_INTEGRRATION_STRATEGY_TODO.md` and `docs/TODO.md`
 2. Identify next priority item
 3. Check if any dependencies need to be completed first
 4. Plan the implementation approach
 
 ### During Development
-1. Focus on one TODO item at a time
+1. Focus on one checklist item at a time
 2. Test thoroughly as you build
 3. Update comments and documentation
 4. Consider impact on existing features
+5. Keep checklists in sync (mark in-progress / done)
 
 ### After Completing Work
-1. Mark TODO item as complete `[x]`
-2. Update changelog.md with changes
+1. Mark the checklist item as complete `[x]` in the authoritative doc
+2. Update `docs/changelog.md` with changes (when user-facing or architectural)
 3. Test the feature end-to-end
 4. Verify no existing functionality was broken
+
+## 📌 Progress Tracking Discipline
+
+- Use checkboxes in `WEBSITE_EDITOR_INTEGRATION_STRATEGY_TODO.md` to reflect real status in near-real time
+- Prefer granular, verifiable acceptance criteria per milestone
+- Keep navigation to try/guest paths and middleware allowlists documented in the strategy file
+- When a user manually checks items, treat those as source of truth and continue the sequence from there
 
 ## 🎨 UI/UX Guidelines
 
@@ -142,13 +154,13 @@ Before marking any TODO item complete, verify:
 
 ## 🎯 Phase-Specific Rules
 
-### Phase 1: Enhanced Editor Experience
+### Phase 1: Enhanced Editor Experience (historical)
 - Focus on core editing functionality
 - Prioritize stability over advanced features
 - Ensure smooth integration with existing codebase
 - Build foundation for future AI features
 
-### Phase 2: Advanced AI Integration
+### Phase 2: Advanced AI Integration (historical)
 - Implement AI features incrementally
 - Maintain compatibility with existing chat system
 - Focus on user experience and performance

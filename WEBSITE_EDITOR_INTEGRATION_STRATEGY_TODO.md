@@ -29,6 +29,42 @@
 
 ## 🎯 Phase 3 & 4 Integration Strategy
 
+### 👤 Guest Trial Mode (No-Auth Editor Access)
+
+**Goals (today):**
+- Allow anonymous users to try the editor at `/editor/try` without login
+- Show a guest banner: limited features, no persistence
+- Enforce a small free AI cap when no OpenRouter key is configured (e.g., 10 requests per session)
+- Smooth upgrade path: “Save Project” prompts login; after auth, create a project and open `/editor?project=<id>`
+
+**Website changes:**
+- Middleware allowlist for `/editor` and `/editor/try`
+- Header CTA: “Try the Editor” → `/editor/try`
+- Add `/editor/try` page: embeds/bridges to the editor with guest banner
+
+**Editor changes:**
+- Guest mode banner and CTA to sign up or add API key
+- Local AI request cap when no OpenRouter key in `localStorage`
+
+**Acceptance criteria (Milestone 1):**
+- Guests can load `/editor/try` without redirect
+- Visible guest banner with upgrade CTA
+- AI calls capped locally for guests without API key; friendly prompt when exceeded
+- Authenticated users can open `/editor?project=<id>` without being bounced to login
+
+**Middleware snippet (allowlist example):**
+```ts
+// website/middleware.ts (conceptual)
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}
+
+// In updateSession: add allowlist for guest editor
+// if (!user && (pathname === '/editor' || pathname === '/editor/try')) allow
+```
+
 ## 📂 PHASE 3: Project Management & Workflow
 
 ### � Project Structure Integration
@@ -69,6 +105,22 @@ class ProjectSyncManager {
       body: JSON.stringify({ content: projectStructure })
     })
   }
+}
+```
+
+#### Website API Endpoints for Project Sync
+
+```ts
+// Next.js route handlers (conceptual)
+// GET /api/projects/[id] → returns project with ownership/visibility checks
+// PUT /api/projects/[id] → updates project.content (requires owner)
+
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  // 1) get user (optional), 2) fetch project, 3) if private and not owner → 403, 4) return content/metadata
+}
+
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+  // 1) require user, 2) verify owner, 3) update content/updated_at/status, 4) return updated row
 }
 ```
 
@@ -191,6 +243,12 @@ CREATE TABLE terminal_sessions (
 
 ## 🚀 Implementation Roadmap
 
+### 📅 Week 0-1: Guest Access Foundation
+1. Allowlist `/editor` and `/editor/try` in middleware
+2. Add header CTA “Try the Editor” → `/editor/try`
+3. Add guest banner + local AI cap (when no OpenRouter key)
+4. Ensure `/editor?project=<id>` works for signed-in users
+
 ### 📅 Week 1-2: Foundation
 1. **Create ProjectSyncManager.js** in editor
 2. **Add API endpoints** on website for project sync
@@ -270,6 +328,33 @@ class UnifiedAIManager {
 }
 ```
 
+### 4. AI Proxy & Usage Tracking (Later)
+
+```sql
+-- Track anonymous guest quotas (cookie-based id)
+CREATE TABLE IF NOT EXISTS guest_sessions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  cookie_id TEXT UNIQUE NOT NULL,
+  requests_used INT DEFAULT 0,
+  last_reset_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Track authenticated usage per day
+CREATE TABLE IF NOT EXISTS ai_usage (
+  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+  period DATE NOT NULL,
+  requests_used INT DEFAULT 0,
+  tokens_used BIGINT DEFAULT 0,
+  PRIMARY KEY (user_id, period)
+);
+```
+
+```ts
+// Conceptual API: POST /api/ai/proxy
+// - For guests: enforce small daily cap via guest_sessions
+// - For users: attribute usage to ai_usage and apply plan limits/markup
+```
+
 ---
 
 ## 📋 Required Changes Summary
@@ -280,13 +365,17 @@ class UnifiedAIManager {
 - [ ] Implement TerminalManager.js for terminal features
 - [ ] Add AuthManager.js for website authentication
 - [ ] Create RealtimeSync.js for live updates
+ - [ ] Guest mode banner + local AI cap when no OpenRouter key
 
 ### 🌐 Website Enhancements
+ - [X] Allowlist `/editor` and `/editor/try` in middleware
+ - [X] Add header CTA “Try the Editor” → `/editor/try`
 - [ ] Add project sync API endpoints
 - [ ] Extend database schema for Git and terminal data
 - [ ] Create real-time WebSocket server
 - [ ] Add project build/deployment configuration
 - [ ] Implement terminal session management
+ - [ ] (Later) AI proxy endpoint + quota tables for guests/users
 
 ### 🔧 Shared Infrastructure
 - [ ] WebSocket server for real-time sync
@@ -301,6 +390,7 @@ class UnifiedAIManager {
 This integration strategy provides a comprehensive roadmap for seamlessly connecting the editor and website platforms. The implementation should be done incrementally, starting with the foundation (ProjectSyncManager) and building up to more advanced features like real-time synchronization and terminal integration.
 
 **Priority Order:**
+0. 👤 Guest trial access (no-auth editor with limits)
 1. 🔐 Authentication bridge between platforms
 2. 📁 Project synchronization system
 3. 🔄 Version control integration

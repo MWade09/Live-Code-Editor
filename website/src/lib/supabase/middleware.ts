@@ -39,11 +39,14 @@ export async function updateSession(request: NextRequest) {
     !user &&
     !request.nextUrl.pathname.startsWith('/auth') &&
     !request.nextUrl.pathname.startsWith('/api/auth') &&
+    // Allow public marketing and community pages
     request.nextUrl.pathname !== '/' &&
     request.nextUrl.pathname !== '/features' &&
     request.nextUrl.pathname !== '/about' &&
     request.nextUrl.pathname !== '/docs' &&
-    request.nextUrl.pathname !== '/community'
+    request.nextUrl.pathname !== '/community' &&
+    // Allow guest access to editor try pages
+    !request.nextUrl.pathname.startsWith('/editor')
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone()

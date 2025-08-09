@@ -395,6 +395,18 @@ export class InlineAIManager {
             
             console.log('🔑 InlineAI: API key found, making request...');
             
+            // Lightweight guest quota (no key): enforce before request
+            const existingKey = localStorage.getItem('openrouter_api_key');
+            if (!existingKey) {
+                const QUOTA_KEY = 'guest_ai_requests_used';
+                const LIMIT = 10;
+                const used = parseInt(localStorage.getItem(QUOTA_KEY) || '0', 10);
+                if (used >= LIMIT) {
+                    throw new Error('Guest AI limit reached. Sign up or add an OpenRouter key to continue.');
+                }
+                localStorage.setItem(QUOTA_KEY, String(used + 1));
+            }
+
             // Use the existing AI manager to get suggestion
             const messages = [
                 {

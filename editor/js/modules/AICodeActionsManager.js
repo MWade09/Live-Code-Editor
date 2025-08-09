@@ -408,6 +408,20 @@ export class AICodeActionsManager {
         
         return true;
     }
+
+    // Lightweight guest quota check (mirrors AIManager)
+    enforceGuestQuotaOrThrow() {
+        const existingKey = localStorage.getItem('openrouter_api_key');
+        if (!existingKey) {
+            const QUOTA_KEY = 'guest_ai_requests_used';
+            const LIMIT = 10;
+            const used = parseInt(localStorage.getItem(QUOTA_KEY) || '0', 10);
+            if (used >= LIMIT) {
+                throw new Error('Guest AI limit reached. Sign up or add an OpenRouter key to continue.');
+            }
+            localStorage.setItem(QUOTA_KEY, String(used + 1));
+        }
+    }
     
     showConfigurationError() {
         const message = `
@@ -754,6 +768,9 @@ export class AICodeActionsManager {
         // Update status to thinking
         this.updateStreamingStatus(session, 'thinking');
         
+        // Guest quota (no key): throw if exceeded before hitting API
+        try { this.enforceGuestQuotaOrThrow(); } catch (e) { throw e; }
+
         // Execute the streaming fetch
         await this.performStreamingFetch(session, model, messages, apiKey);
     }

@@ -160,10 +160,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Get API key
         const apiKey = chatApiKey.value.trim() || localStorage.getItem('openrouter_api_key');
-        if (!apiKey) {
-            addSystemMessage('Please enter your OpenRouter API key.');
-            return;
-        }
+        // If no API key, we'll still allow guest usage with a small local quota
         
         // Get selected model
         const selectedModel = chatModelSelect.value;
@@ -217,7 +214,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
       async function processWithAI(message, model, apiKey) {
         addSystemMessage('AI is thinking...');
-          try {
+        try {
+            // Guest quota (no key): enforce before calling API
+            if (!apiKey) {
+                const QUOTA_KEY = 'guest_ai_requests_used';
+                const LIMIT = 10;
+                const used = parseInt(localStorage.getItem(QUOTA_KEY) || '0', 10);
+                if (used >= LIMIT) {
+                    addSystemMessage('Guest AI limit reached. Sign up or add an OpenRouter key to continue.');
+                    return;
+                }
+                localStorage.setItem(QUOTA_KEY, String(used + 1));
+            }
             // Get current file context for better responses (only when relevant)
             const currentFile = window.app?.fileManager?.getCurrentFile();
             let fileContext = '';
@@ -331,6 +339,17 @@ document.addEventListener('DOMContentLoaded', function() {
         addSystemMessage('Agent is analyzing your request and editing the file...');
         
         try {
+            // Guest quota (no key): enforce before calling API
+            if (!apiKey) {
+                const QUOTA_KEY = 'guest_ai_requests_used';
+                const LIMIT = 10;
+                const used = parseInt(localStorage.getItem(QUOTA_KEY) || '0', 10);
+                if (used >= LIMIT) {
+                    addSystemMessage('Guest AI limit reached. Sign up or add an OpenRouter key to continue.');
+                    return;
+                }
+                localStorage.setItem(QUOTA_KEY, String(used + 1));
+            }
             // Get current file context
             const currentFile = window.app?.fileManager?.getCurrentFile();
             let currentContent = currentFile?.content || '';

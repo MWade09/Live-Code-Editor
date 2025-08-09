@@ -10,12 +10,13 @@ export default function EditorBridgePage() {
   const searchParams = useSearchParams()
   const supabase = createClient()
   const projectId = searchParams.get('project')
+  const isTry = searchParams.get('try') === '1'
 
   useEffect(() => {
     const loadAndRedirect = async () => {
       try {
-        // If no project ID, just redirect to standalone editor
-        if (!projectId) {
+        // If no project ID or explicit try mode, redirect to standalone editor (guest mode)
+        if (!projectId || isTry) {
           window.location.href = 'https://ai-assisted-editor.netlify.app'
           return
         }
