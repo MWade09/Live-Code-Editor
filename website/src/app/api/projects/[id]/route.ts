@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 function corsResponse(body: unknown, origin: string | null, status = 200) {
@@ -15,12 +15,12 @@ function corsResponse(body: unknown, origin: string | null, status = 200) {
   return res
 }
 
-export async function OPTIONS(req: NextRequest) {
+export async function OPTIONS(req: Request) {
   const origin = req.headers.get('origin')
   return corsResponse({}, origin, 200)
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: any) {
   const origin = req.headers.get('origin')
   try {
     const supabase = await createClient()
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: any) {
   const origin = req.headers.get('origin')
   try {
     const supabase = await createClient()
