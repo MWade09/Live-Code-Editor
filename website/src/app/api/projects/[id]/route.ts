@@ -56,7 +56,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       origin,
       200
     )
-  } catch (e) {
+  } catch (error) {
+    console.error('GET /api/projects/[id] failed:', error)
     return corsResponse({ error: 'Internal server error' }, origin, 500)
   }
 }
@@ -112,7 +113,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       origin,
       200
     )
-  } catch (e) {
+  } catch (error) {
+    console.error('PUT /api/projects/[id] failed:', error)
     return corsResponse({ error: 'Internal server error' }, origin, 500)
   }
 }
