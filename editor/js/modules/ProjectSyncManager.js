@@ -4,21 +4,18 @@ export class ProjectSyncManager {
     // Determine website API base from URL param if present (site=https://domain)
     try {
       const params = new URLSearchParams(window.location.search)
-      let siteBase = params.get('site')
-      if (!siteBase && document.referrer) {
-        try {
-          const ref = new URL(document.referrer)
-          siteBase = ref.origin
-        } catch {}
+      const siteBase = params.get('site')
+      if (siteBase) {
+        const origin = siteBase.replace(/\/$/, '')
+        this.websiteAPI = origin + '/api'
+        console.debug('[ProjectSync] websiteAPI (from site param):', this.websiteAPI)
+      } else {
+        // No explicit site provided. We'll detect later in loadWebsiteProject.
+        this.websiteAPI = ''
+        console.debug('[ProjectSync] websiteAPI not set yet (no site param)')
       }
-      // Final fallback to the current known website deployment
-      const fallbackOrigin = 'https://liveeditorcode.netlify.app'
-      const origin = (siteBase || fallbackOrigin).replace(/\/$/, '')
-      this.websiteAPI = origin + '/api'
-      console.debug('[ProjectSync] websiteAPI:', this.websiteAPI)
     } catch (err) {
-      this.websiteAPI = 'https://liveeditorcode.netlify.app/api'
-      console.debug('[ProjectSync] websiteAPI fallback:', this.websiteAPI)
+      this.websiteAPI = ''
     }
     this.currentProject = null
     this.syncEnabled = false
@@ -27,17 +24,17 @@ export class ProjectSyncManager {
   async loadWebsiteProject(projectId) {
     if (!projectId) return
     const candidates = []
-    try {
-      const params = new URLSearchParams(window.location.search)
-      const siteBase = params.get('site')
-      if (siteBase) candidates.push(siteBase.replace(/\/$/, ''))
-    } catch {}
-    if (document.referrer) {
-      try { candidates.push(new URL(document.referrer).origin) } catch {}
+    // If websiteAPI was set from site param, use ONLY that
+    if (this.websiteAPI) {
+      candidates.push(this.websiteAPI.replace(/\/api$/, ''))
+    } else {
+      // Otherwise, detect from referrer and known fallbacks
+      if (document.referrer) {
+        try { candidates.push(new URL(document.referrer).origin) } catch {}
+      }
+      candidates.push('https://liveeditorcode.netlify.app')
+      candidates.push('https://ailiveeditor.netlify.app')
     }
-    // Known deployments (fallbacks)
-    candidates.push('https://liveeditorcode.netlify.app')
-    candidates.push('https://ailiveeditor.netlify.app')
 
     let project = null
     let lastError = null
