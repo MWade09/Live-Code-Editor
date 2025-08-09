@@ -53,6 +53,12 @@ export default function EditorBridgePage() {
         const editorUrl = new URL('https://ai-assisted-editor.netlify.app')
         editorUrl.searchParams.set('project', projectData.id)
         editorUrl.searchParams.set('site', window.location.origin)
+        // Include a bearer token so private projects can be read cross-origin
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData?.session?.access_token
+        if (token) {
+          editorUrl.searchParams.set('token', token)
+        }
         window.location.href = editorUrl.toString()
 
       } catch (error) {

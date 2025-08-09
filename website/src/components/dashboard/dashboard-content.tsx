@@ -25,7 +25,8 @@ interface DashboardContentProps {
 export function DashboardContent({ user }: DashboardContentProps) {
   // Database hooks for real user data
   const { profile, loading: profileLoading, updateProfile } = useUserProfile(user.id)
-  const { projects, loading: projectsLoading, error: projectsError } = useUserProjects(user.id)
+  // Include private projects for owner's dashboard view
+  const { projects, loading: projectsLoading, error: projectsError } = useUserProjects(user.id, true)
   const { stats, loading: statsLoading } = useUserStats(user.id)
   const { activity, loading: activityLoading, error: activityError } = useUserActivity(user.id)
 
@@ -253,7 +254,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
                     </Link>
                   </div>
                 ) : projects && projects.data && projects.data.length > 0 ? (
-                  projects.data.slice(0, 3).map((project) => {
+                  projects.data.map((project) => {
                     const statusInfo = getProjectStatus(project.status)
                     return (
                       <div key={project.id} className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">
@@ -263,9 +264,15 @@ export function DashboardContent({ user }: DashboardContentProps) {
                           </div>
                           <div>
                             <h3 className="font-medium text-white">{project.title}</h3>
-                            <p className="text-sm text-slate-400">
-                              {project.language} • {formatDistanceToNow(new Date(project.updated_at), { addSuffix: true })}
-                            </p>
+                            <div className="text-sm text-slate-400 flex items-center gap-2">
+                              <span>{project.language}</span>
+                              <span>•</span>
+                              <span>{formatDistanceToNow(new Date(project.updated_at), { addSuffix: true })}</span>
+                              <span>•</span>
+                              <span className={project.is_public ? 'text-green-400' : 'text-yellow-400'}>
+                                {project.is_public ? 'public' : 'private'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">

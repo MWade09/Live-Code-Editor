@@ -38,12 +38,21 @@ export class ProjectSyncManager {
 
     let project = null
     let lastError = null
+    // Optional bearer token for private projects (passed via URL by website)
+    let authHeader = {}
+    try {
+      const token = new URLSearchParams(window.location.search).get('token')
+      if (token) {
+        authHeader = { Authorization: `Bearer ${token}` }
+      }
+    } catch {}
+
     for (const origin of candidates) {
       try {
         const url = `${origin.replace(/\/$/, '')}/api/projects/${projectId}`
         try { console.debug('[ProjectSync] Trying', url) } catch {}
-        // For public reads, no credentials to avoid third-party cookie issues
-        const res = await fetch(url)
+        // For public reads, no credentials; attach Authorization when provided
+        const res = await fetch(url, { headers: { ...authHeader } })
         if (!res.ok) {
           lastError = new Error(`HTTP ${res.status}`)
           continue
