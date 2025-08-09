@@ -183,6 +183,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (editorToggle && !editorToggle.classList.contains('active')) {
                             editorToggle.click();
                         }
+                        // Clear any stale local files after loading
+                        try {
+                            localStorage.removeItem('editorFiles');
+                            localStorage.removeItem('editorOpenTabs');
+                            localStorage.removeItem('editorActiveTabIndex');
+                            localStorage.removeItem('editorRecentFiles');
+                        } catch {}
                         // Hook up auto-save (debounced)
                         let saveTimer = null;
                         editor.codeMirror.on('change', () => {

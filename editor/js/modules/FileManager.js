@@ -17,7 +17,7 @@ export class FileManager {
     }
     loadFilesFromStorage() {
         try {
-            // If a website project is being loaded (?project=...), skip loading local files
+            // If a website project is being loaded (?project=...), skip loading any local/default files
             const urlParams = new URLSearchParams(window.location.search);
             const hasProjectParam = !!urlParams.get('project');
             const savedFiles = hasProjectParam ? null : localStorage.getItem('editorFiles');
@@ -33,10 +33,14 @@ export class FileManager {
                         }
                     }, 0);
                 } else {
-                    this.createDefaultFile();
+                    if (!hasProjectParam) {
+                        this.createDefaultFile();
+                    }
                 }
             } else {
-                this.createDefaultFile();
+                if (!hasProjectParam) {
+                    this.createDefaultFile();
+                }
             }
             
             // Load recent files
@@ -75,7 +79,9 @@ export class FileManager {
             this.recentFiles = [];
             this.openTabs = [];
             this.activeTabIndex = -1;
-            this.createDefaultFile();
+            if (!new URLSearchParams(window.location.search).get('project')) {
+                this.createDefaultFile();
+            }
         }
     }
 
