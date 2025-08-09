@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
@@ -20,7 +21,7 @@ export async function OPTIONS(req: Request) {
   return corsResponse({}, origin, 200)
 }
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: any) {
   const origin = req.headers.get('origin')
   try {
     const supabase = await createClient()
@@ -62,7 +63,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: any) {
   const origin = req.headers.get('origin')
   try {
     const supabase = await createClient()
