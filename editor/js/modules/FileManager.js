@@ -17,7 +17,10 @@ export class FileManager {
     }
     loadFilesFromStorage() {
         try {
-            const savedFiles = localStorage.getItem('editorFiles');
+            // If a website project is being loaded (?project=...), skip loading local files
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasProjectParam = !!urlParams.get('project');
+            const savedFiles = hasProjectParam ? null : localStorage.getItem('editorFiles');
             if (savedFiles) {
                 this.files = JSON.parse(savedFiles);
                 this.fileCounter = this.files.length;

@@ -178,6 +178,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (projectId) {
                 projectSync.loadWebsiteProject(projectId)
                     .then(() => {
+                        // Hide welcome, show editor view
+                        const editorToggle = document.getElementById('editor-toggle');
+                        if (editorToggle && !editorToggle.classList.contains('active')) {
+                            editorToggle.click();
+                        }
                         // Hook up auto-save (debounced)
                         let saveTimer = null;
                         editor.codeMirror.on('change', () => {

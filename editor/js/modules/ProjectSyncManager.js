@@ -16,9 +16,8 @@ export class ProjectSyncManager {
 
     try {
       const content = typeof project.content === 'string' ? project.content : ''
-      // Strategy: treat project.content as a single file for now
       const filename = project.title?.trim() ? `${project.title}.html` : 'index.html'
-      // Clear current files and load
+      // Clear current files and tabs so we don't show local leftovers
       this.fileManager.files = []
       this.fileManager.openTabs = []
       this.fileManager.activeTabIndex = -1

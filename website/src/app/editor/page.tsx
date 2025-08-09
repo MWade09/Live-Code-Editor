@@ -49,24 +49,10 @@ export default function EditorBridgePage() {
           return
         }
 
-        // Prepare project data for your existing editor
-        const editorData = {
-          projectId: projectData.id,
-          title: projectData.title,
-          description: projectData.description,
-          language: projectData.language,
-          framework: projectData.framework,
-          code: projectData.content?.code || projectData.content || '',
-          tags: projectData.tags,
-          isOwner: projectData.user_id === user.id,
-          websiteReturn: true // Flag to show "back to website" button
-        }
-
-        // Pass data to your existing editor via localStorage
-        localStorage.setItem('liveEditorProject', JSON.stringify(editorData))
-        
-        // Redirect to your existing, beautiful editor
-        window.location.href = 'https://ai-assisted-editor.netlify.app'
+        // Redirect to editor with project id param so it can sync from website
+        const editorUrl = new URL('https://ai-assisted-editor.netlify.app')
+        editorUrl.searchParams.set('project', projectData.id)
+        window.location.href = editorUrl.toString()
 
       } catch (error) {
         console.error('Error loading project:', error)
