@@ -183,6 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (editorToggle && !editorToggle.classList.contains('active')) {
                             editorToggle.click();
                         }
+                        console.log('[ProjectSync] Loaded project from website');
                         // Clear any stale local files after loading
                         try {
                             localStorage.removeItem('editorFiles');

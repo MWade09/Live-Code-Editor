@@ -4,10 +4,21 @@ export class ProjectSyncManager {
     // Determine website API base from URL param if present (site=https://domain)
     try {
       const params = new URLSearchParams(window.location.search)
-      const siteBase = params.get('site')
-      this.websiteAPI = (siteBase ? siteBase.replace(/\/$/, '') : 'https://ailiveeditor.netlify.app') + '/api'
-    } catch {
-      this.websiteAPI = 'https://ailiveeditor.netlify.app/api'
+      let siteBase = params.get('site')
+      if (!siteBase && document.referrer) {
+        try {
+          const ref = new URL(document.referrer)
+          siteBase = ref.origin
+        } catch {}
+      }
+      // Final fallback to the current known website deployment
+      const fallbackOrigin = 'https://liveeditorcode.netlify.app'
+      const origin = (siteBase || fallbackOrigin).replace(/\/$/, '')
+      this.websiteAPI = origin + '/api'
+      console.debug('[ProjectSync] websiteAPI:', this.websiteAPI)
+    } catch (err) {
+      this.websiteAPI = 'https://liveeditorcode.netlify.app/api'
+      console.debug('[ProjectSync] websiteAPI fallback:', this.websiteAPI)
     }
     this.currentProject = null
     this.syncEnabled = false

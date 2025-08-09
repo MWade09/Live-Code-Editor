@@ -31,7 +31,7 @@ export async function GET(req: Request, { params }: any) {
 
     const { data: project, error } = await supabase
       .from('projects')
-      .select('*')
+      .select('id, user_id, is_public, title, content, updated_at')
       .eq('id', params.id)
       .single()
 
@@ -98,7 +98,7 @@ export async function PUT(req: Request, { params }: any) {
       .from('projects')
       .update({ content: payload.content, updated_at: new Date().toISOString() })
       .eq('id', params.id)
-      .select('*')
+      .select('id, content, updated_at')
       .single()
 
     if (updateErr || !updated) {
