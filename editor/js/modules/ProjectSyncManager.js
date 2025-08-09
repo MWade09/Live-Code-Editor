@@ -26,11 +26,40 @@ export class ProjectSyncManager {
 
   async loadWebsiteProject(projectId) {
     if (!projectId) return
-    const res = await fetch(`${this.websiteAPI}/projects/${projectId}`, {
-      credentials: 'include'
-    })
-    if (!res.ok) throw new Error(`Failed to load project: ${res.status}`)
-    const project = await res.json()
+    const candidates = []
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const siteBase = params.get('site')
+      if (siteBase) candidates.push(siteBase.replace(/\/$/, ''))
+    } catch {}
+    if (document.referrer) {
+      try { candidates.push(new URL(document.referrer).origin) } catch {}
+    }
+    // Known deployments (fallbacks)
+    candidates.push('https://liveeditorcode.netlify.app')
+    candidates.push('https://ailiveeditor.netlify.app')
+
+    let project = null
+    let lastError = null
+    for (const origin of candidates) {
+      try {
+        const url = `${origin.replace(/\/$/, '')}/api/projects/${projectId}`
+        console.debug('[ProjectSync] Trying', url)
+        const res = await fetch(url, { credentials: 'include' })
+        if (!res.ok) {
+          lastError = new Error(`HTTP ${res.status}`)
+          continue
+        }
+        project = await res.json()
+        this.websiteAPI = origin.replace(/\/$/, '') + '/api'
+        console.debug('[ProjectSync] Using websiteAPI:', this.websiteAPI)
+        break
+      } catch (err) {
+        lastError = err
+        continue
+      }
+    }
+    if (!project) throw new Error(`Failed to load project: ${lastError?.message || 'unknown'}`)
 
     try {
       const content = typeof project.content === 'string' ? project.content : ''
