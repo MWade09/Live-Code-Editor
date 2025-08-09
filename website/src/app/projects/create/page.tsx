@@ -60,7 +60,7 @@ export default function CreateProjectPage() {
     language: 'JavaScript',
     framework: '',
     tags: [],
-    is_public: false,
+    is_public: true,
     difficulty_level: 'beginner',
     estimated_time: 30,
     demo_url: '',
@@ -105,7 +105,7 @@ export default function CreateProjectPage() {
           estimated_time: formData.estimated_time,
           demo_url: formData.demo_url.trim(),
           github_url: formData.github_url.trim(),
-          status: 'draft'
+          status: formData.is_public ? 'published' : 'draft'
         })
         .select()
 

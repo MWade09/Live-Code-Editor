@@ -41,7 +41,7 @@ export class ProjectSyncManager {
     for (const origin of candidates) {
       try {
         const url = `${origin.replace(/\/$/, '')}/api/projects/${projectId}`
-        console.debug('[ProjectSync] Trying', url)
+        try { console.debug('[ProjectSync] Trying', url) } catch {}
         // For public reads, no credentials to avoid third-party cookie issues
         const res = await fetch(url)
         if (!res.ok) {
@@ -50,7 +50,7 @@ export class ProjectSyncManager {
         }
         project = await res.json()
         this.websiteAPI = origin.replace(/\/$/, '') + '/api'
-        console.debug('[ProjectSync] Using websiteAPI:', this.websiteAPI)
+        try { console.debug('[ProjectSync] Using websiteAPI:', this.websiteAPI) } catch {}
         break
       } catch (err) {
         lastError = err
