@@ -45,7 +45,8 @@ export class ProjectSyncManager {
       try {
         const url = `${origin.replace(/\/$/, '')}/api/projects/${projectId}`
         console.debug('[ProjectSync] Trying', url)
-        const res = await fetch(url, { credentials: 'include' })
+        // For public reads, no credentials to avoid third-party cookie issues
+        const res = await fetch(url)
         if (!res.ok) {
           lastError = new Error(`HTTP ${res.status}`)
           continue

@@ -4,12 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 
 function corsResponse(body: unknown, origin: string | null, status = 200) {
   const res = NextResponse.json(body, { status })
-  if (origin) {
-    res.headers.set('Access-Control-Allow-Origin', origin)
-    res.headers.set('Vary', 'Origin')
-  } else {
-    res.headers.set('Access-Control-Allow-Origin', '*')
-  }
+  // Allow cross-origin read access for the editor host
+  const allowedOrigin = origin || '*'
+  res.headers.set('Access-Control-Allow-Origin', allowedOrigin)
+  res.headers.set('Vary', 'Origin')
   res.headers.set('Access-Control-Allow-Credentials', 'true')
   res.headers.set('Access-Control-Allow-Methods', 'GET,PUT,OPTIONS')
   res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
