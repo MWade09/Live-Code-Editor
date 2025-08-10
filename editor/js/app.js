@@ -106,7 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fileExplorerManager,
         showModal,
         hideModal,
-        renderFileTabs
+        renderFileTabs,
+        projectSync
     };
     
     // Expose inline AI manager globally for debugging
@@ -175,6 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const params = new URLSearchParams(window.location.search);
             const projectId = params.get('project');
+            const siteOrigin = params.get('site');
             if (projectId) {
                 projectSync.loadWebsiteProject(projectId)
                     .then(() => {
@@ -184,6 +186,70 @@ document.addEventListener('DOMContentLoaded', () => {
                             editorToggle.click();
                         }
                         console.log('[ProjectSync] Loaded project from website');
+                        // Add Back to Website button when launched from site
+                        try {
+                            if (siteOrigin) {
+                                const backBtn = document.createElement('button');
+                                backBtn.id = 'back-to-website-btn';
+                                backBtn.textContent = '↩ Back to Website';
+                                backBtn.style.position = 'fixed';
+                                backBtn.style.top = '12px';
+                                backBtn.style.left = '12px';
+                                backBtn.style.zIndex = '9999';
+                                backBtn.style.padding = '8px 12px';
+                                backBtn.style.borderRadius = '8px';
+                                backBtn.style.border = '1px solid rgba(148,163,184,0.4)';
+                                backBtn.style.background = 'rgba(15,23,42,0.7)';
+                                backBtn.style.color = '#e2e8f0';
+                                backBtn.style.backdropFilter = 'blur(6px)';
+                                backBtn.style.cursor = 'pointer';
+                                backBtn.onmouseenter = () => backBtn.style.background = 'rgba(30,41,59,0.8)';
+                                backBtn.onmouseleave = () => backBtn.style.background = 'rgba(15,23,42,0.7)';
+                                backBtn.addEventListener('click', () => {
+                                    const target = `${siteOrigin.replace(/\/$/, '')}/projects/${projectId}`;
+                                    window.location.href = target;
+                                });
+                                document.body.appendChild(backBtn);
+                            }
+                        } catch {}
+
+                        // Add Sync button with status
+                        try {
+                            const syncBtn = document.createElement('button');
+                            syncBtn.id = 'project-sync-btn';
+                            syncBtn.textContent = 'Sync';
+                            syncBtn.style.position = 'fixed';
+                            syncBtn.style.bottom = '16px';
+                            syncBtn.style.right = '16px';
+                            syncBtn.style.zIndex = '9999';
+                            syncBtn.style.padding = '10px 14px';
+                            syncBtn.style.borderRadius = '9999px';
+                            syncBtn.style.border = '1px solid rgba(34,197,94,0.4)';
+                            syncBtn.style.background = 'rgba(20,83,45,0.8)';
+                            syncBtn.style.color = '#d1fae5';
+                            syncBtn.style.backdropFilter = 'blur(6px)';
+                            syncBtn.style.cursor = 'pointer';
+                            const setSaving = () => { syncBtn.textContent = 'Saving...'; syncBtn.disabled = true; syncBtn.style.opacity = '0.8'; };
+                            const setSynced = () => { syncBtn.textContent = 'Synced'; syncBtn.disabled = false; syncBtn.style.opacity = '1'; };
+                            const setError = () => { syncBtn.textContent = 'Retry Sync'; syncBtn.disabled = false; syncBtn.style.opacity = '1'; };
+                            const doSync = async () => {
+                                setSaving();
+                                const result = await projectSync.saveToWebsite();
+                                if (result.ok) {
+                                    setSynced();
+                                    showStatusMessage('Synced to website');
+                                } else {
+                                    setError();
+                                    console.warn('Save failed:', result.error);
+                                    showStatusMessage('Sync failed');
+                                }
+                            };
+                            syncBtn.addEventListener('click', doSync);
+                            document.body.appendChild(syncBtn);
+                            // Perform initial sync after load to ensure freshness
+                            setTimeout(doSync, 500);
+                            // Wire autosave already set below; just reflect status
+                        } catch {}
                         // Clear any stale local files after loading
                         try {
                             localStorage.removeItem('editorFiles');
@@ -196,9 +262,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         editor.codeMirror.on('change', () => {
                             clearTimeout(saveTimer);
                             saveTimer = setTimeout(async () => {
+                                const syncBtn = document.getElementById('project-sync-btn');
+                                if (syncBtn) syncBtn.textContent = 'Saving...';
                                 const result = await projectSync.saveToWebsite();
                                 if (!result.ok) {
                                     console.warn('Save failed:', result.error);
+                                    if (syncBtn) syncBtn.textContent = 'Retry Sync';
+                                } else {
+                                    if (syncBtn) syncBtn.textContent = 'Synced';
                                 }
                             }, 1000);
                         });
@@ -274,11 +345,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function handleKeyboardShortcuts(e) {
-        // Ctrl+S - Save (we auto-save but this provides user feedback)
+        // Ctrl+S - Save (sync to website when enabled)
         if (e.ctrlKey && e.key === 's') {
             e.preventDefault();
-            // Files are auto-saved, just show a brief confirmation
-            showStatusMessage('File saved');
+            (async () => {
+                if (projectSync && projectSync.syncEnabled) {
+                    const result = await projectSync.saveToWebsite();
+                    if (result.ok) {
+                        showStatusMessage('Synced to website');
+                    } else {
+                        showStatusMessage('Sync failed');
+                    }
+                } else {
+                    showStatusMessage('File saved');
+                }
+            })();
         }
         
         // Ctrl+N - New file
