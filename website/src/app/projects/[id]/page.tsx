@@ -38,6 +38,12 @@ export default function ProjectDetailPage() {
 
   const fetchProject = async () => {
     try {
+      // Resolve current user first to determine view permissions
+      const { data: authData } = await supabase.auth.getUser()
+      const authedUser = authData?.user || null
+      setCurrentUser(authedUser)
+
+      // Fetch project (public or private). We'll enforce access below.
       const { data, error } = await supabase
         .from('projects')
         .select(`
@@ -47,7 +53,6 @@ export default function ProjectDetailPage() {
           project_views(count)
         `)
         .eq('id', params.id)
-        .eq('is_public', true)
         .single()
 
       if (error) throw error
@@ -61,32 +66,31 @@ export default function ProjectDetailPage() {
         is_liked: false
       }
 
+      // Enforce access: allow public or owner of private projects
+      const isOwner = authedUser && transformedProject.user_id === authedUser.id
+      if (!transformedProject.is_public && !isOwner) {
+        router.push('/dashboard')
+        return
+      }
+
       setProject(transformedProject)
       
       // Check if current user liked this project
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
+      if (authedUser) {
         const { data: like } = await supabase
           .from('project_likes')
           .select('id')
           .eq('project_id', params.id)
-          .eq('user_id', user.id)
+          .eq('user_id', authedUser.id)
           .single()
         
         setIsLiked(!!like)
       }
     } catch (error: unknown) {
       console.error('Error fetching project:', error)
-      if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116') {
-        router.push('/404')
-      }
+      router.push('/404')
     }
     setLoading(false)
-  }
-
-  const checkCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    setCurrentUser(user)
   }
 
   const incrementViewCount = async () => {
@@ -117,7 +121,6 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     if (params.id) {
       fetchProject()
-      checkCurrentUser()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id])
