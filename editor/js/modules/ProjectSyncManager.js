@@ -31,16 +31,20 @@ export class ProjectSyncManager {
   async loadWebsiteProject(projectId) {
     if (!projectId) return
     const candidates = []
-    // If websiteAPI was set from site param, use ONLY that
+    // Prefer origin from site param (if provided)
     if (this.websiteAPI) {
       candidates.push(this.websiteAPI.replace(/\/api$/, ''))
-    } else {
-      // Otherwise, detect from referrer and known fallbacks
-      if (document.referrer) {
-        try { candidates.push(new URL(document.referrer).origin) } catch {}
-      }
-      candidates.push('https://liveeditorcode.netlify.app')
-      candidates.push('https://ailiveeditor.netlify.app')
+    }
+    // Then try referrer origin
+    if (document.referrer) {
+      try {
+        const refOrigin = new URL(document.referrer).origin
+        if (!candidates.includes(refOrigin)) candidates.push(refOrigin)
+      } catch {}
+    }
+    // Known deployment (website) fallback
+    for (const known of ['https://ailiveeditor.netlify.app']) {
+      if (!candidates.includes(known)) candidates.push(known)
     }
 
     let project = null

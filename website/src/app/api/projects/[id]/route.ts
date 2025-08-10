@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 function corsResponse(body: unknown, origin: string | null, status = 200) {
   const res = NextResponse.json(body, { status })
@@ -22,6 +22,7 @@ export async function GET(req: Request) {
   const origin = req.headers.get('origin')
   try {
     const supabase = await createClient()
+    const admin = createAdminClient()
     // Extract project id from URL path to avoid Next.js type friction
     const match = new URL(req.url).pathname.match(/\/api\/projects\/([^/]+)/)
     const id = match?.[1]
@@ -35,14 +36,14 @@ export async function GET(req: Request) {
       : null
     let userId: string | null = null
     if (bearer) {
-      const { data } = await supabase.auth.getUser(bearer)
+      const { data } = await admin.auth.getUser(bearer)
       userId = data.user?.id ?? null
     } else {
       const { data } = await supabase.auth.getUser()
       userId = data.user?.id ?? null
     }
 
-    const { data: project, error } = await supabase
+    const { data: project, error } = await admin
       .from('projects')
       .select('id, user_id, is_public, title, content, updated_at')
       .eq('id', id)
@@ -80,6 +81,7 @@ export async function PUT(req: Request) {
   const origin = req.headers.get('origin')
   try {
     const supabase = await createClient()
+    const admin = createAdminClient()
     // Extract project id from URL path
     const match = new URL(req.url).pathname.match(/\/api\/projects\/([^/]+)/)
     const id = match?.[1]
@@ -93,7 +95,7 @@ export async function PUT(req: Request) {
       : null
     let userId: string | null = null
     if (bearer) {
-      const { data } = await supabase.auth.getUser(bearer)
+      const { data } = await admin.auth.getUser(bearer)
       userId = data.user?.id ?? null
     } else {
       const { data } = await supabase.auth.getUser()
@@ -104,7 +106,7 @@ export async function PUT(req: Request) {
       return corsResponse({ error: 'Unauthorized' }, origin, 401)
     }
 
-    const { data: project, error: fetchErr } = await supabase
+    const { data: project, error: fetchErr } = await admin
       .from('projects')
       .select('id, user_id')
       .eq('id', id)
@@ -123,7 +125,7 @@ export async function PUT(req: Request) {
       return corsResponse({ error: 'Invalid payload' }, origin, 400)
     }
 
-    const { data: updated, error: updateErr } = await supabase
+    const { data: updated, error: updateErr } = await admin
       .from('projects')
       .update({ content: payload.content, updated_at: new Date().toISOString() })
       .eq('id', id)
