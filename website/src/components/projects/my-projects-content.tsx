@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useUserProjects } from '@/hooks/useDatabase'
-import { Code, Eye, Heart, Filter, SortAsc, SortDesc, Lock, Globe, RefreshCw, Search, Plus } from 'lucide-react'
+import { Code, Filter, SortAsc, SortDesc, Lock, Globe, RefreshCw, Search, Plus } from 'lucide-react'
 
 type SortKey = 'updated_at' | 'created_at' | 'title'
 type SortOrder = 'asc' | 'desc'
@@ -20,7 +20,7 @@ export default function MyProjectsContent({ userId }: Props) {
   const [sortBy, setSortBy] = useState<SortKey>('updated_at')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
 
-  const { projects, loading, error, refetch } = useUserProjects(userId, true)
+  const { projects, loading, /* error */, refetch } = useUserProjects(userId, true)
 
   const filtered = useMemo(() => {
     const items = projects?.data || []
@@ -33,8 +33,8 @@ export default function MyProjectsContent({ userId }: Props) {
       next = next.filter(p => p.title.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q))
     }
     next = [...next].sort((a, b) => {
-      const av = (a as any)[sortBy]
-      const bv = (b as any)[sortBy]
+      const av = sortBy === 'title' ? a.title : new Date((a as { updated_at: string; created_at: string })[sortBy]).getTime()
+      const bv = sortBy === 'title' ? b.title : new Date((b as { updated_at: string; created_at: string })[sortBy]).getTime()
       if (av === bv) return 0
       if (sortOrder === 'asc') return av > bv ? 1 : -1
       return av < bv ? 1 : -1
