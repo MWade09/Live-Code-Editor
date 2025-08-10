@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
@@ -19,10 +18,16 @@ export async function OPTIONS(req: Request) {
   return corsResponse({}, origin, 200)
 }
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request) {
   const origin = req.headers.get('origin')
   try {
     const supabase = await createClient()
+    // Extract project id from URL path to avoid Next.js type friction
+    const match = new URL(req.url).pathname.match(/\/api\/projects\/([^/]+)/)
+    const id = match?.[1]
+    if (!id) {
+      return corsResponse({ error: 'Invalid project id' }, origin, 400)
+    }
     // Allow bearer token to be passed for cross-origin private project reads
     const authHeader = req.headers.get('authorization') || ''
     const bearer = authHeader.toLowerCase().startsWith('bearer ')
@@ -40,7 +45,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const { data: project, error } = await supabase
       .from('projects')
       .select('id, user_id, is_public, title, content, updated_at')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (error || !project) {
@@ -71,10 +76,16 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request) {
   const origin = req.headers.get('origin')
   try {
     const supabase = await createClient()
+    // Extract project id from URL path
+    const match = new URL(req.url).pathname.match(/\/api\/projects\/([^/]+)/)
+    const id = match?.[1]
+    if (!id) {
+      return corsResponse({ error: 'Invalid project id' }, origin, 400)
+    }
     // Require auth: try bearer first, fall back to cookie session
     const authHeader = req.headers.get('authorization') || ''
     const bearer = authHeader.toLowerCase().startsWith('bearer ')
@@ -96,7 +107,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     const { data: project, error: fetchErr } = await supabase
       .from('projects')
       .select('id, user_id')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (fetchErr || !project) {
@@ -115,7 +126,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     const { data: updated, error: updateErr } = await supabase
       .from('projects')
       .update({ content: payload.content, updated_at: new Date().toISOString() })
-      .eq('id', params.id)
+      .eq('id', id)
       .select('id, content, updated_at')
       .single()
 
