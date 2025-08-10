@@ -68,6 +68,8 @@ export function DashboardContent({ user }: DashboardContentProps) {
     { icon: FileText, label: 'Templates', href: '/templates', color: 'from-purple-500 to-pink-500', description: 'Start with pre-built templates' },
     { icon: Folder, label: 'Import Code', href: '/import', color: 'from-green-500 to-emerald-500', description: 'Upload files or import from GitHub' },
     { icon: Play, label: 'Live Editor', href: '/editor', color: 'from-orange-500 to-red-500', description: 'Open the code editor directly' },
+    // New quick access to My Projects
+    { icon: Folder, label: 'My Projects', href: '/my-projects', color: 'from-indigo-500 to-cyan-500', description: 'View, filter, and sort all your projects' },
   ]
 
   // Helper function to format project status

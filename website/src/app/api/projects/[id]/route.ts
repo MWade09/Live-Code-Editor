@@ -19,13 +19,23 @@ export async function OPTIONS(req: Request) {
   return corsResponse({}, origin, 200)
 }
 
-export async function GET(req: Request, { params }: any) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   const origin = req.headers.get('origin')
   try {
     const supabase = await createClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
+    // Allow bearer token to be passed for cross-origin private project reads
+    const authHeader = req.headers.get('authorization') || ''
+    const bearer = authHeader.toLowerCase().startsWith('bearer ')
+      ? authHeader.slice(7)
+      : null
+    let userId: string | null = null
+    if (bearer) {
+      const { data } = await supabase.auth.getUser(bearer)
+      userId = data.user?.id ?? null
+    } else {
+      const { data } = await supabase.auth.getUser()
+      userId = data.user?.id ?? null
+    }
 
     const { data: project, error } = await supabase
       .from('projects')
@@ -37,7 +47,7 @@ export async function GET(req: Request, { params }: any) {
       return corsResponse({ error: 'Project not found' }, origin, 404)
     }
 
-    const isOwner = user && project.user_id === user.id
+    const isOwner = userId && project.user_id === userId
     const isPublic = !!project.is_public
     if (!isOwner && !isPublic) {
       return corsResponse({ error: 'Forbidden' }, origin, 403)
@@ -61,15 +71,25 @@ export async function GET(req: Request, { params }: any) {
   }
 }
 
-export async function PUT(req: Request, { params }: any) {
+export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const origin = req.headers.get('origin')
   try {
     const supabase = await createClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
+    // Require auth: try bearer first, fall back to cookie session
+    const authHeader = req.headers.get('authorization') || ''
+    const bearer = authHeader.toLowerCase().startsWith('bearer ')
+      ? authHeader.slice(7)
+      : null
+    let userId: string | null = null
+    if (bearer) {
+      const { data } = await supabase.auth.getUser(bearer)
+      userId = data.user?.id ?? null
+    } else {
+      const { data } = await supabase.auth.getUser()
+      userId = data.user?.id ?? null
+    }
 
-    if (!user) {
+    if (!userId) {
       return corsResponse({ error: 'Unauthorized' }, origin, 401)
     }
 
@@ -83,7 +103,7 @@ export async function PUT(req: Request, { params }: any) {
       return corsResponse({ error: 'Project not found' }, origin, 404)
     }
 
-    if (project.user_id !== user.id) {
+    if (project.user_id !== userId) {
       return corsResponse({ error: 'Forbidden' }, origin, 403)
     }
 

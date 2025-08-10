@@ -8,14 +8,21 @@ export class ProjectSyncManager {
       if (siteBase) {
         const origin = siteBase.replace(/\/$/, '')
         this.websiteAPI = origin + '/api'
-        console.debug('[ProjectSync] websiteAPI (from site param):', this.websiteAPI)
+        console.log('[ProjectSync] websiteAPI (from site param):', this.websiteAPI)
       } else {
         // No explicit site provided. We'll detect later in loadWebsiteProject.
         this.websiteAPI = ''
-        console.debug('[ProjectSync] websiteAPI not set yet (no site param)')
+        console.log('[ProjectSync] websiteAPI not set yet (no site param)')
+      }
+      // Capture optional auth token for private project access
+      const token = params.get('token')
+      this.authToken = token || ''
+      if (this.authToken) {
+        console.log('[ProjectSync] auth token present for private access')
       }
     } catch (err) {
       this.websiteAPI = ''
+      this.authToken = ''
     }
     this.currentProject = null
     this.syncEnabled = false
@@ -38,19 +45,13 @@ export class ProjectSyncManager {
 
     let project = null
     let lastError = null
-    // Optional bearer token for private projects (passed via URL by website)
-    let authHeader = {}
-    try {
-      const token = new URLSearchParams(window.location.search).get('token')
-      if (token) {
-        authHeader = { Authorization: `Bearer ${token}` }
-      }
-    } catch {}
+    // Optional bearer token for private projects (captured in constructor)
+    const authHeader = this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}
 
     for (const origin of candidates) {
       try {
         const url = `${origin.replace(/\/$/, '')}/api/projects/${projectId}`
-        try { console.debug('[ProjectSync] Trying', url) } catch {}
+        try { console.log('[ProjectSync] Trying', url) } catch {}
         // For public reads, no credentials; attach Authorization when provided
         const res = await fetch(url, { headers: { ...authHeader } })
         if (!res.ok) {
@@ -60,7 +61,7 @@ export class ProjectSyncManager {
         }
         project = await res.json()
         this.websiteAPI = origin.replace(/\/$/, '') + '/api'
-        try { console.debug('[ProjectSync] Using websiteAPI:', this.websiteAPI) } catch {}
+        try { console.log('[ProjectSync] Using websiteAPI:', this.websiteAPI) } catch {}
         break
       } catch (err) {
         lastError = err
@@ -95,10 +96,13 @@ export class ProjectSyncManager {
   async saveToWebsite() {
     if (!this.currentProject) return { ok: false, error: 'No project' }
     const content = this.exportProjectContent()
+    const headers = { 'Content-Type': 'application/json' }
+    if (this.authToken) {
+      headers['Authorization'] = `Bearer ${this.authToken}`
+    }
     const res = await fetch(`${this.websiteAPI}/projects/${this.currentProject.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
+      headers,
       body: JSON.stringify({ content })
     })
     if (!res.ok) {
