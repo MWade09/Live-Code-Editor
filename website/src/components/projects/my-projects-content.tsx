@@ -20,7 +20,7 @@ export default function MyProjectsContent({ userId }: Props) {
   const [sortBy, setSortBy] = useState<SortKey>('updated_at')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
 
-  const { projects, loading, /* error */, refetch } = useUserProjects(userId, true)
+  const { projects, loading, refetch } = useUserProjects(userId, true)
 
   const filtered = useMemo(() => {
     const items = projects?.data || []
@@ -75,7 +75,11 @@ export default function MyProjectsContent({ userId }: Props) {
           </div>
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-slate-400" />
-            <select value={visibility} onChange={(e) => setVisibility(e.target.value as any)} className="flex-1 px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white">
+            <select
+              value={visibility}
+              onChange={(e) => setVisibility(e.target.value as 'all' | 'public' | 'private')}
+              className="flex-1 px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white"
+            >
               <option value="all">All</option>
               <option value="public">Public</option>
               <option value="private">Private</option>
