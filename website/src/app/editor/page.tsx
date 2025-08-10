@@ -52,7 +52,8 @@ export default function EditorBridgePage() {
         // Redirect to editor with project id param so it can sync from website
         const editorUrl = new URL('https://ai-assisted-editor.netlify.app')
         editorUrl.searchParams.set('project', projectData.id)
-        editorUrl.searchParams.set('site', window.location.origin)
+        const siteOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN || window.location.origin
+        editorUrl.searchParams.set('site', siteOrigin)
         // Include a bearer token so private projects can be read cross-origin
         const { data: sessionData } = await supabase.auth.getSession()
         const token = sessionData?.session?.access_token
