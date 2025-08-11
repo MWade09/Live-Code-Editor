@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
+// import { createClient } from '@/lib/supabase/client'
 import { Shield, CheckCircle2, XCircle, Star, EyeOff } from 'lucide-react'
 
 type Report = {
@@ -18,7 +18,6 @@ type Report = {
 }
 
 export default function ModerationPage() {
-  const supabase = createClient()
   const [reports, setReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -84,7 +83,7 @@ export default function ModerationPage() {
             <Shield className="w-7 h-7 text-cyan-400" /> Moderation
           </h1>
           <div className="flex items-center gap-2">
-            <select value={filter} onChange={(e) => setFilter(e.target.value as any)} className="px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white">
+            <select value={filter} onChange={(e) => setFilter(e.target.value as 'open' | 'reviewing' | 'resolved' | 'dismissed' | 'all')} className="px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white">
               <option value="open">Open</option>
               <option value="reviewing">Reviewing</option>
               <option value="resolved">Resolved</option>

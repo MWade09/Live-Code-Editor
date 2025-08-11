@@ -91,7 +91,7 @@ export default function EditProjectPage() {
   }, [params.id])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type, checked } = e.target as HTMLInputElement
+    const { name, value, checked } = e.target as HTMLInputElement
     if (name === 'is_public') {
       setForm(prev => ({ ...prev, is_public: checked }))
       return

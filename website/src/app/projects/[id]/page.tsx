@@ -249,7 +249,7 @@ export default function ProjectDetailPage() {
       .eq('project_id', project.id)
       .order('created_at', { ascending: false })
       .limit(50)
-    if (!error && data) setComments(data as any)
+    if (!error && data) setComments(data as Array<{ id: string; content: string; created_at: string; user_profiles: { username: string } }>)
   }
 
   useEffect(() => {
