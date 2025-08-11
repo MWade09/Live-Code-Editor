@@ -116,6 +116,15 @@ CREATE TABLE comments (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Save history (lightweight)
+CREATE TABLE project_saves (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  change_summary TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Reports (moderation)
 CREATE TABLE project_reports (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -212,6 +221,7 @@ ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_activity ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE project_saves ENABLE ROW LEVEL SECURITY;
 
 -- User Profiles Policies
 CREATE POLICY "Public profiles are viewable by everyone" ON user_profiles
@@ -313,6 +323,28 @@ CREATE POLICY "Users can update their own notifications" ON notifications
 CREATE POLICY "System can create notifications" ON notifications
   FOR INSERT WITH CHECK (true);
 
+-- Project Saves Policies
+CREATE POLICY "View saves for public or own projects" ON project_saves
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM projects 
+      WHERE projects.id = project_saves.project_id 
+      AND (
+        (projects.is_public = true AND projects.status = 'published')
+        OR projects.user_id = auth.uid()
+      )
+    )
+  );
+
+CREATE POLICY "Owners can insert saves" ON project_saves
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM projects 
+      WHERE projects.id = project_saves.project_id 
+      AND projects.user_id = auth.uid()
+    )
+  );
+
 -- =============================================
 -- FUNCTIONS AND TRIGGERS
 -- =============================================
@@ -338,6 +370,7 @@ CREATE TRIGGER update_comments_updated_at BEFORE UPDATE ON comments
 
 CREATE TRIGGER update_project_reports_updated_at BEFORE UPDATE ON project_reports
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- No updated trigger needed for project_saves since immutable rows
 
 -- Function to create user profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()

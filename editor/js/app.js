@@ -235,6 +235,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                         const openFiles = fileManager.getOpenTabFiles();
                                         openFiles.forEach(f => fileManager.clearDirty(f.id));
                                         renderFileTabs();
+                                    } else if (result.error === 'Unauthorized' || result.error === 'No project') {
+                                        await handleGuestSaveFlow(projectSync);
                                     } else {
                                         setError();
                                         showStatusMessage('Save failed');
@@ -321,6 +323,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 }
                                             }
                                         });
+                                    } else if (result.error === 'Unauthorized' || result.error === 'No project') {
+                                        await handleGuestSaveFlow(projectSync);
                                     }
                                 } else {
                                     if (syncBtn) {
@@ -914,6 +918,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 editor.className = 'hidden-view';
                 previewFrame.className = 'active-view';
             }
+        }
+    }
+
+    async function handleGuestSaveFlow(projectSync) {
+        try {
+            // If no websiteAPI is set, try to infer from referrer or fallback
+            if (!projectSync.websiteAPI) {
+                const origin = document.referrer ? new URL(document.referrer).origin : 'https://ailiveeditor.netlify.app'
+                projectSync.websiteAPI = origin.replace(/\/$/, '') + '/api'
+            }
+            // Create project on website, then redirect to website /editor route with token handled by site
+            const res = await fetch(`${projectSync.websiteAPI}/projects`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'Untitled Project', content: projectSync.exportProjectContent(), language: 'HTML' }) })
+            if (!res.ok) {
+                showStatusMessage('Login required to save')
+                // Open website login
+                const site = projectSync.websiteAPI.replace(/\/api$/, '')
+                window.location.href = `${site}/auth/login`
+                return
+            }
+            const data = await res.json()
+            const site = projectSync.websiteAPI.replace(/\/api$/, '')
+            // Redirect to website editor bridge which will attach token and route back to hosted editor with params
+            window.location.href = `${site}/editor?project=${encodeURIComponent(data.id)}&site=${encodeURIComponent(site)}`
+        } catch (e) {
+            showStatusMessage('Login required to save')
+            const site = projectSync.websiteAPI ? projectSync.websiteAPI.replace(/\/api$/, '') : 'https://ailiveeditor.netlify.app'
+            window.location.href = `${site}/auth/login`
         }
     }
     

@@ -19,7 +19,8 @@ import {
   Flag,
   Edit,
   Trash2,
-  Send
+  Send,
+  History
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -34,6 +35,7 @@ export default function ProjectDetailPage() {
   const [copying, setCopying] = useState(false)
   const [showReport, setShowReport] = useState(false)
   const [reportReason, setReportReason] = useState('')
+  const [saves, setSaves] = useState<Array<{ id: string; created_at: string; change_summary: string | null }>>([])
   
   const params = useParams()
   const router = useRouter()
@@ -280,6 +282,19 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     fetchComments()
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id])
+
+  useEffect(() => {
+    const loadSaves = async () => {
+      if (!project) return
+      try {
+        const res = await fetch(`/api/projects/${project.id}/saves`, { cache: 'no-store' })
+        if (!res.ok) return
+        const body = await res.json()
+        setSaves((body?.data || []) as Array<{ id: string; created_at: string; change_summary: string | null }>)
+      } catch {}
+    }
+    loadSaves()
   }, [project?.id])
 
   const postComment = async () => {
@@ -581,7 +596,7 @@ export default function ProjectDetailPage() {
               </div>
 
               {/* Links */}
-              <div className="flex items-center space-x-4">
+               <div className="flex items-center space-x-4">
                 {project.demo_url && (
                   <a
                     href={project.demo_url}
@@ -687,7 +702,7 @@ export default function ProjectDetailPage() {
         </div>
 
         {/* Comments Section */}
-        <div className="mt-8 bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-6">
+               <div className="mt-8 bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-6">
           <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
             <MessageCircle className="w-5 h-5 text-cyan-400 mr-2" />
             Comments
@@ -721,6 +736,26 @@ export default function ProjectDetailPage() {
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Save History */}
+        <div className="mt-8 bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-6">
+          <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+            <History className="w-5 h-5 text-cyan-400 mr-2" />
+            Save History
+          </h3>
+          {saves.length === 0 ? (
+            <p className="text-slate-400 text-sm">No save history yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {saves.slice(0, 10).map(s => (
+                <li key={s.id} className="flex items-center justify-between text-sm text-slate-300">
+                  <span>{new Date(s.created_at).toLocaleString()}</span>
+                  <span className="text-slate-400 truncate max-w-[60%]">{s.change_summary || 'Updated content'}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

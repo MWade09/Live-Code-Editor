@@ -59,18 +59,7 @@ export async function GET(req: Request) {
       return corsResponse({ error: 'Forbidden' }, origin, 403)
     }
 
-    return corsResponse(
-      {
-        id: project.id,
-        user_id: project.user_id,
-        title: project.title,
-        is_public: project.is_public,
-        content: project.content,
-        updated_at: project.updated_at
-      },
-      origin,
-      200
-    )
+    return corsResponse(project, origin, 200)
   } catch (error) {
     console.error('GET /api/projects/[id] failed:', error)
     return corsResponse({ error: 'Internal server error' }, origin, 500)
