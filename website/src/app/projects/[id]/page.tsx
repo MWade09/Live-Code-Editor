@@ -249,7 +249,32 @@ export default function ProjectDetailPage() {
       .eq('project_id', project.id)
       .order('created_at', { ascending: false })
       .limit(50)
-    if (!error && data) setComments(data as Array<{ id: string; content: string; created_at: string; user_profiles: { username: string } }>)
+    if (!error && data) {
+      const rows = data as unknown as Array<{
+        id: unknown
+        content: unknown
+        created_at: unknown
+        user_profiles: unknown
+      }>
+      const toStringVal = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' : String(v))
+      const normalized = rows.map((row) => {
+        let username = ''
+        if (Array.isArray(row.user_profiles)) {
+          const first = row.user_profiles[0] as Record<string, unknown> | undefined
+          username = toStringVal(first?.username)
+        } else if (row.user_profiles && typeof row.user_profiles === 'object') {
+          const up = row.user_profiles as Record<string, unknown>
+          username = toStringVal(up.username)
+        }
+        return {
+          id: toStringVal(row.id),
+          content: toStringVal(row.content),
+          created_at: toStringVal(row.created_at),
+          user_profiles: { username },
+        }
+      })
+      setComments(normalized)
+    }
   }
 
   useEffect(() => {
