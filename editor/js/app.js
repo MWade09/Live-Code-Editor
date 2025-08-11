@@ -246,6 +246,31 @@ document.addEventListener('DOMContentLoaded', () => {
                                     if (result.ok) {
                                         setSynced();
                                         showStatusMessage('Synced to website');
+                                    } else if (result.conflict) {
+                                        syncBtn.querySelector('span').textContent = 'Resolve…';
+                                        syncBtn.disabled = false;
+                                        showConflictDialog(result.serverContent, async (action) => {
+                                            if (action === 'pull') {
+                                                const r = await projectSync.pullLatest();
+                                                if (r.ok) {
+                                                    renderFileTabs();
+                                                    setSynced();
+                                                    showStatusMessage('Pulled latest');
+                                                } else {
+                                                    setError();
+                                                    showStatusMessage('Pull failed');
+                                                }
+                                            } else if (action === 'overwrite') {
+                                                const r = await projectSync.overwriteSave();
+                                                if (r.ok) {
+                                                    setSynced();
+                                                    showStatusMessage('Overwrote remote');
+                                                } else {
+                                                    setError();
+                                                    showStatusMessage('Overwrite failed');
+                                                }
+                                            }
+                                        });
                                     } else {
                                         setError();
                                         console.warn('Save failed:', result.error);
@@ -276,7 +301,27 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const result = await projectSync.saveToWebsite();
                                 if (!result.ok) {
                                     console.warn('Save failed:', result.error);
-                                    if (syncBtn) syncBtn.querySelector('span').textContent = 'Retry Sync';
+                                    if (syncBtn) syncBtn.querySelector('span').textContent = result.conflict ? 'Resolve…' : 'Retry Sync';
+                                    if (result.conflict) {
+                                        showConflictDialog(result.serverContent, async (action) => {
+                                            if (action === 'pull') {
+                                                const r = await projectSync.pullLatest();
+                                                if (r.ok) {
+                                                    renderFileTabs();
+                                                    syncBtn.querySelector('span').textContent = 'Synced';
+                                                    lastSavedAt = Date.now();
+                                                    updateSaveTooltip();
+                                                }
+                                            } else if (action === 'overwrite') {
+                                                const r = await projectSync.overwriteSave();
+                                                if (r.ok) {
+                                                    syncBtn.querySelector('span').textContent = 'Synced';
+                                                    lastSavedAt = Date.now();
+                                                    updateSaveTooltip();
+                                                }
+                                            }
+                                        });
+                                    }
                                 } else {
                                     if (syncBtn) {
                                         syncBtn.querySelector('span').textContent = 'Synced';
@@ -577,6 +622,75 @@ document.addEventListener('DOMContentLoaded', () => {
         newTabBtn.addEventListener('click', showNewFileModal);
         tabsContainer.appendChild(newTabBtn);
     }
+
+    // Simple conflict dialog
+    function showConflictDialog(serverContent, callback) {
+        // Create modal
+        const existing = document.getElementById('conflict-modal');
+        if (existing) existing.remove();
+        const modal = document.createElement('div');
+        modal.id = 'conflict-modal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+          <div class="modal">
+            <h3>Sync Conflict</h3>
+            <p>The project was updated elsewhere. Choose an action:</p>
+            <div class="modal-actions">
+              <button id="conflict-pull" class="btn">Pull Latest</button>
+              <button id="conflict-overwrite" class="btn btn-danger">Overwrite Remote</button>
+              <button id="conflict-cancel" class="btn btn-secondary">Cancel</button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+        document.getElementById('conflict-pull').onclick = () => { modal.remove(); callback('pull'); };
+        document.getElementById('conflict-overwrite').onclick = () => { modal.remove(); callback('overwrite'); };
+        document.getElementById('conflict-cancel').onclick = () => { modal.remove(); };
+    }
+
+    // Error dropdown for recent sync errors
+    (function initErrorDropdown(){
+        const headerControls = document.querySelector('header .controls .view-controls');
+        if (!headerControls) return;
+        const btn = document.createElement('button');
+        btn.id = 'sync-errors-btn';
+        btn.className = 'community-btn';
+        btn.title = 'Recent Sync Errors';
+        btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+        const panel = document.createElement('div');
+        panel.id = 'sync-errors-panel';
+        panel.className = 'dropdown-panel';
+        panel.style.display = 'none';
+        document.body.appendChild(panel);
+        btn.addEventListener('click', () => {
+            const log = window.app?.projectSync?.errorLog || [];
+            panel.innerHTML = `<div class="dropdown-content">${log.length ? log.map(e => `<div class="dropdown-item">${new Date(e.ts).toLocaleTimeString()} - ${e.message}</div>`).join('') : '<div class="dropdown-item">No recent errors</div>'}</div>`;
+            const rect = btn.getBoundingClientRect();
+            panel.style.position = 'fixed';
+            panel.style.top = `${rect.bottom + 8}px`;
+            panel.style.left = `${rect.left - 120}px`;
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        });
+        headerControls.insertBefore(btn, headerControls.firstChild);
+        document.addEventListener('projectSyncError', () => {
+            btn.classList.add('has-error');
+            setTimeout(() => btn.classList.remove('has-error'), 1500);
+        });
+        document.addEventListener('click', (e) => {
+            if (!panel.contains(e.target) && e.target !== btn) {
+                panel.style.display = 'none';
+            }
+        });
+    })();
+
+    // Warn before unload when dirty
+    window.addEventListener('beforeunload', (e) => {
+        const open = fileManager.getOpenTabFiles();
+        const hasDirty = open.some(f => fileManager.isDirty && fileManager.isDirty(f.id));
+        if (hasDirty) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
     
     function switchToTab(fileId) {
         if (fileManager.setActiveTab(fileId)) {

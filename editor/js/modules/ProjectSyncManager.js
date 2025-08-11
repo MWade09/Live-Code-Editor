@@ -26,6 +26,12 @@ export class ProjectSyncManager {
     }
     this.currentProject = null
     this.syncEnabled = false
+    this.errorLog = [] // recent errors
+    this.pendingQueue = [] // queued payloads when offline
+    this.retryTimer = null
+    try {
+      window.addEventListener('online', () => this.flushQueue())
+    } catch {}
   }
 
   async loadWebsiteProject(projectId) {
@@ -104,18 +110,144 @@ export class ProjectSyncManager {
     if (this.authToken) {
       headers['Authorization'] = `Bearer ${this.authToken}`
     }
-    const res = await fetch(`${this.websiteAPI}/projects/${this.currentProject.id}`, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify({ content })
-    })
-    if (!res.ok) {
-      const text = await res.text()
-      return { ok: false, error: text }
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      this.queueSave({ content, ts: Date.now() })
+      this.pushError('Offline: queued save')
+      return { ok: false, queued: true, error: 'Offline' }
     }
-    const updated = await res.json()
-    this.currentProject.updated_at = updated.updated_at
-    return { ok: true }
+
+    // Best-effort conflict check: pull server updated_at first
+    try {
+      const latest = await this.fetchLatestMeta()
+      if (latest && this.currentProject.updated_at && latest.updated_at && latest.updated_at !== this.currentProject.updated_at) {
+        return { ok: false, conflict: true, serverUpdatedAt: latest.updated_at, serverContent: latest.content }
+      }
+    } catch {}
+
+    try {
+      const res = await fetch(`${this.websiteAPI}/projects/${this.currentProject.id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ content })
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        this.pushError(`Save failed: ${text || res.status}`)
+        return { ok: false, error: text }
+      }
+      const updated = await res.json()
+      this.currentProject.updated_at = updated.updated_at
+      return { ok: true }
+    } catch (e) {
+      this.queueSave({ content, ts: Date.now() })
+      this.pushError(`Network error: queued save`)
+      return { ok: false, queued: true, error: String(e) }
+    }
+  }
+
+  async overwriteSave() {
+    if (!this.currentProject) return { ok: false, error: 'No project' }
+    const content = this.exportProjectContent()
+    const headers = { 'Content-Type': 'application/json' }
+    if (this.authToken) headers['Authorization'] = `Bearer ${this.authToken}`
+    try {
+      const res = await fetch(`${this.websiteAPI}/projects/${this.currentProject.id}`, {
+        method: 'PUT', headers, body: JSON.stringify({ content })
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        this.pushError(`Overwrite failed: ${text || res.status}`)
+        return { ok: false, error: text }
+      }
+      const updated = await res.json()
+      this.currentProject.updated_at = updated.updated_at
+      return { ok: true }
+    } catch (e) {
+      this.pushError('Network error on overwrite')
+      return { ok: false, error: String(e) }
+    }
+  }
+
+  async pullLatest() {
+    const latest = await this.fetchLatestMeta(true)
+    if (!latest) throw new Error('Failed to fetch latest')
+    try {
+      const current = this.fileManager.getCurrentFile()
+      const filename = current?.name || (this.currentProject?.title?.trim() ? `${this.currentProject.title}.html` : 'index.html')
+      // Replace current file content
+      if (current) {
+        current.content = typeof latest.content === 'string' ? latest.content : ''
+      } else {
+        const newFile = this.fileManager.createNewFile(filename, typeof latest.content === 'string' ? latest.content : '')
+        this.fileManager.openFileInTab(newFile.id)
+      }
+      // Clear dirty states across tabs
+      if (this.fileManager.clearAllDirty) this.fileManager.clearAllDirty()
+      this.currentProject.updated_at = latest.updated_at
+      return { ok: true }
+    } catch (e) {
+      this.pushError('Failed to apply latest content')
+      return { ok: false, error: String(e) }
+    }
+  }
+
+  async fetchLatestMeta(includeContent = false) {
+    if (!this.currentProject) return null
+    const headers = {}
+    if (this.authToken) headers['Authorization'] = `Bearer ${this.authToken}`
+    const res = await fetch(`${this.websiteAPI}/projects/${this.currentProject.id}`, { headers })
+    if (!res.ok) return null
+    const data = await res.json()
+    return includeContent ? data : { updated_at: data.updated_at }
+  }
+
+  queueSave(entry) {
+    this.pendingQueue.push(entry)
+    this.scheduleRetry()
+  }
+
+  scheduleRetry() {
+    if (this.retryTimer) return
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null
+      this.flushQueue()
+    }, 3000)
+  }
+
+  async flushQueue() {
+    if (!this.pendingQueue.length) return
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return
+    const next = this.pendingQueue.shift()
+    const headers = { 'Content-Type': 'application/json' }
+    if (this.authToken) headers['Authorization'] = `Bearer ${this.authToken}`
+    try {
+      const res = await fetch(`${this.websiteAPI}/projects/${this.currentProject.id}`, {
+        method: 'PUT', headers, body: JSON.stringify({ content: next.content })
+      })
+      if (!res.ok) {
+        this.pushError(`Retry failed: ${res.status}`)
+        // Requeue tail and increase backoff
+        this.pendingQueue.push(next)
+        this.retryTimer = setTimeout(() => { this.retryTimer = null; this.flushQueue() }, 5000)
+        return
+      }
+      const updated = await res.json()
+      this.currentProject.updated_at = updated.updated_at
+      // Continue flushing
+      if (this.pendingQueue.length) this.flushQueue()
+    } catch (e) {
+      this.pushError('Network error during retry')
+      this.pendingQueue.push(next)
+      this.retryTimer = setTimeout(() => { this.retryTimer = null; this.flushQueue() }, 7000)
+    }
+  }
+
+  pushError(message) {
+    try {
+      this.errorLog.unshift({ message, ts: Date.now() })
+      this.errorLog = this.errorLog.slice(0, 5)
+      document.dispatchEvent(new CustomEvent('projectSyncError', { detail: { message } }))
+    } catch {}
   }
 }
 
