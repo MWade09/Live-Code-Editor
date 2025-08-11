@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 export async function GET(_req: Request) {
   try {
+    void _req
     const supabase = await createClient()
     const admin = createAdminClient()
 
