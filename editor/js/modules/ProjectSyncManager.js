@@ -139,9 +139,11 @@ export class ProjectSyncManager {
       this.currentProject.updated_at = updated.updated_at
       // Post a lightweight save record (best-effort)
       try {
-        await fetch(`${this.websiteAPI}/projects/${this.currentProject.id}/saves`, {
-          method: 'POST', headers, body: JSON.stringify({ change_summary: 'Content updated' })
-        })
+        if (this.authToken) {
+          await fetch(`${this.websiteAPI}/projects/${this.currentProject.id}/saves`, {
+            method: 'POST', headers, body: JSON.stringify({ change_summary: 'Content updated' })
+          })
+        }
       } catch {}
       return { ok: true }
     } catch (e) {

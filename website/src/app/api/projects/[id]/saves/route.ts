@@ -34,8 +34,16 @@ export async function GET(req: Request) {
       .single()
     if (!project) return corsResponse({ error: 'Not found' }, origin, 404)
 
-    const { data: user } = await supabase.auth.getUser()
-    const uid = user.user?.id
+    const authHeader = req.headers.get('authorization') || ''
+    const bearer = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7) : null
+    let uid: string | null = null
+    if (bearer) {
+      const { data } = await admin.auth.getUser(bearer)
+      uid = data.user?.id ?? null
+    } else {
+      const { data: user } = await supabase.auth.getUser()
+      uid = user.user?.id ?? null
+    }
     const isPublic = project.is_public && project.status === 'published'
     const isOwner = uid && uid === project.user_id
     if (!isPublic && !isOwner) return corsResponse({ error: 'Forbidden' }, origin, 403)
@@ -63,8 +71,16 @@ export async function POST(req: Request) {
     const match = new URL(req.url).pathname.match(/\/api\/projects\/([^/]+)\/saves/)
     const id = match?.[1]
     if (!id) return corsResponse({ error: 'Invalid id' }, origin, 400)
-    const { data: user } = await supabase.auth.getUser()
-    const uid = user.user?.id
+    const authHeader = req.headers.get('authorization') || ''
+    const bearer = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7) : null
+    let uid: string | null = null
+    if (bearer) {
+      const { data } = await admin.auth.getUser(bearer)
+      uid = data.user?.id ?? null
+    } else {
+      const { data: user } = await supabase.auth.getUser()
+      uid = user.user?.id ?? null
+    }
     if (!uid) return corsResponse({ error: 'Unauthorized' }, origin, 401)
 
     // Verify owner
