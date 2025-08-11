@@ -2,6 +2,7 @@
 
 ## 📋 Table of Contents
 - [Current State Assessment](#current-state-assessment)
+- [Session Summary - Recent Changes](#session-summary---recent-changes)
 - [Phase 3: Project Management & Workflow](#phase-3-project-management--workflow)
 - [Phase 4: Advanced Features & Polish](#phase-4-advanced-features--polish)
 - [Implementation Roadmap](#implementation-roadmap)
@@ -24,6 +25,46 @@
 - ✅ Community features (likes, views, comments, sharing)
 - ✅ Database schema supporting project management
 - ✅ Templates, import, and sharing workflows
+
+---
+
+## 🧾 Session Summary - Recent Changes
+
+### Website
+- Added My Projects improvements:
+  - New View button linking to `/projects/[id]` alongside Open and Share
+  - Back link logic preserves source when coming from My Projects (`?from=my-projects`)
+- Project detail (`/projects/[id]`):
+  - Publish/Unpublish toggle for owners (updates `is_public`, auto-sets `status` and `published_at`)
+  - Edit page with full form and PUT save
+  - Delete project (owner-only)
+  - Comments: load and post; live count display
+  - Report modal for non-owners → inserts into `project_reports`
+- Community projects (`/projects`):
+  - Tabs: All, Featured, Trending; timeframe selector (Today/7d/30d) for Trending
+  - Featured and Trending badges on cards
+- Admin moderation:
+  - API: `GET /api/admin/reports`, `PUT /api/admin/reports/[id]`, `PUT /api/admin/projects/[id]` (feature/unpublish)
+  - UI: `/admin/moderation` with filters and actions (View, Feature/Unfeature, Unpublish, Mark Reviewing/Resolve/Dismiss)
+  - Admin link shown in dashboard Quick Actions only for IDs in `NEXT_ADMIN_USER_IDS` (via `/api/admin/whoami`)
+- API projects endpoint (`/api/projects/[id]`):
+  - Extended PUT whitelist (title, description, tags, etc.), auto derive `status`/`published_at` when `is_public` changes
+  - Added DELETE (owner-only)
+  - CORS allowances retained for editor origin
+
+### Editor
+- Back to Website button now routes correctly to the website project page
+- ProjectSyncManager honors passed `site` and bearer token for private projects
+- My Projects → View flow tested and confirmed with back-navigation
+
+### Database
+- Added `project_reports` table with RLS and triggers for moderation
+
+### Tooling/Build
+- Fixed numerous TypeScript/ESLint issues; removed unused variables; replaced `any` casts with strict types
+
+### Environment
+- Add `NEXT_ADMIN_USER_IDS` (comma-separated Supabase user IDs) in Netlify for admin access
 
 ---
 
@@ -79,7 +120,7 @@ export const config = {
 // New module: ProjectSyncManager.js
 class ProjectSyncManager {
   constructor() {
-    this.websiteAPI = 'https://liveeditorcode.netlify.app/api'
+    this.websiteAPI = 'https://ailiveeditor.netlify.app/api'
     this.currentProject = null
     this.syncEnabled = false
   }
@@ -297,7 +338,7 @@ class AuthManager {
 // WebSocket connection for live updates
 class RealtimeSync {
   constructor() {
-    this.ws = new WebSocket('wss://liveeditorcode.netlify.app/sync')
+    this.ws = new WebSocket('wss://ailiveeditor.netlify.app/sync')
     this.setupEventHandlers()
   }
 
@@ -360,7 +401,7 @@ CREATE TABLE IF NOT EXISTS ai_usage (
 ## 📋 Required Changes Summary
 
 ### 🖥️ Editor Enhancements
-- [ ] Add ProjectSyncManager.js for website integration
+- [X] Add ProjectSyncManager.js for website integration
 - [ ] Create GitManager.js for version control
 - [ ] Implement TerminalManager.js for terminal features
 - [ ] Add AuthManager.js for website authentication

@@ -211,8 +211,35 @@ document.addEventListener('DOMContentLoaded', () => {
                                 syncBtn.innerHTML = '<i class="fas fa-rotate"></i> <span>Sync</span>';
 
                                 const setSaving = () => { syncBtn.querySelector('span').textContent = 'Saving...'; syncBtn.disabled = true; };
-                                const setSynced = () => { syncBtn.querySelector('span').textContent = 'Synced'; syncBtn.disabled = false; };
+                                const setSynced = () => { syncBtn.querySelector('span').textContent = 'Synced'; syncBtn.disabled = false; lastSavedAt = Date.now(); updateSaveTooltip(); };
                                 const setError = () => { syncBtn.querySelector('span').textContent = 'Retry Sync'; syncBtn.disabled = false; };
+                                let lastSavedAt = null;
+                                function updateSaveTooltip() {
+                                    if (!lastSavedAt) return;
+                                    const dt = new Date(lastSavedAt);
+                                    syncBtn.title = `Last saved ${dt.toLocaleTimeString()}`;
+                                }
+                                // Add explicit Save button next to Sync
+                                const saveBtn = document.createElement('button');
+                                saveBtn.id = 'project-save-btn';
+                                saveBtn.className = 'deploy-btn';
+                                saveBtn.title = 'Save Project (Ctrl+S)';
+                                saveBtn.innerHTML = '<i class="fas fa-save"></i> <span>Save</span>';
+                                saveBtn.addEventListener('click', async () => {
+                                    setSaving();
+                                    const result = await projectSync.saveToWebsite();
+                                    if (result.ok) {
+                                        setSynced();
+                                        showStatusMessage('Saved');
+                                        // Clear dirty flags on success
+                                        const openFiles = fileManager.getOpenTabFiles();
+                                        openFiles.forEach(f => fileManager.clearDirty(f.id));
+                                        renderFileTabs();
+                                    } else {
+                                        setError();
+                                        showStatusMessage('Save failed');
+                                    }
+                                });
                                 const doSync = async () => {
                                     setSaving();
                                     const result = await projectSync.saveToWebsite();
@@ -226,6 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     }
                                 };
                                 syncBtn.addEventListener('click', doSync);
+                                controls.insertBefore(saveBtn, themeToggle);
                                 controls.insertBefore(syncBtn, themeToggle);
                                 // Initial sync shortly after load
                                 setTimeout(doSync, 500);
@@ -250,7 +278,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                     console.warn('Save failed:', result.error);
                                     if (syncBtn) syncBtn.querySelector('span').textContent = 'Retry Sync';
                                 } else {
-                                    if (syncBtn) syncBtn.querySelector('span').textContent = 'Synced';
+                                    if (syncBtn) {
+                                        syncBtn.querySelector('span').textContent = 'Synced';
+                                        lastSavedAt = Date.now();
+                                        updateSaveTooltip();
+                                    }
+                                    // Clear dirty flag for current file
+                                    const current = fileManager.getCurrentFile();
+                                    if (current) {
+                                        fileManager.clearDirty(current.id);
+                                        renderFileTabs();
+                                    }
                                 }
                             }, 1000);
                         });
@@ -510,8 +548,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const tab = document.createElement('div');
             tab.className = `file-tab ${file === activeTabFile ? 'active' : ''}`;
+            const isDirty = typeof fileManager.isDirty === 'function' && fileManager.isDirty(file.id);
             tab.innerHTML = `
-                <span class="tab-name">${file.name}</span>
+                <span class="tab-name">${file.name}${isDirty ? ' •' : ''}</span>
                 <button class="close-tab" onclick="closeTab('${file.id}')" title="Close tab">×</button>
             `;
             

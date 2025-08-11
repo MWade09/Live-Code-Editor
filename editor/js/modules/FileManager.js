@@ -11,6 +11,8 @@ export class FileManager {
         // New: Track open tabs separately from project files
         this.openTabs = []; // Array of file IDs that are currently open in tabs
         this.activeTabIndex = -1; // Index within openTabs array
+        // Track unsaved changes per file id
+        this.dirtyById = {}; // { [fileId]: true }
         
         // Load files from local storage if available
         this.loadFilesFromStorage();
@@ -298,6 +300,8 @@ export class FileManager {
         const currentFile = this.getCurrentFile();
         if (currentFile) {
             currentFile.content = content;
+            // Mark current file as dirty when content changes
+            this.markDirty(currentFile.id);
             this.saveFilesToStorage();
         }
     }
@@ -657,6 +661,27 @@ export class FileManager {
      */
     isFileOpenInTab(fileId) {
         return this.openTabs.includes(fileId);
+    }
+
+    // ============================================
+    // DIRTY STATE MANAGEMENT
+    // ============================================
+    markDirty(fileId) {
+        this.dirtyById[fileId] = true;
+    }
+
+    clearDirty(fileId) {
+        if (this.dirtyById[fileId]) {
+            delete this.dirtyById[fileId];
+        }
+    }
+
+    clearAllDirty() {
+        this.dirtyById = {};
+    }
+
+    isDirty(fileId) {
+        return !!this.dirtyById[fileId];
     }
 }
 

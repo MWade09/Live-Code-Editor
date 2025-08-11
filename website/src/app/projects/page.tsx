@@ -15,7 +15,8 @@ import {
   ExternalLink,
   Plus,
   Star,
-  Flame
+  Flame,
+  MessageCircle
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -68,7 +69,8 @@ export default function ProjectsPage() {
           *,
           user_profiles!inner(id, username, full_name, avatar_url),
           project_likes(count),
-          project_views(count)
+          project_views(count),
+          comments(count)
         `)
         .eq('is_public', true)
         .eq('status', 'published')
@@ -115,7 +117,7 @@ export default function ProjectsPage() {
         user_profiles: project.user_profiles,
         total_likes: Array.isArray(project.project_likes) ? project.project_likes.length : 0,
         total_views: Array.isArray(project.project_views) ? project.project_views.length : 0,
-        total_comments: 0, // Will be implemented later
+        total_comments: Array.isArray(project.comments) ? project.comments.length : 0,
         is_liked: false // Will be implemented later
       })) as ProjectWithDetails[] || []
 
@@ -479,6 +481,10 @@ export default function ProjectsPage() {
                     <span className="flex items-center space-x-1">
                       <Eye className="w-4 h-4" />
                       <span>{project.total_views}</span>
+                    </span>
+                    <span className="flex items-center space-x-1">
+                      <MessageCircle className="w-4 h-4" />
+                      <span>{project.total_comments}</span>
                     </span>
                   </div>
 
