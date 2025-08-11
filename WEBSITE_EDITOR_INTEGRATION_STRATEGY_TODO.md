@@ -149,6 +149,11 @@ class ProjectSyncManager {
 }
 ```
 
+**FUTURE ADDITIONS:** (WILL COME BACK TO IMPLEMENT LATER)
+
+- Add a small “offline/queued” badge next to Sync to show queued save count.
+- Consider ETag/If-Match on PUT for stronger conflict checks later (current updated_at check is fine for now).
+
 #### Website API Endpoints for Project Sync
 
 ```ts

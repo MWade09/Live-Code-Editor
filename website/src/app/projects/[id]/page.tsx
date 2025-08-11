@@ -20,7 +20,8 @@ import {
   Edit,
   Trash2,
   Send,
-  History
+  History,
+  GitCommit
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -36,6 +37,9 @@ export default function ProjectDetailPage() {
   const [showReport, setShowReport] = useState(false)
   const [reportReason, setReportReason] = useState('')
   const [saves, setSaves] = useState<Array<{ id: string; created_at: string; change_summary: string | null }>>([])
+  const [commits, setCommits] = useState<Array<{ id: string; message: string; created_at: string; branch?: string }>>([])
+  const [commitContent, setCommitContent] = useState<string>('')
+  const [viewingCommitId, setViewingCommitId] = useState<string | null>(null)
   
   const params = useParams()
   const router = useRouter()
@@ -296,6 +300,76 @@ export default function ProjectDetailPage() {
     }
     loadSaves()
   }, [project?.id])
+
+  // Load commits (owner only)
+  useEffect(() => {
+    const loadCommits = async () => {
+      if (!project || !currentUser || currentUser.id !== project.user_id) return
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData?.session?.access_token
+        const res = await fetch(`/api/projects/${project.id}/commits`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }, cache: 'no-store'
+        })
+        if (!res.ok) return
+        const body = await res.json()
+        const rows = Array.isArray(body?.data) ? body.data : []
+        setCommits(rows as Array<{ id: string; message: string; created_at: string; branch?: string }>)
+      } catch {}
+    }
+    loadCommits()
+  }, [project?.id, currentUser?.id])
+
+  const viewCommit = async (commitId: string) => {
+    if (!project) return
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      const res = await fetch(`/api/projects/${project.id}/commits/${commitId}`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      })
+      if (!res.ok) return
+      const body = await res.json()
+      setViewingCommitId(commitId)
+      setCommitContent(String(body?.data?.content || ''))
+    } catch {}
+  }
+
+  const restoreCommit = async (commitId: string) => {
+    if (!project || !currentUser || currentUser.id !== project.user_id) return
+    if (!window.confirm('Restore to this commit? This will overwrite the current content.')) return
+    // Fetch commit content and update project via PUT
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      const res = await fetch(`/api/projects/${project.id}/commits/${commitId}`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      })
+      if (!res.ok) return
+      const body = await res.json()
+      const content = String(body?.data?.content || '')
+      const put = await fetch(`/api/projects/${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ content })
+      })
+      if (!put.ok) throw new Error('Failed to restore')
+      // Optionally create a revert commit
+      await fetch(`/api/projects/${project.id}/commits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ message: `Restore to ${commitId.slice(0,7)}`, content })
+      }).catch(() => {})
+      // Refresh data
+      fetchProject()
+      setViewingCommitId(null)
+    } catch (e) {
+      console.error('Restore failed', e)
+      alert('Failed to restore commit')
+    }
+  }
 
   // Poll for new saves briefly after mount and after successful edits
   useEffect(() => {
@@ -771,6 +845,44 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Version Control - Commits (owner only) */}
+        {isOwner && (
+          <div className="mt-8 bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-6">
+            <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+              <GitCommit className="w-5 h-5 text-cyan-400 mr-2" />
+              Commits
+            </h3>
+            {commits.length === 0 ? (
+              <p className="text-slate-400 text-sm">No commits yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {commits.slice(0, 15).map(c => (
+                  <li key={c.id} className="flex items-center justify-between text-sm text-slate-300">
+                    <div className="truncate">
+                      <span className="text-white font-medium">{c.message}</span>
+                      <span className="text-slate-400 ml-2">{new Date(c.created_at).toLocaleString()} • {c.branch || 'main'}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => viewCommit(c.id)} className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 hover:text-white">View</button>
+                      <button onClick={() => restoreCommit(c.id)} className="px-2 py-1 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded">Restore</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {viewingCommitId && (
+              <div className="mt-4">
+                <h4 className="text-white font-semibold mb-2">Commit Content</h4>
+                <div className="max-h-96 overflow-auto border border-slate-700/50 rounded">
+                  <SyntaxHighlighter language={getLanguageForHighlighter(project.language)} style={vscDarkPlus} customStyle={{ margin: 0, background: 'transparent', fontSize: '13px' }}>
+                    {commitContent}
+                  </SyntaxHighlighter>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Save History */}
         <div className="mt-8 bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-6">

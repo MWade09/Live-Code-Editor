@@ -20,6 +20,12 @@ export class ProjectSyncManager {
       if (this.authToken) {
         console.log('[ProjectSync] auth token present for private access')
       }
+      // Sanitize URL to drop sensitive params (token)
+      if (params.has('token')) {
+        params.delete('token')
+        const sanitized = `${location.pathname}?${params.toString()}`
+        try { history.replaceState(null, '', sanitized) } catch {}
+      }
     } catch (err) {
       this.websiteAPI = ''
       this.authToken = ''

@@ -12,6 +12,7 @@ import { AIManager } from './modules/AIManager.js';
 import { InlineAIManager } from './modules/InlineAIManager.js';
 import { AICodeActionsManager } from './modules/AICodeActionsManager.js';
 import { ProjectSyncManager } from './modules/ProjectSyncManager.js';
+import { VersionControlManager } from './modules/VersionControlManager.js';
 
 // Load chat panel scripts - CSS is now loaded directly in HTML
 (function() {
@@ -91,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const fileExplorerManager = new FileExplorerManager(fileManager, editor);
     const projectSync = new ProjectSyncManager(fileManager);
+    const versionControl = new VersionControlManager(projectSync, fileManager);
     
     // Global app state
     window.app = {
@@ -107,7 +109,8 @@ document.addEventListener('DOMContentLoaded', () => {
         showModal,
         hideModal,
         renderFileTabs,
-        projectSync
+        projectSync,
+        versionControl
     };
     
     // Expose inline AI manager globally for debugging
@@ -210,10 +213,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 syncBtn.title = 'Sync with Website';
                                 syncBtn.innerHTML = '<i class="fas fa-rotate"></i> <span>Sync</span>';
 
+                                let lastSavedAt = null;
                                 const setSaving = () => { syncBtn.querySelector('span').textContent = 'Saving...'; syncBtn.disabled = true; };
                                 const setSynced = () => { syncBtn.querySelector('span').textContent = 'Synced'; syncBtn.disabled = false; lastSavedAt = Date.now(); updateSaveTooltip(); };
                                 const setError = () => { syncBtn.querySelector('span').textContent = 'Retry Sync'; syncBtn.disabled = false; };
-                                let lastSavedAt = null;
                                 function updateSaveTooltip() {
                                     if (!lastSavedAt) return;
                                     const dt = new Date(lastSavedAt);
@@ -280,10 +283,56 @@ document.addEventListener('DOMContentLoaded', () => {
                                     }
                                 };
                                 syncBtn.addEventListener('click', doSync);
+                                // Source Control button
+                                const scBtn = document.createElement('button');
+                                scBtn.id = 'source-control-btn';
+                                scBtn.className = 'community-btn';
+                                scBtn.title = 'Source Control';
+                                scBtn.innerHTML = '<i class="fas fa-code-branch"></i> <span>Source</span>';
+                                scBtn.addEventListener('click', () => toggleVcsPanel());
+
+                                // Branch quick switch in header
+                                const branchWrap = document.createElement('div');
+                                branchWrap.style.display = 'inline-flex';
+                                branchWrap.style.alignItems = 'center';
+                                branchWrap.style.gap = '6px';
+                                branchWrap.style.marginRight = '6px';
+                                const branchLabel = document.createElement('span');
+                                branchLabel.textContent = 'Branch:';
+                                branchLabel.style.fontSize = '12px';
+                                branchLabel.style.opacity = '0.8';
+                                const branchSelect = document.createElement('select');
+                                branchSelect.id = 'header-branch-select';
+                                branchSelect.className = 'community-btn';
+                                branchSelect.style.padding = '4px 8px';
+                                branchSelect.style.background = 'transparent';
+                                branchSelect.style.borderRadius = '6px';
+                                branchSelect.style.border = '1px solid rgba(255,255,255,0.1)';
+                                branchSelect.addEventListener('change', async (e) => {
+                                  const name = e.target.value;
+                                  await versionControl.checkoutBranch(name);
+                                  renderVcsCommits();
+                                });
+                                branchWrap.appendChild(branchLabel);
+                                branchWrap.appendChild(branchSelect);
+
                                 controls.insertBefore(saveBtn, themeToggle);
                                 controls.insertBefore(syncBtn, themeToggle);
+                                controls.insertBefore(scBtn, themeToggle);
+                                controls.insertBefore(branchWrap, scBtn);
                                 // Initial sync shortly after load
                                 setTimeout(doSync, 500);
+                                // Preload commits silently
+                                versionControl.listCommits().catch(() => {});
+                                // Load header branches
+                                (async () => {
+                                  const select = document.getElementById('header-branch-select');
+                                  if (!select) return;
+                                  const branches = await versionControl.listBranches();
+                                  const names = ['main', ...branches.map(b => b.name).filter(n => n !== 'main')];
+                                  select.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
+                                  select.value = versionControl.cache.currentBranch || 'main';
+                                })();
                             }
                         } catch {}
                         // Clear any stale local files after loading
@@ -393,6 +442,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Open community website in new tab
             window.open('https://ailiveeditor.netlify.app/community', '_blank');
         });
+        // Init VCS panel container
+        initVcsPanel();
           // AI Assistant functionality (handled by chat panel)
         // The AI functionality is now integrated into the chat panel
         if (document.getElementById('cancel-ai-btn')) {
@@ -410,6 +461,193 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Keyboard shortcuts
         document.addEventListener('keydown', handleKeyboardShortcuts);
+    }
+
+    function initVcsPanel() {
+        if (document.getElementById('vcs-panel')) return;
+        const panel = document.createElement('div');
+        panel.id = 'vcs-panel';
+        panel.style.position = 'fixed';
+        panel.style.top = '64px';
+        panel.style.right = '16px';
+        panel.style.width = '420px';
+        panel.style.maxHeight = '70vh';
+        panel.style.overflow = 'auto';
+        panel.style.background = 'var(--bg-secondary, #1f1f1f)';
+        panel.style.border = '1px solid rgba(255,255,255,0.1)';
+        panel.style.borderRadius = '8px';
+        panel.style.boxShadow = '0 10px 30px rgba(0,0,0,0.4)';
+        panel.style.display = 'none';
+        panel.style.zIndex = '1000';
+        panel.innerHTML = `
+          <div style="padding:12px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.08)">
+            <strong>Source Control</strong>
+            <button id="vcs-close-btn" class="btn btn-secondary" style="padding:4px 8px">✕</button>
+          </div>
+          <div style="padding:12px;">
+            <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+              <label style="font-size:12px; opacity:0.8;">Branch</label>
+              <select id="vcs-branch" style="flex:1; padding:6px; background:transparent; color:inherit; border:1px solid rgba(255,255,255,0.1); border-radius:6px;"></select>
+              <button id="vcs-new-branch" class="community-btn" title="Create branch"><i class="fas fa-plus"></i></button>
+            </div>
+            <label style="font-size:12px; opacity:0.8;">Commit message</label>
+            <input id="vcs-message" type="text" placeholder="Describe your changes" style="width:100%; margin-top:6px; margin-bottom:8px; padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:inherit;" />
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+              <button id="vcs-commit-btn" class="deploy-btn"><i class="fas fa-check"></i> Commit</button>
+              <button id="vcs-refresh-btn" class="community-btn"><i class="fas fa-sync"></i> Refresh</button>
+              <button id="vcs-diff-btn" class="community-btn"><i class="fas fa-file-diff"></i> Diff vs last</button>
+            </div>
+            <div id="vcs-status" style="font-size:12px; opacity:0.8; margin-bottom:8px;"></div>
+            <div id="vcs-diff" style="font-family:monospace; font-size:12px; white-space:pre-wrap; margin-bottom:12px;"></div>
+            <div>
+              <div style="font-weight:600; margin-bottom:6px;">Recent commits</div>
+              <div id="vcs-commits"></div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(panel);
+        document.getElementById('vcs-close-btn').addEventListener('click', toggleVcsPanel);
+        document.getElementById('vcs-commit-btn').addEventListener('click', onVcsCommit);
+        document.getElementById('vcs-refresh-btn').addEventListener('click', renderVcsCommits);
+        document.getElementById('vcs-diff-btn').addEventListener('click', renderVcsDiff);
+        document.getElementById('vcs-new-branch').addEventListener('click', async () => {
+          const name = prompt('New branch name');
+          if (!name) return;
+          const status = document.getElementById('vcs-status');
+          status.textContent = 'Creating branch...';
+          const res = await versionControl.createBranch(name.trim());
+          if (res.ok) {
+            status.textContent = 'Branch created';
+            await renderVcsBranches();
+          } else {
+            status.textContent = 'Failed to create branch';
+          }
+        });
+        document.getElementById('vcs-branch').addEventListener('change', async (e) => {
+          const name = e.target.value;
+          versionControl.checkoutBranch(name);
+          renderVcsCommits();
+        });
+        // Close on outside click
+        document.addEventListener('click', (e) => {
+          const p = document.getElementById('vcs-panel');
+          const btn = document.getElementById('source-control-btn');
+          if (!p || !btn) return;
+          if (p.style.display === 'none') return;
+          if (!p.contains(e.target) && e.target !== btn) p.style.display = 'none';
+        });
+    }
+
+    function toggleVcsPanel() {
+        const panel = document.getElementById('vcs-panel');
+        if (!panel) return;
+        const show = panel.style.display === 'none';
+        panel.style.display = show ? 'block' : 'none';
+        if (show) {
+            renderVcsBranches().then(renderVcsCommits);
+            document.getElementById('vcs-message').focus();
+        }
+    }
+
+    async function renderVcsBranches() {
+        const select = document.getElementById('vcs-branch');
+        if (!select) return;
+        select.innerHTML = '<option>Loading...</option>';
+        const branches = await versionControl.listBranches();
+        const names = ['main', ...branches.map(b => b.name).filter(n => n !== 'main')];
+        select.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
+        // Preselect current branch
+        select.value = versionControl.cache.currentBranch || 'main';
+    }
+
+    async function onVcsCommit() {
+        const status = document.getElementById('vcs-status');
+        const input = document.getElementById('vcs-message');
+        const message = (input.value || '').trim();
+        if (!message) { status.textContent = 'Enter a commit message.'; return; }
+        status.textContent = 'Committing...';
+        const result = await versionControl.createCommit(message);
+        if (result.ok) {
+            status.textContent = 'Commit created';
+            input.value = '';
+            renderVcsCommits();
+        } else if (result.error && String(result.error).includes('401')) {
+            status.textContent = 'Login required to commit';
+        } else {
+            status.textContent = 'Commit failed';
+        }
+    }
+
+    async function renderVcsCommits() {
+        const container = document.getElementById('vcs-commits');
+        if (!container) return;
+        container.innerHTML = 'Loading...';
+        try {
+            const commits = await versionControl.listCommits();
+            if (!commits.length) { container.innerHTML = '<div style="opacity:.7">No commits yet</div>'; return; }
+            container.innerHTML = commits.map(c => `<div class="dropdown-item" data-commit-id="${c.id}">
+              <div style="display:flex; justify-content:space-between; gap:8px; align-items:center;">
+                <div style="flex:1 1 auto; min-width:0;"><strong>${escapeHtml(c.message || '')}</strong><div style="opacity:.7; font-size:12px;">${new Date(c.created_at).toLocaleString()} • ${c.branch || 'main'}</div></div>
+                <div style="flex:0 0 auto; display:flex; gap:6px;">
+                  <button class="community-btn" data-action="view" data-id="${c.id}" title="View diff"><i class="fas fa-eye"></i></button>
+                  <button class="deploy-btn" data-action="restore" data-id="${c.id}" title="Restore to this commit"><i class="fas fa-undo"></i></button>
+                </div>
+              </div>
+            </div>`).join('');
+            container.querySelectorAll('button[data-action="view"]').forEach(btn => {
+              btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                const commit = await versionControl.getCommit(id);
+                if (!commit) return;
+                const current = versionControl.fileManager.getCurrentFile()?.content || '';
+                const diff = versionControl.computeLineDiff(commit.content || '', current);
+                renderDiff(diff);
+              });
+            });
+            container.querySelectorAll('button[data-action="restore"]').forEach(btn => {
+              btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                if (!confirm('Restore to this commit? This will overwrite the current content.')) return;
+                const status = document.getElementById('vcs-status');
+                status.textContent = 'Restoring...';
+                const res = await versionControl.restoreToCommit(id, { autoSync: true, createCommit: true });
+                status.textContent = res.ok ? 'Restored and saved' : 'Restore failed';
+                if (res.ok) {
+                  renderVcsDiff();
+                }
+              });
+            });
+        } catch (e) {
+            container.innerHTML = '<div style="color:#f66">Failed to load commits</div>';
+        }
+    }
+
+    async function renderVcsDiff() {
+        const commits = await versionControl.listCommits();
+        if (!commits.length) { renderDiff([]); return; }
+        const latest = await versionControl.getCommit(commits[0].id);
+        const current = versionControl.fileManager.getCurrentFile()?.content || '';
+        const diff = versionControl.computeLineDiff(latest?.content || '', current);
+        renderDiff(diff);
+    }
+
+    function renderDiff(diff) {
+        const el = document.getElementById('vcs-diff');
+        if (!el) return;
+        if (!diff || !diff.length) { el.textContent = 'No changes.'; return; }
+        const lines = diff.map(d => {
+          if (d.type === 'added') return `<div style="background:rgba(46,160,67,.2); padding:2px 6px;">+ ${escapeHtml(d.text)}</div>`;
+          if (d.type === 'removed') return `<div style="background:rgba(248,81,73,.2); padding:2px 6px;">- ${escapeHtml(d.text)}</div>`;
+          return `<div style="opacity:.7; padding:2px 6px;">  ${escapeHtml(d.text)}</div>`;
+        });
+        el.innerHTML = lines.join('');
+    }
+
+    function escapeHtml(s) {
+        return (s || '').replace(/[&<>"']/g, function(c) {
+          const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+          return map[c] || c;
+        });
     }
     
     function handleKeyboardShortcuts(e) {

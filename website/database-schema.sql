@@ -346,6 +346,103 @@ CREATE POLICY "Owners can insert saves" ON project_saves
   );
 
 -- =============================================
+-- VERSION CONTROL TABLES AND POLICIES
+-- =============================================
+
+-- Commits per project (lightweight text snapshot + message)
+CREATE TABLE IF NOT EXISTS project_commits (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  message TEXT NOT NULL,
+  content TEXT NOT NULL,
+  branch TEXT NOT NULL DEFAULT 'main',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_commits_project_id ON project_commits(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_commits_created_at ON project_commits(created_at DESC);
+
+-- Branch registry (for future expansion)
+CREATE TABLE IF NOT EXISTS project_branches (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  created_by UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(project_id, name)
+);
+
+ALTER TABLE project_commits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE project_branches ENABLE ROW LEVEL SECURITY;
+
+-- Owners can read their commits
+DROP POLICY IF EXISTS project_commits_owner_select ON project_commits;
+CREATE POLICY project_commits_owner_select ON project_commits
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- Owners can write commits
+DROP POLICY IF EXISTS project_commits_owner_insert ON project_commits;
+CREATE POLICY project_commits_owner_insert ON project_commits
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- Owners may delete their commits
+DROP POLICY IF EXISTS project_commits_owner_delete ON project_commits;
+CREATE POLICY project_commits_owner_delete ON project_commits
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- Owners can read their branches
+DROP POLICY IF EXISTS project_branches_owner_select ON project_branches;
+CREATE POLICY project_branches_owner_select ON project_branches
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- Owners can create branches
+DROP POLICY IF EXISTS project_branches_owner_insert ON project_branches;
+CREATE POLICY project_branches_owner_insert ON project_branches
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- Owners can delete their branches
+DROP POLICY IF EXISTS project_branches_owner_delete ON project_branches;
+CREATE POLICY project_branches_owner_delete ON project_branches
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- =============================================
 -- FUNCTIONS AND TRIGGERS
 -- =============================================
 
