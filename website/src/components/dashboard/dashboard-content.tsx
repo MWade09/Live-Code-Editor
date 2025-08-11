@@ -11,7 +11,8 @@ import {
   Users,
   Heart,
   Eye,
-  Activity
+  Activity,
+  Shield
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -71,6 +72,10 @@ export function DashboardContent({ user }: DashboardContentProps) {
     // New quick access to My Projects
     { icon: Folder, label: 'My Projects', href: '/my-projects', color: 'from-indigo-500 to-cyan-500', description: 'View, filter, and sort all your projects' },
   ]
+
+  // Admin quick action visibility check
+  const showAdmin = typeof window !== 'undefined' && (window as unknown)
+
 
   // Helper function to format project status
   const getProjectStatus = (status: string) => {
@@ -229,6 +234,8 @@ export function DashboardContent({ user }: DashboardContentProps) {
                   <p className="text-slate-400 text-sm">{action.description}</p>
                 </Link>
               ))}
+              {/* Admin link loads conditionally to avoid SSR issues */}
+              <AdminActionCard />
             </div>
 
             {/* Recent Projects */}
@@ -385,5 +392,40 @@ export function DashboardContent({ user }: DashboardContentProps) {
         </div>
       </div>
     </div>
+  )
+}
+
+function AdminActionCard() {
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    const check = async () => {
+      try {
+        const res = await fetch('/api/admin/whoami', { cache: 'no-store' })
+        if (!res.ok) throw new Error('failed')
+        const body = (await res.json()) as { isAdmin: boolean }
+        if (mounted) setIsAdmin(body.isAdmin)
+      } catch {
+        if (mounted) setIsAdmin(false)
+      }
+    }
+    check()
+    return () => { mounted = false }
+  }, [])
+
+  if (isAdmin !== true) return null
+
+  return (
+    <Link
+      href="/admin/moderation"
+      className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all duration-200 transform hover:scale-[1.02]"
+    >
+      <div className="w-12 h-12 bg-gradient-to-r from-rose-500 to-orange-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+        <Shield className="w-6 h-6 text-white" />
+      </div>
+      <h3 className="font-semibold text-white mb-1">Admin Moderation</h3>
+      <p className="text-slate-400 text-sm">Review reports and manage featured/published projects</p>
+    </Link>
   )
 }
