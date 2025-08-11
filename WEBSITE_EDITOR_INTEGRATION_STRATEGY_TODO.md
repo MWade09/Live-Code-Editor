@@ -370,7 +370,7 @@ CREATE TABLE IF NOT EXISTS ai_usage (
 ### 🌐 Website Enhancements
  - [X] Allowlist `/editor` and `/editor/try` in middleware
  - [X] Add header CTA “Try the Editor” → `/editor/try`
-- [ ] Add project sync API endpoints
+- [X] Add project sync API endpoints
 - [ ] Extend database schema for Git and terminal data
 - [ ] Create real-time WebSocket server
 - [ ] Add project build/deployment configuration

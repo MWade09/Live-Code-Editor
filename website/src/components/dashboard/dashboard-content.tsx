@@ -73,9 +73,6 @@ export function DashboardContent({ user }: DashboardContentProps) {
     { icon: Folder, label: 'My Projects', href: '/my-projects', color: 'from-indigo-500 to-cyan-500', description: 'View, filter, and sort all your projects' },
   ]
 
-  // Admin quick action visibility check
-  const showAdmin = typeof window !== 'undefined' && (window as unknown)
-
 
   // Helper function to format project status
   const getProjectStatus = (status: string) => {
