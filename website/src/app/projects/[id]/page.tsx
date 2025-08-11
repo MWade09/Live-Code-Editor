@@ -297,6 +297,40 @@ export default function ProjectDetailPage() {
     loadSaves()
   }, [project?.id])
 
+  // Poll for new saves briefly after mount and after successful edits
+  useEffect(() => {
+    if (!project) return
+    const t = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/projects/${project.id}/saves`, { cache: 'no-store' })
+        if (!res.ok) return
+        const body = await res.json()
+        setSaves((body?.data || []) as Array<{ id: string; created_at: string; change_summary: string | null }>)
+      } catch {}
+    }, 8000)
+    return () => clearInterval(t)
+  }, [project?.id])
+
+  // Realtime updates for saves
+  useEffect(() => {
+    if (!project) return
+    const channel = supabase
+      .channel(`project_saves_${project.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'project_saves', filter: `project_id=eq.${project.id}` },
+        (payload) => {
+          const row = payload.new as { id: string; created_at: string; change_summary: string | null }
+          setSaves(prev => [{ id: row.id, created_at: row.created_at, change_summary: row.change_summary }, ...prev])
+        }
+      )
+      .subscribe()
+    return () => {
+      try { supabase.removeChannel(channel) } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id])
+
   const postComment = async () => {
     if (!newComment.trim() || !project) return
     const { data: auth } = await supabase.auth.getUser()

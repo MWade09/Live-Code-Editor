@@ -175,11 +175,21 @@ export async function PUT(req: Request) {
       return corsResponse({ error: 'Failed to update project' }, origin, 500)
     }
 
-    return corsResponse(
-      updated,
-      origin,
-      200
-    )
+    // Record a save entry (best-effort) for owner actions
+    try {
+      if (userId && (isAdmin || project.user_id === userId)) {
+        const change_summary = typeof (payload as Record<string, unknown>)['change_summary'] === 'string'
+          ? (payload as Record<string, unknown>)['change_summary'] as string
+          : 'Content updated'
+        await admin
+          .from('project_saves')
+          .insert({ project_id: id, user_id: userId, change_summary })
+      }
+    } catch (e) {
+      console.warn('Failed to write project_saves entry:', e)
+    }
+
+    return corsResponse(updated, origin, 200)
   } catch (error) {
     console.error('PUT /api/projects/[id] failed:', error)
     return corsResponse({ error: 'Internal server error' }, origin, 500)
