@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ProjectWithDetails } from '@/types'
 import { User } from '@supabase/supabase-js'
@@ -18,7 +18,8 @@ import {
   MessageCircle,
   Flag,
   Edit,
-  Trash2
+  Trash2,
+  Send
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -31,10 +32,13 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [copying, setCopying] = useState(false)
+  const [showReport, setShowReport] = useState(false)
+  const [reportReason, setReportReason] = useState('')
   
   const params = useParams()
   const router = useRouter()
   const supabase = createClient()
+  const searchParams = useSearchParams()
 
   const fetchProject = async () => {
     try {
@@ -211,6 +215,71 @@ export default function ProjectDetailPage() {
     }
   }
 
+  const togglePublish = async () => {
+    if (!project || !isOwner) return
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ is_public: !project.is_public })
+      })
+      if (!res.ok) throw new Error('Failed to update publish status')
+      setProject({ ...project, is_public: !project.is_public })
+    } catch (error) {
+      console.error('Error toggling publish:', error)
+      alert('Failed to change publish status. Please try again.')
+    }
+  }
+
+  // Comments (basic UI)
+  const [newComment, setNewComment] = useState('')
+  const [posting, setPosting] = useState(false)
+  const [comments, setComments] = useState<Array<{ id: string; content: string; created_at: string; user_profiles: { username: string } }>>([])
+
+  const fetchComments = async () => {
+    if (!project) return
+    const { data, error } = await supabase
+      .from('comments')
+      .select('id, content, created_at, user_profiles!inner(username)')
+      .eq('project_id', project.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    if (!error && data) setComments(data as any)
+  }
+
+  useEffect(() => {
+    fetchComments()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id])
+
+  const postComment = async () => {
+    if (!newComment.trim() || !project) return
+    const { data: auth } = await supabase.auth.getUser()
+    if (!auth?.user) {
+      router.push('/auth/login')
+      return
+    }
+    setPosting(true)
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .insert({ project_id: project.id, user_id: auth.user.id, content: newComment.trim() })
+      if (error) throw error
+      setNewComment('')
+      fetchComments()
+    } catch (e) {
+      console.error('Failed to post comment', e)
+      alert('Failed to post comment')
+    } finally {
+      setPosting(false)
+    }
+  }
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'long',
@@ -252,6 +321,27 @@ export default function ProjectDetailPage() {
     return langMap[language] || 'text'
   }
 
+  const submitReport = async () => {
+    if (!project || !reportReason.trim()) return
+    const { data: auth } = await supabase.auth.getUser()
+    if (!auth?.user) {
+      router.push('/auth/login')
+      return
+    }
+    try {
+      const { error } = await supabase
+        .from('project_reports')
+        .insert({ project_id: project.id, reporter_id: auth.user.id, reason: reportReason.trim() })
+      if (error) throw error
+      setShowReport(false)
+      setReportReason('')
+      alert('Report submitted. Thank you for helping keep the community safe.')
+    } catch (e) {
+      console.error('Report failed', e)
+      alert('Failed to submit report')
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-900 pt-16 sm:pt-18 lg:pt-20">
@@ -261,11 +351,34 @@ export default function ProjectDetailPage() {
             <p className="text-slate-400 mt-4">Loading project...</p>
           </div>
         </div>
+
+        {/* Report Modal */}
+        {showReport && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setShowReport(false)}></div>
+            <div className="relative bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md mx-4">
+              <h4 className="text-lg font-semibold text-white mb-3">Report Project</h4>
+              <p className="text-slate-400 text-sm mb-3">Tell us what’s wrong with this project. Our team will review your report.</p>
+              <textarea
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                rows={4}
+                placeholder="Reason for report"
+                className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700 rounded text-white mb-4"
+              />
+              <div className="flex items-center justify-end gap-2">
+                <button onClick={() => setShowReport(false)} className="px-3 py-2 bg-slate-800/50 border border-slate-700 rounded text-slate-300 hover:text-white">Cancel</button>
+                <button onClick={submitReport} disabled={!reportReason.trim()} className="px-3 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded disabled:opacity-60">Submit</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
 
   if (!project) {
+    const backHref = searchParams.get('from') === 'my-projects' ? '/my-projects' : '/projects'
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-900 pt-16 sm:pt-18 lg:pt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -273,7 +386,7 @@ export default function ProjectDetailPage() {
             <h2 className="text-2xl font-bold text-white mb-2">Project not found</h2>
             <p className="text-slate-400 mb-6">The project you&apos;re looking for doesn&apos;t exist or has been removed.</p>
             <Link
-              href="/projects"
+              href={backHref}
               className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded-lg hover:from-cyan-500 hover:to-purple-500 transition-all"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -286,6 +399,33 @@ export default function ProjectDetailPage() {
   }
 
   const isOwner = currentUser && project.user_id === currentUser.id
+  const fromParam = searchParams.get('from')
+  const backHref = fromParam === 'my-projects' ? '/my-projects' : '/projects'
+
+  const handleDelete = async () => {
+    if (!isOwner) return
+    const confirmed = window.confirm('Delete this project? This cannot be undone.')
+    if (!confirmed) return
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+      if (!res.ok && res.status !== 204) {
+        const text = await res.text().catch(() => '')
+        throw new Error(text || `Failed with status ${res.status}`)
+      }
+      router.push(backHref)
+    } catch (error) {
+      console.error('Delete failed:', error)
+      alert('Failed to delete project. Please try again.')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-900 pt-16 sm:pt-18 lg:pt-20">
@@ -293,7 +433,7 @@ export default function ProjectDetailPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link
-            href="/projects"
+            href={backHref}
             className="flex items-center space-x-2 text-slate-400 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -310,14 +450,22 @@ export default function ProjectDetailPage() {
             </button>
             {isOwner && (
               <>
+                <button
+                  onClick={togglePublish}
+                  className={`p-2 transition-colors ${project.is_public ? 'text-green-400 hover:text-yellow-400' : 'text-slate-400 hover:text-green-400'}`}
+                  title={project.is_public ? 'Unpublish from Community' : 'Publish to Community'}
+                >
+                  {project.is_public ? 'Unpublish' : 'Publish'}
+                </button>
                 <Link
-                  href={`/projects/${project.id}/edit`}
+                  href={`/projects/${project.id}/edit${fromParam ? `?from=${fromParam}` : ''}`}
                   className="p-2 text-slate-400 hover:text-yellow-400 transition-colors"
                   title="Edit Project"
                 >
                   <Edit className="w-5 h-5" />
                 </Link>
                 <button
+                  onClick={handleDelete}
                   className="p-2 text-slate-400 hover:text-red-400 transition-colors"
                   title="Delete Project"
                 >
@@ -327,6 +475,7 @@ export default function ProjectDetailPage() {
             )}
             {!isOwner && (
               <button
+                onClick={() => setShowReport(true)}
                 className="p-2 text-slate-400 hover:text-red-400 transition-colors"
                 title="Report Project"
               >
@@ -464,7 +613,7 @@ export default function ProjectDetailPage() {
                       <MessageCircle className="w-4 h-4" />
                       <span>Comments</span>
                     </div>
-                    <span className="text-white font-medium">{project.total_comments}</span>
+                    <span className="text-white font-medium">{comments.length}</span>
                   </div>
                 </div>
               </div>
@@ -512,16 +661,40 @@ export default function ProjectDetailPage() {
           </div>
         </div>
 
-        {/* Comments Section (Placeholder) */}
+        {/* Comments Section */}
         <div className="mt-8 bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-6">
           <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
             <MessageCircle className="w-5 h-5 text-cyan-400 mr-2" />
-            Comments ({project.total_comments})
+            Comments
           </h3>
-          <div className="text-center py-8 text-slate-400">
-            <MessageCircle className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-            <p>Comments feature coming soon!</p>
-            <p className="text-sm">Users will be able to discuss and provide feedback on projects.</p>
+          <div className="space-y-4">
+            <div className="flex items-start gap-2">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Share your thoughts..."
+                rows={3}
+                className="flex-1 px-3 py-2 bg-slate-800/50 border border-slate-700 rounded text-white"
+              />
+              <button
+                onClick={postComment}
+                disabled={posting || !newComment.trim()}
+                className="px-3 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded-lg disabled:opacity-60 flex items-center gap-2"
+              >
+                {posting ? <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full" /> : <Send className="w-4 h-4" />}
+                Post
+              </button>
+            </div>
+            <div className="divide-y divide-slate-700/50">
+              {comments.length === 0 ? (
+                <p className="text-slate-400 text-sm">No comments yet.</p>
+              ) : comments.map(c => (
+                <div key={c.id} className="py-3">
+                  <div className="text-sm text-slate-400 mb-1">@{c.user_profiles?.username} • {new Date(c.created_at).toLocaleString()}</div>
+                  <div className="text-white whitespace-pre-wrap">{c.content}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

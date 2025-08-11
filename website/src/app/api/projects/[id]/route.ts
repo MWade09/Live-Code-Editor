@@ -8,7 +8,7 @@ function corsResponse(body: unknown, origin: string | null, status = 200) {
   res.headers.set('Access-Control-Allow-Origin', allowedOrigin)
   res.headers.set('Vary', 'Origin')
   res.headers.set('Access-Control-Allow-Credentials', 'true')
-  res.headers.set('Access-Control-Allow-Methods', 'GET,PUT,OPTIONS')
+  res.headers.set('Access-Control-Allow-Methods', 'GET,PUT,DELETE,OPTIONS')
   res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
   return res
 }
@@ -106,6 +106,126 @@ export async function PUT(req: Request) {
       return corsResponse({ error: 'Unauthorized' }, origin, 401)
     }
 
+    const adminIds = (process.env.NEXT_ADMIN_USER_IDS || '').split(',').map(s => s.trim()).filter(Boolean)
+    const isAdmin = !!userId && adminIds.includes(userId)
+
+    const { data: project, error: fetchErr } = await admin
+      .from('projects')
+      .select('id, user_id')
+      .eq('id', id)
+      .single()
+
+    if (fetchErr || !project) {
+      return corsResponse({ error: 'Project not found' }, origin, 404)
+    }
+
+    if (!isAdmin && project.user_id !== userId) {
+      return corsResponse({ error: 'Forbidden' }, origin, 403)
+    }
+
+    const payload = await req.json().catch(() => null) as unknown
+    if (!payload || typeof payload !== 'object') {
+      return corsResponse({ error: 'Invalid payload' }, origin, 400)
+    }
+
+    // Pick allowed fields to update
+    const body = payload as Record<string, unknown>
+    const allowedKeys = [
+      'title',
+      'description',
+      'is_public',
+      'content',
+      'language',
+      'framework',
+      'tags',
+      'difficulty_level',
+      'estimated_time',
+      'demo_url',
+      'github_url',
+      // Admin-only below; non-admin updates will be ignored server-side if provided
+      'is_featured',
+      'status'
+    ] as const
+    const updateFields: Record<string, unknown> = {}
+    for (const key of allowedKeys) {
+      if (Object.prototype.hasOwnProperty.call(body, key)) {
+        updateFields[key] = body[key]
+      }
+    }
+    if (Object.keys(updateFields).length === 0) {
+      return corsResponse({ error: 'No valid fields to update' }, origin, 400)
+    }
+    updateFields['updated_at'] = new Date().toISOString()
+
+    // Auto-derive publish status if visibility changes
+    if (Object.prototype.hasOwnProperty.call(updateFields, 'is_public')) {
+      const willBePublic = Boolean(updateFields['is_public'])
+      updateFields['status'] = willBePublic ? 'published' : 'draft'
+      updateFields['published_at'] = willBePublic ? new Date().toISOString() : null
+    }
+
+    // If is_featured provided, set or clear featured_at (admin only)
+    if (Object.prototype.hasOwnProperty.call(updateFields, 'is_featured')) {
+      if (!isAdmin) {
+        // Non-admin cannot change feature status
+        delete updateFields['is_featured']
+      } else {
+        const willBeFeatured = Boolean(updateFields['is_featured'])
+        updateFields['featured_at'] = willBeFeatured ? new Date().toISOString() : null
+      }
+    }
+
+    const { data: updated, error: updateErr } = await admin
+      .from('projects')
+      .update(updateFields)
+      .eq('id', id)
+      .select('id, title, description, is_public, status, published_at, content, language, framework, tags, difficulty_level, estimated_time, demo_url, github_url, updated_at')
+      .single()
+
+    if (updateErr || !updated) {
+      return corsResponse({ error: 'Failed to update project' }, origin, 500)
+    }
+
+    return corsResponse(
+      updated,
+      origin,
+      200
+    )
+  } catch (error) {
+    console.error('PUT /api/projects/[id] failed:', error)
+    return corsResponse({ error: 'Internal server error' }, origin, 500)
+  }
+}
+
+export async function DELETE(req: Request) {
+  const origin = req.headers.get('origin')
+  try {
+    const supabase = await createClient()
+    const admin = createAdminClient()
+    const match = new URL(req.url).pathname.match(/\/api\/projects\/([^/]+)/)
+    const id = match?.[1]
+    if (!id) {
+      return corsResponse({ error: 'Invalid project id' }, origin, 400)
+    }
+
+    // Auth
+    const authHeader = req.headers.get('authorization') || ''
+    const bearer = authHeader.toLowerCase().startsWith('bearer ')
+      ? authHeader.slice(7)
+      : null
+    let userId: string | null = null
+    if (bearer) {
+      const { data } = await admin.auth.getUser(bearer)
+      userId = data.user?.id ?? null
+    } else {
+      const { data } = await supabase.auth.getUser()
+      userId = data.user?.id ?? null
+    }
+
+    if (!userId) {
+      return corsResponse({ error: 'Unauthorized' }, origin, 401)
+    }
+
     const { data: project, error: fetchErr } = await admin
       .from('projects')
       .select('id, user_id')
@@ -120,33 +240,30 @@ export async function PUT(req: Request) {
       return corsResponse({ error: 'Forbidden' }, origin, 403)
     }
 
-    const payload = await req.json().catch(() => null)
-    if (!payload || typeof payload.content !== 'string') {
-      return corsResponse({ error: 'Invalid payload' }, origin, 400)
-    }
+    // Best-effort clean up related records prior to project deletion
+    await admin.from('project_likes').delete().eq('project_id', id)
+    await admin.from('project_views').delete().eq('project_id', id)
 
-    const { data: updated, error: updateErr } = await admin
+    const { error: delErr } = await admin
       .from('projects')
-      .update({ content: payload.content, updated_at: new Date().toISOString() })
+      .delete()
       .eq('id', id)
-      .select('id, content, updated_at')
-      .single()
 
-    if (updateErr || !updated) {
-      return corsResponse({ error: 'Failed to update project' }, origin, 500)
+    if (delErr) {
+      return corsResponse({ error: 'Failed to delete project' }, origin, 500)
     }
 
-    return corsResponse(
-      {
-        id: updated.id,
-        content: updated.content,
-        updated_at: updated.updated_at
-      },
-      origin,
-      200
-    )
+    // Return 204 No Content
+    const res = NextResponse.json({}, { status: 204 })
+    const allowedOrigin = origin || '*'
+    res.headers.set('Access-Control-Allow-Origin', allowedOrigin)
+    res.headers.set('Vary', 'Origin')
+    res.headers.set('Access-Control-Allow-Credentials', 'true')
+    res.headers.set('Access-Control-Allow-Methods', 'GET,PUT,DELETE,OPTIONS')
+    res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    return res
   } catch (error) {
-    console.error('PUT /api/projects/[id] failed:', error)
+    console.error('DELETE /api/projects/[id] failed:', error)
     return corsResponse({ error: 'Internal server error' }, origin, 500)
   }
 }

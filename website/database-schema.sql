@@ -116,6 +116,17 @@ CREATE TABLE comments (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Reports (moderation)
+CREATE TABLE project_reports (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
+  reporter_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  reason TEXT NOT NULL,
+  status TEXT DEFAULT 'open' CHECK (status IN ('open','reviewing','resolved','dismissed')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- User follows (social features)
 CREATE TABLE user_follows (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -200,6 +211,7 @@ ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_activity ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE project_reports ENABLE ROW LEVEL SECURITY;
 
 -- User Profiles Policies
 CREATE POLICY "Public profiles are viewable by everyone" ON user_profiles
@@ -267,6 +279,13 @@ CREATE POLICY "Users can update their own comments" ON comments
 CREATE POLICY "Users can delete their own comments" ON comments
   FOR DELETE USING (auth.uid() = user_id);
 
+-- Project Reports Policies
+CREATE POLICY "Users can view their own reports" ON project_reports
+  FOR SELECT USING (auth.uid() = reporter_id);
+
+CREATE POLICY "Authenticated users can create reports" ON project_reports
+  FOR INSERT WITH CHECK (auth.uid() = reporter_id);
+
 -- User Follows Policies
 CREATE POLICY "Anyone can view public follows" ON user_follows
   FOR SELECT USING (true);
@@ -315,6 +334,9 @@ CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_comments_updated_at BEFORE UPDATE ON comments
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_project_reports_updated_at BEFORE UPDATE ON project_reports
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Function to create user profile on signup

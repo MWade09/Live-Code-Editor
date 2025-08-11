@@ -125,7 +125,7 @@ export default function MyProjectsContent({ userId }: Props) {
                   <td className="px-4 py-3 text-slate-400">{new Date(p.updated_at).toLocaleString()}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <Link href={`/projects/${p.id}`} className="px-3 py-1 bg-purple-600/20 text-purple-300 border border-purple-500/30 rounded hover:bg-purple-600/30 transition-colors flex items-center gap-1">
+                      <Link href={`/projects/${p.id}?from=my-projects`} className="px-3 py-1 bg-purple-600/20 text-purple-300 border border-purple-500/30 rounded hover:bg-purple-600/30 transition-colors flex items-center gap-1">
                         <Eye className="w-4 h-4" /> View
                       </Link>
                       <Link href={`/editor?project=${p.id}`} className="px-3 py-1 bg-cyan-600/20 text-cyan-300 border border-cyan-500/30 rounded hover:bg-cyan-600/30 transition-colors flex items-center gap-1">

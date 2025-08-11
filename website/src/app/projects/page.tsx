@@ -13,7 +13,9 @@ import {
   Calendar,
   Github,
   ExternalLink,
-  Plus
+  Plus,
+  Star,
+  Flame
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -43,6 +45,8 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
+  const [tab, setTab] = useState<'all' | 'featured' | 'trending'>('all')
+  const [trendWindow, setTrendWindow] = useState<'1d' | '7d' | '30d'>('7d')
   const [filters, setFilters] = useState<ProjectFilters>({
     search: '',
     language: '',
@@ -86,8 +90,20 @@ export default function ProjectsPage() {
         query = query.eq('difficulty_level', filters.difficulty)
       }
 
+      // Tabs
+      if (tab === 'featured') {
+        query = query.eq('is_featured', true)
+      }
+      if (tab === 'trending') {
+        const windowMs = trendWindow === '1d' ? 1 : trendWindow === '7d' ? 7 : 30
+        const since = new Date(Date.now() - windowMs * 24 * 60 * 60 * 1000).toISOString()
+        query = query.gte('published_at', since).order('views_count', { ascending: false })
+      }
+
       // Sort
-      query = query.order(filters.sortBy, { ascending: filters.sortOrder === 'asc' })
+      if (tab !== 'trending') {
+        query = query.order(filters.sortBy, { ascending: filters.sortOrder === 'asc' })
+      }
 
       const { data, error } = await query.limit(50)
 
@@ -108,7 +124,7 @@ export default function ProjectsPage() {
       console.error('Error fetching projects:', error)
     }
     setLoading(false)
-  }, [filters.search, filters.language, filters.framework, filters.difficulty, filters.sortBy, filters.sortOrder, supabase])
+  }, [filters.search, filters.language, filters.framework, filters.difficulty, filters.sortBy, filters.sortOrder, tab, trendWindow, supabase])
 
   useEffect(() => {
     fetchProjects()
@@ -198,6 +214,42 @@ export default function ProjectsPage() {
           </div>
 
           {/* Search and Filters */}
+          {/* Tabs */}
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={() => setTab('all')}
+              className={`px-3 py-2 rounded-lg border text-sm ${tab === 'all' ? 'bg-cyan-600/20 border-cyan-500/40 text-cyan-200' : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:text-white'}`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setTab('featured')}
+              className={`px-3 py-2 rounded-lg border text-sm ${tab === 'featured' ? 'bg-cyan-600/20 border-cyan-500/40 text-cyan-200' : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:text-white'}`}
+            >
+              Featured
+            </button>
+            <button
+              onClick={() => setTab('trending')}
+              className={`px-3 py-2 rounded-lg border text-sm ${tab === 'trending' ? 'bg-cyan-600/20 border-cyan-500/40 text-cyan-200' : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:text-white'}`}
+            >
+              Trending
+            </button>
+            {tab === 'trending' && (
+              <div className="ml-2 flex items-center gap-2">
+                <select
+                  value={trendWindow}
+                  onChange={(e) => setTrendWindow(e.target.value as '1d' | '7d' | '30d')}
+                  className="px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white"
+                >
+                  <option value="1d">Today</option>
+                  <option value="7d">7 Days</option>
+                  <option value="30d">30 Days</option>
+                </select>
+                <span className="text-xs text-slate-400">Sorted by views</span>
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-col lg:flex-row gap-4 mb-6">
             {/* Search Bar */}
             <div className="flex-1 relative">
@@ -232,6 +284,7 @@ export default function ProjectsPage() {
                 }))
               }}
               className="px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors min-w-[150px]"
+              disabled={tab === 'trending'}
             >
               <option value="created_at-desc">Latest</option>
               <option value="likes_count-desc">Most Liked</option>
@@ -340,9 +393,20 @@ export default function ProjectsPage() {
                       {project.description}
                     </p>
                   </div>
-                  
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r ${getDifficultyColor(project.difficulty_level)} border ml-3 whitespace-nowrap`}>
-                    {project.difficulty_level}
+                  <div className="flex items-center gap-2 ml-3 whitespace-nowrap">
+                    {project.is_featured && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
+                        <Star className="w-3 h-3" /> Featured
+                      </span>
+                    )}
+                    {tab === 'trending' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-red-500/20 text-red-300 border border-red-500/30">
+                        <Flame className="w-3 h-3" /> Trending ({trendWindow})
+                      </span>
+                    )}
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r ${getDifficultyColor(project.difficulty_level)} border`}>
+                      {project.difficulty_level}
+                    </div>
                   </div>
                 </div>
 
