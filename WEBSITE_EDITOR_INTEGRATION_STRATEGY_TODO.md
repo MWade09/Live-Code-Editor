@@ -407,7 +407,11 @@ CREATE TABLE IF NOT EXISTS ai_usage (
 
 ### 🖥️ Editor Enhancements
 - [X] Add ProjectSyncManager.js for website integration
-- [ ] Create GitManager.js for version control
+- [X] VersionControlManager: commits list, diff, restore
+- [X] Branch management: list/create/checkout
+- [X] Header branch selector + quick new branch with initial commit
+- [X] Restore confirmation dialog
+- [X] Queued save badge next to Sync button
 - [ ] Implement TerminalManager.js for terminal features
 - [ ] Add AuthManager.js for website authentication
 - [ ] Create RealtimeSync.js for live updates
@@ -417,6 +421,9 @@ CREATE TABLE IF NOT EXISTS ai_usage (
  - [X] Allowlist `/editor` and `/editor/try` in middleware
  - [X] Add header CTA “Try the Editor” → `/editor/try`
 - [X] Add project sync API endpoints
+- [X] Commits API with branches support (list/create/get)
+- [X] Branches API (list/create)
+- [X] Restore confirmation on project UI
 - [ ] Extend database schema for Git and terminal data
 - [ ] Create real-time WebSocket server
 - [ ] Add project build/deployment configuration

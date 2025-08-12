@@ -308,13 +308,33 @@ document.addEventListener('DOMContentLoaded', () => {
                                 branchSelect.style.background = 'transparent';
                                 branchSelect.style.borderRadius = '6px';
                                 branchSelect.style.border = '1px solid rgba(255,255,255,0.1)';
+                                const branchNewBtn = document.createElement('button');
+                                branchNewBtn.className = 'community-btn';
+                                branchNewBtn.title = 'New branch from current';
+                                branchNewBtn.innerHTML = '<i class="fas fa-plus"></i>';
                                 branchSelect.addEventListener('change', async (e) => {
                                   const name = e.target.value;
                                   await versionControl.checkoutBranch(name);
                                   renderVcsCommits();
                                 });
+                                branchNewBtn.addEventListener('click', async () => {
+                                  const name = prompt('New branch name');
+                                  if (!name) return;
+                                  const syncBtn = document.getElementById('project-sync-btn');
+                                  const prev = syncBtn?.querySelector('span')?.textContent;
+                                  if (syncBtn) syncBtn.querySelector('span').textContent = 'Creating…';
+                                  const res = await versionControl.createBranch(name.trim());
+                                  if (res.ok) {
+                                    await versionControl.checkoutBranch(name.trim());
+                                    await versionControl.createCommit('Initial commit on ' + name.trim(), name.trim());
+                                    await renderVcsBranches();
+                                    await renderVcsCommits();
+                                  }
+                                  if (syncBtn && prev) syncBtn.querySelector('span').textContent = prev;
+                                });
                                 branchWrap.appendChild(branchLabel);
                                 branchWrap.appendChild(branchSelect);
+                                branchWrap.appendChild(branchNewBtn);
 
                                 controls.insertBefore(saveBtn, themeToggle);
                                 controls.insertBefore(syncBtn, themeToggle);
@@ -333,6 +353,31 @@ document.addEventListener('DOMContentLoaded', () => {
                                   select.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
                                   select.value = versionControl.cache.currentBranch || 'main';
                                 })();
+
+                                // Queued save badge next to Sync button
+                                const queuedBadge = document.createElement('span');
+                                queuedBadge.id = 'queue-badge';
+                                queuedBadge.style.marginLeft = '6px';
+                                queuedBadge.style.fontSize = '11px';
+                                queuedBadge.style.padding = '2px 6px';
+                                queuedBadge.style.borderRadius = '10px';
+                                queuedBadge.style.background = 'rgba(255,165,0,0.15)';
+                                queuedBadge.style.border = '1px solid rgba(255,165,0,0.35)';
+                                queuedBadge.style.display = 'none';
+                                const syncBtnEl = document.getElementById('project-sync-btn');
+                                if (syncBtnEl) syncBtnEl.appendChild(queuedBadge);
+                                const updateBadge = (count) => {
+                                  if (!queuedBadge) return;
+                                  if (count > 0) {
+                                    queuedBadge.textContent = `Queued: ${count}`;
+                                    queuedBadge.style.display = 'inline-block';
+                                  } else {
+                                    queuedBadge.style.display = 'none';
+                                  }
+                                };
+                                document.addEventListener('projectSyncQueueChanged', (ev) => {
+                                  updateBadge(ev.detail?.count || 0);
+                                });
                             }
                         } catch {}
                         // Clear any stale local files after loading
@@ -515,10 +560,23 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!name) return;
           const status = document.getElementById('vcs-status');
           status.textContent = 'Creating branch...';
-          const res = await versionControl.createBranch(name.trim());
+          const branchName = name.trim();
+          const res = await versionControl.createBranch(branchName);
           if (res.ok) {
-            status.textContent = 'Branch created';
+            await versionControl.checkoutBranch(branchName);
+            // Initial commit on the new branch
+            await versionControl.createCommit('Initial commit on ' + branchName, branchName);
+            // Refresh both VCS and header branch lists
             await renderVcsBranches();
+            const headerSelect = document.getElementById('header-branch-select');
+            if (headerSelect) {
+              const branches = await versionControl.listBranches();
+              const names = ['main', ...branches.map(b => b.name).filter(n => n !== 'main')];
+              headerSelect.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
+              headerSelect.value = branchName;
+            }
+            await renderVcsCommits();
+            status.textContent = 'Branch created';
           } else {
             status.textContent = 'Failed to create branch';
           }

@@ -35,6 +35,7 @@ export class ProjectSyncManager {
     this.errorLog = [] // recent errors
     this.pendingQueue = [] // queued payloads when offline
     this.retryTimer = null
+    this._emitQueueChanged()
     try {
       window.addEventListener('online', () => this.flushQueue())
     } catch {}
@@ -218,6 +219,7 @@ export class ProjectSyncManager {
   queueSave(entry) {
     this.pendingQueue.push(entry)
     this.scheduleRetry()
+    this._emitQueueChanged()
   }
 
   scheduleRetry() {
@@ -243,16 +245,19 @@ export class ProjectSyncManager {
         // Requeue tail and increase backoff
         this.pendingQueue.push(next)
         this.retryTimer = setTimeout(() => { this.retryTimer = null; this.flushQueue() }, 5000)
+        this._emitQueueChanged()
         return
       }
       const updated = await res.json()
       this.currentProject.updated_at = updated.updated_at
       // Continue flushing
+      this._emitQueueChanged()
       if (this.pendingQueue.length) this.flushQueue()
     } catch (e) {
       this.pushError('Network error during retry')
       this.pendingQueue.push(next)
       this.retryTimer = setTimeout(() => { this.retryTimer = null; this.flushQueue() }, 7000)
+      this._emitQueueChanged()
     }
   }
 
@@ -261,6 +266,13 @@ export class ProjectSyncManager {
       this.errorLog.unshift({ message, ts: Date.now() })
       this.errorLog = this.errorLog.slice(0, 5)
       document.dispatchEvent(new CustomEvent('projectSyncError', { detail: { message } }))
+    } catch {}
+  }
+
+  _emitQueueChanged() {
+    try {
+      const count = this.pendingQueue.length
+      document.dispatchEvent(new CustomEvent('projectSyncQueueChanged', { detail: { count } }))
     } catch {}
   }
 }
