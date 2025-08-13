@@ -107,4 +107,94 @@ export async function POST(req: Request) {
   }
 }
 
+export async function PATCH(req: Request) {
+  const origin = req.headers.get('origin')
+  try {
+    const supabase = await createClient()
+    const admin = createAdminClient()
+    const match = new URL(req.url).pathname.match(/\/api\/projects\/([^/]+)\/branches/)
+    const id = match?.[1]
+    if (!id) return corsResponse({ error: 'Invalid id' }, origin, 400)
 
+    const authHeader = req.headers.get('authorization') || ''
+    const bearer = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7) : null
+    let uid: string | null = null
+    if (bearer) {
+      const { data } = await admin.auth.getUser(bearer)
+      uid = data.user?.id ?? null
+    } else {
+      const { data: user } = await supabase.auth.getUser()
+      uid = user.user?.id ?? null
+    }
+    if (!uid) return corsResponse({ error: 'Unauthorized' }, origin, 401)
+
+    const { data: project } = await admin
+      .from('projects')
+      .select('id, user_id')
+      .eq('id', id)
+      .single()
+    if (!project || project.user_id !== uid) return corsResponse({ error: 'Forbidden' }, origin, 403)
+
+    const body = await req.json().catch(() => ({})) as { oldName?: string; newName?: string }
+    const oldName = (body.oldName || '').trim().slice(0, 64)
+    const newName = (body.newName || '').trim().slice(0, 64)
+    if (!oldName || !newName) return corsResponse({ error: 'oldName and newName required' }, origin, 400)
+
+    const { error } = await admin
+      .from('project_branches')
+      .update({ name: newName })
+      .eq('project_id', id)
+      .eq('name', oldName)
+    if (error) return corsResponse({ error: 'Failed to rename' }, origin, 500)
+
+    return corsResponse({ ok: true }, origin, 200)
+  } catch (error) {
+    console.error('PATCH /api/projects/[id]/branches failed:', error)
+    return corsResponse({ error: 'Internal server error' }, origin, 500)
+  }
+}
+
+export async function DELETE(req: Request) {
+  const origin = req.headers.get('origin')
+  try {
+    const supabase = await createClient()
+    const admin = createAdminClient()
+    const match = new URL(req.url).pathname.match(/\/api\/projects\/([^/]+)\/branches/)
+    const id = match?.[1]
+    if (!id) return corsResponse({ error: 'Invalid id' }, origin, 400)
+
+    const authHeader = req.headers.get('authorization') || ''
+    const bearer = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7) : null
+    let uid: string | null = null
+    if (bearer) {
+      const { data } = await admin.auth.getUser(bearer)
+      uid = data.user?.id ?? null
+    } else {
+      const { data: user } = await supabase.auth.getUser()
+      uid = user.user?.id ?? null
+    }
+    if (!uid) return corsResponse({ error: 'Unauthorized' }, origin, 401)
+
+    const { data: project } = await admin
+      .from('projects')
+      .select('id, user_id')
+      .eq('id', id)
+      .single()
+    if (!project || project.user_id !== uid) return corsResponse({ error: 'Forbidden' }, origin, 403)
+
+    const body = await req.json().catch(() => ({})) as { name?: string }
+    const name = (body.name || '').trim().slice(0, 64)
+    if (!name) return corsResponse({ error: 'name required' }, origin, 400)
+
+    const { error } = await admin
+      .from('project_branches')
+      .delete()
+      .eq('project_id', id)
+      .eq('name', name)
+    if (error) return corsResponse({ error: 'Failed to delete' }, origin, 500)
+    return corsResponse({ ok: true }, origin, 200)
+  } catch (error) {
+    console.error('DELETE /api/projects/[id]/branches failed:', error)
+    return corsResponse({ error: 'Internal server error' }, origin, 500)
+  }
+}

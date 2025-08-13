@@ -44,6 +44,12 @@ export default function ProjectDetailPage() {
   const [selectedBranch, setSelectedBranch] = useState<string>('')
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([])
   const [newBranchName, setNewBranchName] = useState<string>('')
+  const [compareA, setCompareA] = useState<string>('main')
+  const [compareB, setCompareB] = useState<string>('')
+  const [compareLoading, setCompareLoading] = useState<boolean>(false)
+  const [compareRows, setCompareRows] = useState<Array<{ t: 'ctx' | 'add' | 'rem'; v: string; ln?: number }>>([])
+  const [toasts, setToasts] = useState<Array<{ id: string; text: string; type: 'success' | 'error' | 'info' }>>([])
+  const [renameBranchValue, setRenameBranchValue] = useState<string>('')
   const [commitContent, setCommitContent] = useState<string>('')
   const [viewingCommitId, setViewingCommitId] = useState<string | null>(null)
   
@@ -220,7 +226,7 @@ export default function ProjectDetailPage() {
       // Fallback: copy URL to clipboard
       try {
         await navigator.clipboard.writeText(window.location.href)
-        alert('Link copied to clipboard!')
+        notify('Link copied', 'success')
       } catch (error) {
         console.error('Error copying URL:', error)
       }
@@ -244,7 +250,7 @@ export default function ProjectDetailPage() {
       setProject({ ...project, is_public: !project.is_public })
     } catch (error) {
       console.error('Error toggling publish:', error)
-      alert('Failed to change publish status. Please try again.')
+      notify('Failed to change publish status', 'error')
     }
   }
 
@@ -386,7 +392,7 @@ export default function ProjectDetailPage() {
       }
     } catch (e) {
       console.error('Create branch failed', e)
-      alert('Failed to create branch')
+      notify('Failed to create branch', 'error')
     }
   }
 
@@ -420,7 +426,199 @@ export default function ProjectDetailPage() {
       setViewingCommitId(null)
     } catch (e) {
       console.error('Restore failed', e)
-      alert('Failed to restore commit')
+      notify('Failed to restore commit', 'error')
+    }
+  }
+
+  const fetchLatestCommitForBranch = async (branchName: string) => {
+    if (!project || !isOwner) return null
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData?.session?.access_token
+    const url = new URL(window.location.origin + `/api/projects/${project.id}/commits`)
+    url.searchParams.set('branch', branchName)
+    url.searchParams.set('page', '1')
+    url.searchParams.set('pageSize', '1')
+    const res = await fetch(url.toString(), { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }, cache: 'no-store' })
+    if (!res.ok) return null
+    const body = await res.json()
+    const rows = Array.isArray(body?.data) ? body.data : []
+    return rows[0] as { id: string; message: string; created_at: string; branch?: string } | null
+  }
+
+  const fetchCommitContent = async (commitId: string) => {
+    if (!project || !isOwner) return ''
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData?.session?.access_token
+    const res = await fetch(`/api/projects/${project.id}/commits/${commitId}`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } })
+    if (!res.ok) return ''
+    const body = await res.json()
+    return String(body?.data?.content || '')
+  }
+
+  const computeLineDiff = (oldText: string, newText: string) => {
+    const oldLines = String(oldText || '').split('\n')
+    const newLines = String(newText || '').split('\n')
+    const max = Math.max(oldLines.length, newLines.length)
+    const rows: Array<{ t: 'ctx' | 'add' | 'rem'; v: string; ln?: number }> = []
+    for (let i = 0; i < max; i += 1) {
+      const a = oldLines[i] ?? ''
+      const b = newLines[i] ?? ''
+      if (a === b) rows.push({ t: 'ctx', v: a, ln: i + 1 })
+      else {
+        if (a) rows.push({ t: 'rem', v: a, ln: i + 1 })
+        if (b) rows.push({ t: 'add', v: b, ln: i + 1 })
+      }
+    }
+    return rows
+  }
+
+  // Create a combined view that pairs removed+added into a single change for inline rendering
+  const toInlineRenderable = (rows: Array<{ t: 'ctx' | 'add' | 'rem'; v: string; ln?: number }>) => {
+    const items: Array<{ kind: 'ctx' | 'add' | 'rem' | 'change'; a?: { v: string; ln?: number }; b?: { v: string; ln?: number } }> = []
+    for (let i = 0; i < rows.length; i += 1) {
+      const r = rows[i]
+      if (r.t === 'rem' && i + 1 < rows.length && rows[i + 1].t === 'add') {
+        items.push({ kind: 'change', a: { v: r.v, ln: r.ln }, b: { v: rows[i + 1].v, ln: rows[i + 1].ln } })
+        i += 1
+        continue
+      }
+      if (r.t === 'ctx') items.push({ kind: 'ctx', a: { v: r.v, ln: r.ln } })
+      else if (r.t === 'add') items.push({ kind: 'add', b: { v: r.v, ln: r.ln } })
+      else if (r.t === 'rem') items.push({ kind: 'rem', a: { v: r.v, ln: r.ln } })
+    }
+    return items
+  }
+
+  // Compute simple inline character diff using common prefix/suffix
+  const inlineDiffSegments = (a: string, b: string) => {
+    let i = 0
+    const aLen = a.length
+    const bLen = b.length
+    const maxPrefix = Math.min(aLen, bLen)
+    while (i < maxPrefix && a[i] === b[i]) i += 1
+    let j = 0
+    const maxSuffix = Math.min(aLen - i, bLen - i)
+    while (j < maxSuffix && a[aLen - 1 - j] === b[bLen - 1 - j]) j += 1
+    const prefix = a.slice(0, i)
+    const aMid = a.slice(i, aLen - j)
+    const bMid = b.slice(i, bLen - j)
+    const suffix = a.slice(aLen - j)
+    return { prefix, aMid, bMid, suffix }
+  }
+
+  const handleCompareBranches = async () => {
+    if (!project || !isOwner) return
+    if (!compareA || !compareB) { alert('Select two branches'); return }
+    setCompareLoading(true)
+    try {
+      const aHead = await fetchLatestCommitForBranch(compareA)
+      const bHead = await fetchLatestCommitForBranch(compareB)
+      if (!aHead || !bHead) {
+        setCompareRows([])
+      } else {
+        const aContent = await fetchCommitContent(aHead.id)
+        const bContent = await fetchCommitContent(bHead.id)
+        setCompareRows(computeLineDiff(aContent, bContent))
+      }
+    } finally {
+      setCompareLoading(false)
+    }
+  }
+
+  const handleMergeAdopt = async () => {
+    if (!project || !isOwner) return
+    if (!compareA || !compareB || compareA === compareB) { alert('Select different branches'); return }
+    if (!window.confirm(`Merge (adopt) ${compareA} into ${compareB}? This overwrites current content.`)) return
+    try {
+      const aHead = await fetchLatestCommitForBranch(compareA)
+      if (!aHead) { alert('No source commit'); return }
+      const content = await fetchCommitContent(aHead.id)
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      const put = await fetch(`/api/projects/${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ content })
+      })
+      if (!put.ok) throw new Error('Failed to update project content')
+      await fetch(`/api/projects/${project.id}/commits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ message: `Merge ${compareA} -> ${compareB}: ${aHead.message || ''}`.slice(0, 120), content, branch: compareB })
+      })
+      setSelectedBranch(compareB)
+      setCommitPage(1)
+      notify('Merge completed', 'success')
+    } catch (e) {
+      console.error(e)
+      notify('Merge failed', 'error')
+    }
+  }
+
+  const notify = (text: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    setToasts(prev => [...prev, { id, text, type }])
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id))
+    }, 3200)
+  }
+
+  const renameBranchWebsite = async () => {
+    if (!project || !isOwner) return
+    const from = selectedBranch || 'main'
+    const to = renameBranchValue.trim()
+    if (!to) { notify('Enter new branch name', 'info'); return }
+    if (from === 'main') { notify('Cannot rename main', 'error'); return }
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      const res = await fetch(`/api/projects/${project.id}/branches`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ oldName: from, newName: to })
+      })
+      if (!res.ok) throw new Error(await res.text())
+      setRenameBranchValue('')
+      // Refresh branches list
+      const refreshed = await fetch(`/api/projects/${project.id}/branches`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }, cache: 'no-store' })
+      if (refreshed.ok) {
+        const body = await refreshed.json()
+        setBranches((Array.isArray(body?.data) ? body.data : []) as Array<{ id: string; name: string }>)
+      }
+      setSelectedBranch(to)
+      notify('Branch renamed', 'success')
+    } catch (e) {
+      console.error(e)
+      notify('Rename failed', 'error')
+    }
+  }
+
+  const deleteBranchWebsite = async () => {
+    if (!project || !isOwner) return
+    const name = selectedBranch
+    if (!name) { notify('Select a branch', 'info'); return }
+    if (name === 'main') { notify('Cannot delete main', 'error'); return }
+    if (!window.confirm(`Delete branch "${name}"?`)) return
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      const res = await fetch(`/api/projects/${project.id}/branches`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ name })
+      })
+      if (!res.ok) throw new Error(await res.text())
+      // Refresh branches
+      const refreshed = await fetch(`/api/projects/${project.id}/branches`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }, cache: 'no-store' })
+      if (refreshed.ok) {
+        const body = await refreshed.json()
+        setBranches((Array.isArray(body?.data) ? body.data : []) as Array<{ id: string; name: string }>)
+      }
+      setSelectedBranch('')
+      notify('Branch deleted', 'success')
+    } catch (e) {
+      console.error(e)
+      notify('Delete failed', 'error')
     }
   }
 
@@ -457,6 +655,67 @@ export default function ProjectDetailPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id])
+
+  // Realtime updates for commits (owner only)
+  useEffect(() => {
+    if (!project || !isOwner) return
+    const channel = supabase
+      .channel(`project_commits_${project.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'project_commits', filter: `project_id=eq.${project.id}` },
+        (payload) => {
+          const row = payload.new as { id: string; message: string; created_at: string; branch?: string; project_id?: string }
+          // If filter matches current branch (or All), refresh first page
+          if (!selectedBranch || selectedBranch === (row.branch || 'main')) {
+            setCommitPage(1)
+            // Lightweight prepend if already on page 1
+            setCommits(prev => [{ id: row.id, message: (row as any).message || '', created_at: row.created_at, branch: row.branch }, ...prev].slice(0, commitPageSize))
+            setCommitTotal(t => t + 1)
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'project_commits', filter: `project_id=eq.${project.id}` },
+        () => {
+          setCommitPage(p => p)
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'project_commits', filter: `project_id=eq.${project.id}` },
+        () => {
+          setCommitTotal(t => Math.max(0, t - 1))
+          setCommitPage(p => p)
+        }
+      )
+      .subscribe()
+    return () => {
+      try { supabase.removeChannel(channel) } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id, isOwner, selectedBranch, commitPageSize])
+
+  // Realtime updates for branches (owner only)
+  useEffect(() => {
+    if (!project || !isOwner) return
+    const channel = supabase
+      .channel(`project_branches_${project.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'project_branches', filter: `project_id=eq.${project.id}` },
+        (payload) => {
+          const row = payload.new as { id: string; name: string }
+          setBranches(prev => [{ id: row.id, name: row.name }, ...prev])
+        }
+      )
+      .subscribe()
+    return () => {
+      try { supabase.removeChannel(channel) } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id, isOwner])
 
   const postComment = async () => {
     if (!newComment.trim() || !project) return
@@ -933,6 +1192,20 @@ export default function ProjectDetailPage() {
                   disabled={!newBranchName.trim()}
                   className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 hover:text-white disabled:opacity-50"
                 >Create branch</button>
+                <input
+                  value={renameBranchValue}
+                  onChange={(e) => setRenameBranchValue(e.target.value)}
+                  placeholder="rename selected →"
+                  className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-200 placeholder:text-slate-500"
+                />
+                <button
+                  onClick={renameBranchWebsite}
+                  className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 hover:text-white"
+                >Rename</button>
+                <button
+                  onClick={deleteBranchWebsite}
+                  className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 hover:text-white"
+                >Delete</button>
               </div>
               <div className="ml-auto flex items-center gap-2">
                 <button
@@ -961,6 +1234,14 @@ export default function ProjectDetailPage() {
                     <div className="flex gap-2">
                       <button onClick={() => viewCommit(c.id)} className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 hover:text-white">View</button>
                       <button onClick={() => restoreCommit(c.id)} className="px-2 py-1 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded">Restore</button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(c.id)
+                          } catch {}
+                        }}
+                        className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 hover:text-white"
+                      >Copy ID</button>
                       <a href={`/editor?project=${project.id}`} className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 hover:text-white">Open in editor</a>
                     </div>
                   </li>
@@ -976,25 +1257,153 @@ export default function ProjectDetailPage() {
                     const oldLines = String(commitContent || '').split('\n')
                     const newLines = String(project.content || '').split('\n')
                     const max = Math.max(oldLines.length, newLines.length)
-                    const rows: Array<{ t: 'ctx' | 'add' | 'rem'; v: string }> = []
+                    const rows: Array<{ t: 'ctx' | 'add' | 'rem'; v: string; ln?: number }> = []
                     for (let i = 0; i < max; i += 1) {
                       const a = oldLines[i] ?? ''
                       const b = newLines[i] ?? ''
-                      if (a === b) rows.push({ t: 'ctx', v: a })
+                      if (a === b) rows.push({ t: 'ctx', v: a, ln: i + 1 })
                       else {
-                        if (a) rows.push({ t: 'rem', v: a })
-                        if (b) rows.push({ t: 'add', v: b })
+                        if (a) rows.push({ t: 'rem', v: a, ln: i + 1 })
+                        if (b) rows.push({ t: 'add', v: b, ln: i + 1 })
                       }
                     }
-                    return rows.map((r, idx) => (
-                      <div key={idx} className={r.t === 'add' ? 'bg-green-500/10 text-green-300' : r.t === 'rem' ? 'bg-red-500/10 text-red-300' : 'text-slate-300'}>
-                        {r.t === 'add' ? '+ ' : r.t === 'rem' ? '- ' : '  '}{r.v}
-                      </div>
-                    ))
+                    const grouped: Array<{ kind: 'row' | 'skip'; data?: { t: 'ctx' | 'add' | 'rem'; v: string; ln?: number } | { t: 'change'; a: { v: string; ln?: number }; b: { v: string; ln?: number } }; skipCount?: number }> = []
+                    let ctxRun: Array<{ t: 'ctx' | 'add' | 'rem'; v: string; ln?: number }> = []
+                    const flushCtx = () => {
+                      if (ctxRun.length <= 6) {
+                        ctxRun.forEach(r => grouped.push({ kind: 'row', data: r }))
+                      } else {
+                        // show first 3 and last 3
+                        ctxRun.slice(0, 3).forEach(r => grouped.push({ kind: 'row', data: r }))
+                        grouped.push({ kind: 'skip', skipCount: ctxRun.length - 6 })
+                        ctxRun.slice(-3).forEach(r => grouped.push({ kind: 'row', data: r }))
+                      }
+                      ctxRun = []
+                    }
+                    rows.forEach((r, idx) => {
+                      if (r.t === 'ctx') {
+                        ctxRun.push(r)
+                      } else {
+                        if (ctxRun.length) flushCtx()
+                        if (r.t === 'rem' && idx + 1 < rows.length && rows[idx + 1].t === 'add') {
+                          grouped.push({ kind: 'row', data: { t: 'change', a: { v: r.v, ln: r.ln }, b: { v: rows[idx + 1].v, ln: rows[idx + 1].ln } } })
+                        } else if (r.t === 'add' && idx > 0 && rows[idx - 1].t === 'rem') {
+                          // handled in previous pair
+                        } else {
+                          grouped.push({ kind: 'row', data: r })
+                        }
+                      }
+                    })
+                    if (ctxRun.length) flushCtx()
+                    return grouped.map((g, idx) => {
+                      if (g.kind === 'skip') {
+                        return (
+                          <div key={idx} className="text-slate-500 text-xs py-1 px-2 italic opacity-70">… {g.skipCount} unchanged lines …</div>
+                        )
+                      }
+                      const data = g.data as any
+                      if (data?.t === 'change') {
+                        const { prefix, aMid, bMid, suffix } = inlineDiffSegments(data.a.v, data.b.v)
+                        return (
+                          <div key={idx} className="text-slate-300">
+                            <div className="bg-red-500/10 text-red-300">
+                              <span className="opacity-50 mr-2 select-none" style={{ display: 'inline-block', width: 40, textAlign: 'right' }}>{data.a.ln}</span>
+                              - {prefix}<span className="bg-red-600/30">{aMid}</span>{suffix}
+                            </div>
+                            <div className="bg-green-500/10 text-green-300">
+                              <span className="opacity-50 mr-2 select-none" style={{ display: 'inline-block', width: 40, textAlign: 'right' }}>{data.b.ln}</span>
+                              + {prefix}<span className="bg-green-600/30">{bMid}</span>{suffix}
+                            </div>
+                          </div>
+                        )
+                      }
+                      const r = data
+                      return (
+                        <div key={idx} className={r.t === 'add' ? 'bg-green-500/10 text-green-300' : r.t === 'rem' ? 'bg-red-500/10 text-red-300' : 'text-slate-300'}>
+                          <span className="opacity-50 mr-2 select-none" style={{ display: 'inline-block', width: 40, textAlign: 'right' }}>{r.ln}</span>
+                          {r.t === 'add' ? '+ ' : r.t === 'rem' ? '- ' : '  '}{r.v}
+                        </div>
+                      )
+                    })
                   })()}
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {isOwner && (
+          <div className="mt-8 bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-6">
+            <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+              <GitCommit className="w-5 h-5 text-purple-400 mr-2" />
+              Compare branches
+            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+              <div className="flex items-center gap-2">
+                <label className="text-slate-400 text-sm">A</label>
+                <select value={compareA} onChange={(e) => setCompareA(e.target.value)} className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-200">
+                  <option value="main">main</option>
+                  {branches.map(b => (
+                    <option key={b.id} value={b.name}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-slate-400 text-sm">B</label>
+                <select value={compareB} onChange={(e) => setCompareB(e.target.value)} className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-200">
+                  <option value="">Select</option>
+                  <option value="main">main</option>
+                  {branches.map(b => (
+                    <option key={b.id} value={b.name}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                <button onClick={handleCompareBranches} disabled={!compareA || !compareB || compareLoading} className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 disabled:opacity-50">Compare</button>
+                <button onClick={handleMergeAdopt} disabled={!compareA || !compareB || compareA === compareB} className="px-2 py-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded disabled:opacity-50">Merge (adopt A→B)</button>
+              </div>
+            </div>
+            <div className="max-h-96 overflow-auto border border-slate-700/50 rounded p-3 text-sm font-mono whitespace-pre-wrap">
+              {compareLoading ? (
+                <div className="text-slate-400">Loading…</div>
+              ) : compareRows.length === 0 ? (
+                <div className="text-slate-400">No diff or no commits to compare.</div>
+              ) : (
+                (() => {
+                  const rows = compareRows
+                  const grouped: Array<{ kind: 'row' | 'skip'; data?: { t: 'ctx' | 'add' | 'rem'; v: string; ln?: number }; skipCount?: number }> = []
+                  let ctxRun: Array<{ t: 'ctx' | 'add' | 'rem'; v: string; ln?: number }> = []
+                  const flushCtx = () => {
+                    if (ctxRun.length <= 6) {
+                      ctxRun.forEach(r => grouped.push({ kind: 'row', data: r }))
+                    } else {
+                      ctxRun.slice(0, 3).forEach(r => grouped.push({ kind: 'row', data: r }))
+                      grouped.push({ kind: 'skip', skipCount: ctxRun.length - 6 })
+                      ctxRun.slice(-3).forEach(r => grouped.push({ kind: 'row', data: r }))
+                    }
+                    ctxRun = []
+                  }
+                  rows.forEach(r => {
+                    if (r.t === 'ctx') ctxRun.push(r)
+                    else {
+                      if (ctxRun.length) flushCtx()
+                      grouped.push({ kind: 'row', data: r })
+                    }
+                  })
+                  if (ctxRun.length) flushCtx()
+                  return grouped.map((g, idx) => {
+                    if (g.kind === 'skip') return <div key={idx} className="text-slate-500 text-xs py-1 px-2 italic opacity-70">… {g.skipCount} unchanged lines …</div>
+                    const r = g.data!
+                    return (
+                      <div key={idx} className={r.t === 'add' ? 'bg-green-500/10 text-green-300' : r.t === 'rem' ? 'bg-red-500/10 text-red-300' : 'text-slate-300'}>
+                        <span className="opacity-50 mr-2 select-none" style={{ display: 'inline-block', width: 40, textAlign: 'right' }}>{r.ln}</span>
+                        {r.t === 'add' ? '+ ' : r.t === 'rem' ? '- ' : '  '}{r.v}
+                      </div>
+                    )
+                  })
+                })()
+              )}
+            </div>
           </div>
         )}
 
@@ -1017,6 +1426,14 @@ export default function ProjectDetailPage() {
             </ul>
           )}
         </div>
+      </div>
+      {/* Toasts */}
+      <div className="fixed top-16 right-4 z-[1000] space-y-2">
+        {toasts.map(t => (
+          <div key={t.id} className={`px-3 py-2 rounded border shadow text-sm ${t.type === 'success' ? 'bg-green-600/20 border-green-500/40 text-green-200' : t.type === 'error' ? 'bg-red-600/20 border-red-500/40 text-red-200' : 'bg-slate-700/50 border-slate-500/40 text-slate-200'}`}>
+            {t.text}
+          </div>
+        ))}
       </div>
     </div>
   )

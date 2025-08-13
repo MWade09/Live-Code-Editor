@@ -534,6 +534,8 @@ document.addEventListener('DOMContentLoaded', () => {
               <label style="font-size:12px; opacity:0.8;">Branch</label>
               <select id="vcs-branch" style="flex:1; padding:6px; background:transparent; color:inherit; border:1px solid rgba(255,255,255,0.1); border-radius:6px;"></select>
               <button id="vcs-new-branch" class="community-btn" title="Create branch"><i class="fas fa-plus"></i></button>
+              <button id="vcs-rename-branch" class="community-btn" title="Rename branch"><i class="fas fa-i-cursor"></i></button>
+              <button id="vcs-delete-branch" class="community-btn" title="Delete branch"><i class="fas fa-trash"></i></button>
             </div>
             <label style="font-size:12px; opacity:0.8;">Commit message</label>
             <input id="vcs-message" type="text" placeholder="Describe your changes" style="width:100%; margin-top:6px; margin-bottom:8px; padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:inherit;" />
@@ -541,6 +543,14 @@ document.addEventListener('DOMContentLoaded', () => {
               <button id="vcs-commit-btn" class="deploy-btn"><i class="fas fa-check"></i> Commit</button>
               <button id="vcs-refresh-btn" class="community-btn"><i class="fas fa-sync"></i> Refresh</button>
               <button id="vcs-diff-btn" class="community-btn"><i class="fas fa-file-diff"></i> Diff vs last</button>
+              <button id="vcs-amend-btn" class="community-btn" title="Amend last commit"><i class="fas fa-edit"></i> Amend</button>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
+              <label style="font-size:12px; opacity:0.8;">Compare</label>
+              <select id="vcs-compare-a" class="community-btn" style="padding:6px; background:transparent; border-radius:6px; border:1px solid rgba(255,255,255,0.1);"></select>
+              <span style="opacity:.6;">→</span>
+              <select id="vcs-compare-b" class="community-btn" style="padding:6px; background:transparent; border-radius:6px; border:1px solid rgba(255,255,255,0.1);"></select>
+              <button id="vcs-merge-btn" class="deploy-btn" title="Merge (adopt A into B)"><i class="fas fa-code-merge"></i> Merge</button>
             </div>
             <div id="vcs-status" style="font-size:12px; opacity:0.8; margin-bottom:8px;"></div>
             <div id="vcs-diff" style="font-family:monospace; font-size:12px; white-space:pre-wrap; margin-bottom:12px;"></div>
@@ -581,9 +591,81 @@ document.addEventListener('DOMContentLoaded', () => {
             status.textContent = 'Failed to create branch';
           }
         });
+        document.getElementById('vcs-rename-branch').addEventListener('click', async () => {
+          const current = versionControl.cache.currentBranch || 'main';
+          const to = prompt(`Rename branch "${current}" to:`);
+          if (!to) return;
+          const res = await versionControl.renameBranch(current, to.trim());
+          if (res.ok) {
+            await renderVcsBranches();
+            const headerSelect = document.getElementById('header-branch-select');
+            if (headerSelect) {
+              const branches = await versionControl.listBranches();
+              const names = ['main', ...branches.map(b => b.name).filter(n => n !== 'main')];
+              headerSelect.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
+              headerSelect.value = to.trim();
+            }
+            await versionControl.checkoutBranch(to.trim());
+            renderVcsCommits();
+            showStatusMessage('Branch renamed');
+          } else {
+            showStatusMessage('Rename failed');
+          }
+        });
+        document.getElementById('vcs-delete-branch').addEventListener('click', async () => {
+          const current = versionControl.cache.currentBranch || 'main';
+          if (current === 'main') { showStatusMessage('Cannot delete main'); return; }
+          if (!confirm(`Delete branch "${current}"?`)) return;
+          const res = await versionControl.deleteBranch(current);
+          if (res.ok) {
+            await renderVcsBranches();
+            await versionControl.checkoutBranch('main');
+            renderVcsCommits();
+            showStatusMessage('Branch deleted');
+          } else {
+            showStatusMessage('Delete failed');
+          }
+        });
         document.getElementById('vcs-branch').addEventListener('change', async (e) => {
           const name = e.target.value;
           versionControl.checkoutBranch(name);
+          renderVcsCommits();
+        });
+        // Init compare selectors
+        (async () => {
+          const a = document.getElementById('vcs-compare-a');
+          const b = document.getElementById('vcs-compare-b');
+          const branches = await versionControl.listBranches();
+          const names = ['main', ...branches.map(x => x.name).filter(n => n !== 'main')];
+          if (a) a.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
+          if (b) b.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
+        })();
+        document.getElementById('vcs-merge-btn').addEventListener('click', async () => {
+          const a = document.getElementById('vcs-compare-a');
+          const b = document.getElementById('vcs-compare-b');
+          const source = a?.value;
+          const target = b?.value;
+          if (!source || !target) { showStatusMessage('Select branches'); return; }
+          if (source === target) { showStatusMessage('Branches identical'); return; }
+          const sourceHead = await versionControl.getLatestCommitForBranch(source);
+          if (!sourceHead) { showStatusMessage('No source commit'); return; }
+          // Adopt source content into current file and create merge commit on target
+          const file = versionControl.fileManager.getCurrentFile();
+          if (file) file.content = sourceHead.content || '';
+          const switchRes = await versionControl.checkoutBranch(target);
+          await projectSync.saveToWebsite();
+          const msg = `Merge ${source} -> ${target}: ${sourceHead.message || ''}`.slice(0, 120);
+          const r = await versionControl.createCommit(msg, target);
+          showStatusMessage(r.ok ? 'Merged' : 'Merge failed');
+          renderVcsCommits();
+        });
+        document.getElementById('vcs-amend-btn').addEventListener('click', async () => {
+          const head = (versionControl.cache.commits || [])[0];
+          if (!head) { showStatusMessage('No commits to amend'); return; }
+          const newMsg = prompt('New commit message', head.message || '');
+          if (newMsg == null) return;
+          const res = await versionControl.amendLastCommit(newMsg.trim());
+          showStatusMessage(res.ok ? 'Amended' : 'Amend failed');
           renderVcsCommits();
         });
         // Close on outside click
@@ -748,6 +830,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.ctrlKey && e.shiftKey && e.key === 'I') {
             e.preventDefault();
             toggleInlineAI();
+        }
+        // Ctrl+Enter - Commit when VCS panel is open
+        if (e.ctrlKey && e.key === 'Enter') {
+            const panel = document.getElementById('vcs-panel');
+            if (panel && panel.style.display !== 'none') {
+                e.preventDefault();
+                const btn = document.getElementById('vcs-commit-btn');
+                if (btn) btn.click();
+            }
         }
     }
     

@@ -103,11 +103,29 @@ export async function POST(req: Request) {
       .single()
     if (!project || project.user_id !== uid) return corsResponse({ error: 'Forbidden' }, origin, 403)
 
-    const body = await req.json().catch(() => ({})) as { message?: string; content?: string; branch?: string }
+    const body = await req.json().catch(() => ({})) as { message?: string; content?: string; branch?: string; expectedHeadId?: string | null }
     const message = (body.message || '').trim().slice(0, 280)
     const content = typeof body.content === 'string' ? body.content : ''
     const branch = (body.branch || 'main').slice(0, 64)
     if (!message || !content) return corsResponse({ error: 'message and content required' }, origin, 400)
+
+    // Lightweight concurrency check: if client sends expectedHeadId, ensure it matches latest
+    if (typeof body.expectedHeadId !== 'undefined') {
+      const { data: latest } = await admin
+        .from('project_commits')
+        .select('id, message, created_at, branch')
+        .eq('project_id', id)
+        .eq('branch', branch)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      const expected = (body.expectedHeadId || null)
+      const latestId = latest?.id || null
+      const matches = (expected === latestId)
+      if (!matches) {
+        return corsResponse({ error: 'Conflict', latest }, origin, 409)
+      }
+    }
 
     const { data: inserted, error } = await admin
       .from('project_commits')

@@ -362,6 +362,8 @@ CREATE TABLE IF NOT EXISTS project_commits (
 
 CREATE INDEX IF NOT EXISTS idx_project_commits_project_id ON project_commits(project_id);
 CREATE INDEX IF NOT EXISTS idx_project_commits_created_at ON project_commits(created_at DESC);
+-- Composite index for paginated lookups with branch filter
+CREATE INDEX IF NOT EXISTS idx_project_commits_project_branch_created_at ON project_commits(project_id, branch, created_at DESC);
 
 -- Branch registry (for future expansion)
 CREATE TABLE IF NOT EXISTS project_branches (
@@ -375,6 +377,8 @@ CREATE TABLE IF NOT EXISTS project_branches (
 
 ALTER TABLE project_commits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_branches ENABLE ROW LEVEL SECURITY;
+-- Index for quick lookup by project and name
+CREATE INDEX IF NOT EXISTS idx_project_branches_project_name ON project_branches(project_id, name);
 
 -- Owners can read their commits
 DROP POLICY IF EXISTS project_commits_owner_select ON project_commits;
