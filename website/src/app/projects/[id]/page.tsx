@@ -311,7 +311,7 @@ export default function ProjectDetailPage() {
       } catch {}
     }
     loadSaves()
-  }, [project?.id])
+  }, [project?.id, project])
 
   const isOwner = !!(currentUser && project && project.user_id === currentUser.id)
 
@@ -620,7 +620,7 @@ export default function ProjectDetailPage() {
       } catch {}
     }, 8000)
     return () => clearInterval(t)
-  }, [project?.id])
+  }, [project?.id, project])
 
   // Realtime updates for saves
   useEffect(() => {
