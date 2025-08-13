@@ -51,6 +51,10 @@ export default function ProjectDetailPage() {
   const [toasts, setToasts] = useState<Array<{ id: string; text: string; type: 'success' | 'error' | 'info' }>>([])
   const [renameBranchValue, setRenameBranchValue] = useState<string>('')
   const [terminalSessions, setTerminalSessions] = useState<Array<{ id: string; created_at: string; last_active: string; commands?: Array<unknown> }>>([])
+  const [buildCommand, setBuildCommand] = useState<string>('npm run build')
+  const [buildEnv, setBuildEnv] = useState<string>('{}')
+  const [deployTarget, setDeployTarget] = useState<string>('netlify')
+  const [buildSaving, setBuildSaving] = useState<boolean>(false)
   const [commitContent, setCommitContent] = useState<string>('')
   const [viewingCommitId, setViewingCommitId] = useState<string | null>(null)
   
@@ -370,6 +374,27 @@ export default function ProjectDetailPage() {
       } catch {}
     }
     loadTerminal()
+  }, [project?.id, project, isOwner, supabase])
+
+  // Load build config (owner only)
+  useEffect(() => {
+    const loadBuildConfig = async () => {
+      if (!project || !isOwner) return
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData?.session?.access_token
+        const res = await fetch(`/api/projects/${project.id}/build-config`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }, cache: 'no-store' })
+        if (!res.ok) return
+        const body = await res.json()
+        const cfg = body?.data || null
+        if (cfg) {
+          if (typeof cfg.build_command === 'string') setBuildCommand(cfg.build_command)
+          if (cfg.environment && typeof cfg.environment === 'object') setBuildEnv(JSON.stringify(cfg.environment, null, 2))
+          if (typeof cfg.deploy_target === 'string') setDeployTarget(cfg.deploy_target)
+        }
+      } catch {}
+    }
+    loadBuildConfig()
   }, [project?.id, project, isOwner, supabase])
 
   const viewCommit = async (commitId: string) => {
@@ -1440,6 +1465,62 @@ export default function ProjectDetailPage() {
                   })
                 })()
               )}
+            </div>
+          </div>
+        )}
+
+        {isOwner && (
+          <div className="mt-8 bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-6">
+            <h3 className="text-xl font-semibold text-white mb-4">Build settings</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-slate-400 text-sm mb-1">Build command</label>
+                <input value={buildCommand} onChange={(e) => setBuildCommand(e.target.value)} className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded text-white" />
+              </div>
+              <div>
+                <label className="block text-slate-400 text-sm mb-1">Environment (JSON)</label>
+                <textarea value={buildEnv} onChange={(e) => setBuildEnv(e.target.value)} rows={5} className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded text-white font-mono text-sm" />
+              </div>
+              <div>
+                <label className="block text-slate-400 text-sm mb-1">Deploy target</label>
+                <select value={deployTarget} onChange={(e) => setDeployTarget(e.target.value)} className="px-3 py-2 bg-slate-800/50 border border-slate-600 rounded text-white">
+                  <option value="netlify">Netlify</option>
+                  <option value="vercel">Vercel</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={buildSaving}
+                  onClick={async () => {
+                    if (!project || !isOwner) return
+                    let envObj: Record<string, unknown> = {}
+                    try {
+                      envObj = buildEnv.trim() ? JSON.parse(buildEnv) : {}
+                    } catch {
+                      notify('Environment JSON is invalid', 'error')
+                      return
+                    }
+                    setBuildSaving(true)
+                    try {
+                      const { data: sessionData } = await supabase.auth.getSession()
+                      const token = sessionData?.session?.access_token
+                      const res = await fetch(`/api/projects/${project.id}/build-config`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                        body: JSON.stringify({ build_command: buildCommand, environment: envObj, deploy_target: deployTarget })
+                      })
+                      if (!res.ok) throw new Error(await res.text())
+                      notify('Build settings saved', 'success')
+                    } catch (e) {
+                      console.error(e)
+                      notify('Failed to save build settings', 'error')
+                    }
+                    setBuildSaving(false)
+                  }}
+                  className="px-3 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded disabled:opacity-60"
+                >{buildSaving ? 'Saving…' : 'Save settings'}</button>
+              </div>
             </div>
           </div>
         )}

@@ -515,6 +515,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const controls = document.querySelector('header .controls .view-controls');
             const themeToggle = document.getElementById('theme-toggle');
             if (controls && themeToggle) {
+                const buildBtn = document.createElement('button');
+                buildBtn.id = 'build-btn';
+                buildBtn.className = 'deploy-btn';
+                buildBtn.title = 'Build project';
+                buildBtn.innerHTML = '<i class="fas fa-hammer"></i> <span>Build</span>';
+                buildBtn.addEventListener('click', async () => {
+                    const status = document.getElementById('status-message');
+                    showStatusMessage('Preparing build…');
+                    try {
+                        const project = window.app.projectSync.currentProject;
+                        if (!project) { showStatusMessage('No project'); return; }
+                        // Fetch build config from website (so editor can honor it later)
+                        const res = await fetch(`${window.app.projectSync.websiteAPI}/projects/${project.id}/build-config`, { headers: window.app.projectSync.authHeader || {} });
+                        if (res.ok) {
+                            const body = await res.json();
+                            console.log('[Build] Using config:', body?.data || {});
+                        }
+                        // For now, just sync to website and show a success message as a placeholder
+                        const result = await window.app.projectSync.saveToWebsite();
+                        if (result.ok) showStatusMessage('Build triggered (placeholder)'); else showStatusMessage('Build failed to start');
+                    } catch (e) {
+                        console.warn('Build failed', e);
+                        showStatusMessage('Build failed');
+                    }
+                });
+                controls.insertBefore(buildBtn, themeToggle);
                 const termBtn = document.createElement('button');
                 termBtn.id = 'terminal-btn';
                 termBtn.className = 'community-btn';
