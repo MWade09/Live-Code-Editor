@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ProjectWithDetails } from '@/types'
@@ -330,7 +330,7 @@ export default function ProjectDetailPage() {
       } catch {}
     }
     loadBranches()
-  }, [project?.id, isOwner, supabase])
+  }, [project?.id, isOwner, supabase, supabase.auth, project])
 
   // Load commits with pagination and branch filter (owner only)
   useEffect(() => {
@@ -352,7 +352,7 @@ export default function ProjectDetailPage() {
       } catch {}
     }
     loadCommits()
-  }, [project?.id, isOwner, selectedBranch, commitPage, commitPageSize, supabase])
+  }, [project?.id, isOwner, selectedBranch, commitPage, commitPageSize, supabase, supabase.auth, project])
 
   const viewCommit = async (commitId: string) => {
     if (!project) return
@@ -473,21 +473,7 @@ export default function ProjectDetailPage() {
   }
 
   // Create a combined view that pairs removed+added into a single change for inline rendering
-  const toInlineRenderable = (rows: Array<{ t: 'ctx' | 'add' | 'rem'; v: string; ln?: number }>) => {
-    const items: Array<{ kind: 'ctx' | 'add' | 'rem' | 'change'; a?: { v: string; ln?: number }; b?: { v: string; ln?: number } }> = []
-    for (let i = 0; i < rows.length; i += 1) {
-      const r = rows[i]
-      if (r.t === 'rem' && i + 1 < rows.length && rows[i + 1].t === 'add') {
-        items.push({ kind: 'change', a: { v: r.v, ln: r.ln }, b: { v: rows[i + 1].v, ln: rows[i + 1].ln } })
-        i += 1
-        continue
-      }
-      if (r.t === 'ctx') items.push({ kind: 'ctx', a: { v: r.v, ln: r.ln } })
-      else if (r.t === 'add') items.push({ kind: 'add', b: { v: r.v, ln: r.ln } })
-      else if (r.t === 'rem') items.push({ kind: 'rem', a: { v: r.v, ln: r.ln } })
-    }
-    return items
-  }
+  // removed unused helper to satisfy linter
 
   // Compute simple inline character diff using common prefix/suffix
   const inlineDiffSegments = (a: string, b: string) => {
@@ -695,7 +681,7 @@ export default function ProjectDetailPage() {
       try { supabase.removeChannel(channel) } catch {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project?.id, isOwner, selectedBranch, commitPageSize, supabase])
+  }, [project?.id, isOwner, selectedBranch, commitPageSize, supabase, project])
 
   // Realtime updates for branches (owner only)
   useEffect(() => {
@@ -858,7 +844,7 @@ export default function ProjectDetailPage() {
     )
   }
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil((commitTotal || 0) / (commitPageSize || 1))), [commitTotal])
+  const totalPages = Math.max(1, Math.ceil((commitTotal || 0) / (commitPageSize || 1)))
   const fromParam = searchParams.get('from')
   const backHref = fromParam === 'my-projects' ? '/my-projects' : '/projects'
 
