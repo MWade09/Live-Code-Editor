@@ -639,8 +639,7 @@ export default function ProjectDetailPage() {
     return () => {
       try { supabase.removeChannel(channel) } catch {}
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project?.id])
+  }, [project?.id, project, supabase])
 
   // Realtime updates for commits (owner only)
   useEffect(() => {
@@ -680,7 +679,6 @@ export default function ProjectDetailPage() {
     return () => {
       try { supabase.removeChannel(channel) } catch {}
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id, isOwner, selectedBranch, commitPageSize, supabase, project])
 
   // Realtime updates for branches (owner only)
@@ -700,8 +698,7 @@ export default function ProjectDetailPage() {
     return () => {
       try { supabase.removeChannel(channel) } catch {}
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project?.id, isOwner])
+  }, [project?.id, project, isOwner, supabase])
 
   const postComment = async () => {
     if (!newComment.trim() || !project) return
@@ -1289,15 +1286,17 @@ export default function ProjectDetailPage() {
                       }
                       const data = g.data as unknown as { t?: 'change' | 'ctx' | 'add' | 'rem'; a?: { v: string; ln?: number }; b?: { v: string; ln?: number }; ln?: number; v?: string }
                       if (data?.t === 'change') {
-                        const { prefix, aMid, bMid, suffix } = inlineDiffSegments(data.a.v, data.b.v)
+                        const aVal = data.a?.v ?? ''
+                        const bVal = data.b?.v ?? ''
+                        const { prefix, aMid, bMid, suffix } = inlineDiffSegments(aVal, bVal)
                         return (
                           <div key={idx} className="text-slate-300">
                             <div className="bg-red-500/10 text-red-300">
-                              <span className="opacity-50 mr-2 select-none" style={{ display: 'inline-block', width: 40, textAlign: 'right' }}>{data.a.ln}</span>
+                              <span className="opacity-50 mr-2 select-none" style={{ display: 'inline-block', width: 40, textAlign: 'right' }}>{data.a?.ln}</span>
                               - {prefix}<span className="bg-red-600/30">{aMid}</span>{suffix}
                             </div>
                             <div className="bg-green-500/10 text-green-300">
-                              <span className="opacity-50 mr-2 select-none" style={{ display: 'inline-block', width: 40, textAlign: 'right' }}>{data.b.ln}</span>
+                              <span className="opacity-50 mr-2 select-none" style={{ display: 'inline-block', width: 40, textAlign: 'right' }}>{data.b?.ln}</span>
                               + {prefix}<span className="bg-green-600/30">{bMid}</span>{suffix}
                             </div>
                           </div>
