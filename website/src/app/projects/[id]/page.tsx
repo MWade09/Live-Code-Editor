@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ProjectWithDetails } from '@/types'
@@ -38,6 +38,12 @@ export default function ProjectDetailPage() {
   const [reportReason, setReportReason] = useState('')
   const [saves, setSaves] = useState<Array<{ id: string; created_at: string; change_summary: string | null }>>([])
   const [commits, setCommits] = useState<Array<{ id: string; message: string; created_at: string; branch?: string }>>([])
+  const [commitTotal, setCommitTotal] = useState<number>(0)
+  const [commitPage, setCommitPage] = useState<number>(1)
+  const [commitPageSize, setCommitPageSize] = useState<number>(15)
+  const [selectedBranch, setSelectedBranch] = useState<string>('')
+  const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([])
+  const [newBranchName, setNewBranchName] = useState<string>('')
   const [commitContent, setCommitContent] = useState<string>('')
   const [viewingCommitId, setViewingCommitId] = useState<string | null>(null)
   
@@ -301,26 +307,46 @@ export default function ProjectDetailPage() {
     loadSaves()
   }, [project?.id])
 
-  // Load commits (owner only)
+  const isOwner = currentUser && project?.user_id === currentUser.id
+
+  // Load branches (owner only)
   useEffect(() => {
-    const loadCommits = async () => {
-      if (!project || !currentUser || currentUser.id !== project.user_id) return
+    const loadBranches = async () => {
+      if (!project || !isOwner) return
       try {
         const { data: sessionData } = await supabase.auth.getSession()
         const token = sessionData?.session?.access_token
-        const res = await fetch(`/api/projects/${project.id}/commits`, {
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          }, cache: 'no-store'
-        })
+        const res = await fetch(`/api/projects/${project.id}/branches`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }, cache: 'no-store' })
+        if (!res.ok) return
+        const body = await res.json()
+        const rows = Array.isArray(body?.data) ? body.data : []
+        setBranches(rows as Array<{ id: string; name: string }>)
+      } catch {}
+    }
+    loadBranches()
+  }, [project?.id, isOwner])
+
+  // Load commits with pagination and branch filter (owner only)
+  useEffect(() => {
+    const loadCommits = async () => {
+      if (!project || !isOwner) return
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData?.session?.access_token
+        const url = new URL(window.location.origin + `/api/projects/${project.id}/commits`)
+        if (selectedBranch) url.searchParams.set('branch', selectedBranch)
+        url.searchParams.set('page', String(commitPage))
+        url.searchParams.set('pageSize', String(commitPageSize))
+        const res = await fetch(url.toString(), { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }, cache: 'no-store' })
         if (!res.ok) return
         const body = await res.json()
         const rows = Array.isArray(body?.data) ? body.data : []
         setCommits(rows as Array<{ id: string; message: string; created_at: string; branch?: string }>)
+        setCommitTotal(typeof body?.total === 'number' ? body.total : rows.length)
       } catch {}
     }
     loadCommits()
-  }, [project?.id, currentUser?.id])
+  }, [project?.id, isOwner, selectedBranch, commitPage, commitPageSize])
 
   const viewCommit = async (commitId: string) => {
     if (!project) return
@@ -335,6 +361,33 @@ export default function ProjectDetailPage() {
       setViewingCommitId(commitId)
       setCommitContent(String(body?.data?.content || ''))
     } catch {}
+  }
+
+  const createBranch = async () => {
+    if (!project || !isOwner || !newBranchName.trim()) return
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      const res = await fetch(`/api/projects/${project.id}/branches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ name: newBranchName.trim() })
+      })
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(text || 'Failed to create branch')
+      }
+      setNewBranchName('')
+      // refresh branches
+      const refreshed = await fetch(`/api/projects/${project.id}/branches`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }, cache: 'no-store' })
+      if (refreshed.ok) {
+        const body = await refreshed.json()
+        setBranches((Array.isArray(body?.data) ? body.data : []) as Array<{ id: string; name: string }>)
+      }
+    } catch (e) {
+      console.error('Create branch failed', e)
+      alert('Failed to create branch')
+    }
   }
 
   const restoreCommit = async (commitId: string) => {
@@ -546,7 +599,7 @@ export default function ProjectDetailPage() {
     )
   }
 
-  const isOwner = currentUser && project.user_id === currentUser.id
+  const totalPages = useMemo(() => Math.max(1, Math.ceil((commitTotal || 0) / (commitPageSize || 1))), [commitTotal, commitPageSize])
   const fromParam = searchParams.get('from')
   const backHref = fromParam === 'my-projects' ? '/my-projects' : '/projects'
 
@@ -853,11 +906,53 @@ export default function ProjectDetailPage() {
               <GitCommit className="w-5 h-5 text-cyan-400 mr-2" />
               Commits
             </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+              <div className="flex items-center gap-2">
+                <label className="text-slate-400 text-sm">Branch</label>
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => { setSelectedBranch(e.target.value); setCommitPage(1); }}
+                  className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-200"
+                >
+                  <option value="">All</option>
+                  <option value="main">main</option>
+                  {branches.map(b => (
+                    <option key={b.id} value={b.name}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  value={newBranchName}
+                  onChange={(e) => setNewBranchName(e.target.value)}
+                  placeholder="new-branch-name"
+                  className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-200 placeholder:text-slate-500"
+                />
+                <button
+                  onClick={createBranch}
+                  disabled={!newBranchName.trim()}
+                  className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 hover:text-white disabled:opacity-50"
+                >Create branch</button>
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => setCommitPage(p => Math.max(1, p - 1))}
+                  disabled={commitPage <= 1}
+                  className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 disabled:opacity-50"
+                >Prev</button>
+                <span className="text-slate-400 text-sm">Page {commitPage} / {totalPages}</span>
+                <button
+                  onClick={() => setCommitPage(p => Math.min(totalPages, p + 1))}
+                  disabled={commitPage >= totalPages}
+                  className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 disabled:opacity-50"
+                >Next</button>
+              </div>
+            </div>
             {commits.length === 0 ? (
               <p className="text-slate-400 text-sm">No commits yet.</p>
             ) : (
               <ul className="space-y-2">
-                {commits.slice(0, 15).map(c => (
+                {commits.map(c => (
                   <li key={c.id} className="flex items-center justify-between text-sm text-slate-300">
                     <div className="truncate">
                       <span className="text-white font-medium">{c.message}</span>
@@ -866,6 +961,7 @@ export default function ProjectDetailPage() {
                     <div className="flex gap-2">
                       <button onClick={() => viewCommit(c.id)} className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 hover:text-white">View</button>
                       <button onClick={() => restoreCommit(c.id)} className="px-2 py-1 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded">Restore</button>
+                      <a href={`/editor?project=${project.id}`} className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 hover:text-white">Open in editor</a>
                     </div>
                   </li>
                 ))}
@@ -873,11 +969,29 @@ export default function ProjectDetailPage() {
             )}
             {viewingCommitId && (
               <div className="mt-4">
-                <h4 className="text-white font-semibold mb-2">Commit Content</h4>
-                <div className="max-h-96 overflow-auto border border-slate-700/50 rounded">
-                  <SyntaxHighlighter language={getLanguageForHighlighter(project.language)} style={vscDarkPlus} customStyle={{ margin: 0, background: 'transparent', fontSize: '13px' }}>
-                    {commitContent}
-                  </SyntaxHighlighter>
+                <h4 className="text-white font-semibold mb-2">Diff vs current</h4>
+                <div className="text-xs text-slate-400 mb-2">Green = added, Red = removed</div>
+                <div className="max-h-96 overflow-auto border border-slate-700/50 rounded p-3 text-sm font-mono whitespace-pre-wrap">
+                  {(() => {
+                    const oldLines = String(commitContent || '').split('\n')
+                    const newLines = String(project.content || '').split('\n')
+                    const max = Math.max(oldLines.length, newLines.length)
+                    const rows: Array<{ t: 'ctx' | 'add' | 'rem'; v: string }> = []
+                    for (let i = 0; i < max; i += 1) {
+                      const a = oldLines[i] ?? ''
+                      const b = newLines[i] ?? ''
+                      if (a === b) rows.push({ t: 'ctx', v: a })
+                      else {
+                        if (a) rows.push({ t: 'rem', v: a })
+                        if (b) rows.push({ t: 'add', v: b })
+                      }
+                    }
+                    return rows.map((r, idx) => (
+                      <div key={idx} className={r.t === 'add' ? 'bg-green-500/10 text-green-300' : r.t === 'rem' ? 'bg-red-500/10 text-red-300' : 'text-slate-300'}>
+                        {r.t === 'add' ? '+ ' : r.t === 'rem' ? '- ' : '  '}{r.v}
+                      </div>
+                    ))
+                  })()}
                 </div>
               </div>
             )}

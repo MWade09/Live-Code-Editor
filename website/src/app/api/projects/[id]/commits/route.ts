@@ -26,6 +26,10 @@ export async function GET(req: Request) {
     const match = url.pathname.match(/\/api\/projects\/([^/]+)\/commits/)
     const id = match?.[1]
     const branch = url.searchParams.get('branch') || null
+    const pageParam = url.searchParams.get('page')
+    const pageSizeParam = url.searchParams.get('pageSize')
+    const page = Math.max(1, parseInt(pageParam || '1', 10) || 1)
+    const pageSize = Math.min(50, Math.max(1, parseInt(pageSizeParam || '15', 10) || 15))
     if (!id) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
 
     // Verify project exists and determine owner
@@ -51,17 +55,18 @@ export async function GET(req: Request) {
     const isOwner = uid && uid === project.user_id
     if (!isOwner) return corsResponse({ error: 'Forbidden' }, origin, 403)
 
+    const offset = (page - 1) * pageSize
     let query = admin
       .from('project_commits')
-      .select('id, message, created_at, branch')
+      .select('id, message, created_at, branch', { count: 'exact' })
       .eq('project_id', id)
     if (branch) query = query.eq('branch', branch)
-    const { data: commits, error } = await query
+    const { data: commits, error, count } = await query
       .order('created_at', { ascending: false })
-      .limit(50)
+      .range(offset, offset + pageSize - 1)
     if (error) throw error
 
-    return corsResponse({ data: commits || [] }, origin, 200)
+    return corsResponse({ data: commits || [], total: count || 0, page, pageSize }, origin, 200)
   } catch (error) {
     console.error('GET /api/projects/[id]/commits failed:', error)
     return corsResponse({ error: 'Internal server error' }, origin, 500)
