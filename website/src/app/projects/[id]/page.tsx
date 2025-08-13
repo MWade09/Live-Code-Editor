@@ -50,6 +50,7 @@ export default function ProjectDetailPage() {
   const [compareRows, setCompareRows] = useState<Array<{ t: 'ctx' | 'add' | 'rem'; v: string; ln?: number }>>([])
   const [toasts, setToasts] = useState<Array<{ id: string; text: string; type: 'success' | 'error' | 'info' }>>([])
   const [renameBranchValue, setRenameBranchValue] = useState<string>('')
+  const [terminalSessions, setTerminalSessions] = useState<Array<{ id: string; created_at: string; last_active: string; commands?: Array<unknown> }>>([])
   const [commitContent, setCommitContent] = useState<string>('')
   const [viewingCommitId, setViewingCommitId] = useState<string | null>(null)
   
@@ -353,6 +354,23 @@ export default function ProjectDetailPage() {
     }
     loadCommits()
   }, [project?.id, isOwner, selectedBranch, commitPage, commitPageSize, supabase, supabase.auth, project])
+
+  // Load terminal sessions (owner only)
+  useEffect(() => {
+    const loadTerminal = async () => {
+      if (!project || !isOwner) return
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData?.session?.access_token
+        const res = await fetch(`/api/projects/${project.id}/terminal`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }, cache: 'no-store' })
+        if (!res.ok) return
+        const body = await res.json()
+        const rows = Array.isArray(body?.data) ? body.data : []
+        setTerminalSessions(rows as Array<{ id: string; created_at: string; last_active: string; commands?: Array<unknown> }>)
+      } catch {}
+    }
+    loadTerminal()
+  }, [project?.id, project, isOwner, supabase])
 
   const viewCommit = async (commitId: string) => {
     if (!project) return
@@ -1219,6 +1237,40 @@ export default function ProjectDetailPage() {
                       <button onClick={() => restoreCommit(c.id)} className="px-2 py-1 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded">Restore</button>
                       <button
                         onClick={async () => {
+                          // Amend last commit only when this is the latest on branch
+                          try {
+                            const latest = commits.find(x => x.branch === (c.branch || 'main'))
+                            if (!latest || latest.id !== c.id) { notify('Only the latest commit on the branch can be amended', 'info'); return }
+                            const newMsg = prompt('New commit message', c.message || '')
+                            if (newMsg == null) return
+                            const { data: sessionData } = await supabase.auth.getSession()
+                            const token = sessionData?.session?.access_token
+                            const res = await fetch(`/api/projects/${project.id}/commits/${c.id}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                              body: JSON.stringify({ message: newMsg.trim() })
+                            })
+                            if (!res.ok) throw new Error(await res.text())
+                            notify('Commit amended', 'success')
+                            // refresh
+                            const url = new URL(window.location.origin + `/api/projects/${project.id}/commits`)
+                            if (selectedBranch) url.searchParams.set('branch', selectedBranch)
+                            url.searchParams.set('page', String(commitPage))
+                            url.searchParams.set('pageSize', String(commitPageSize))
+                            const r2 = await fetch(url.toString(), { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }, cache: 'no-store' })
+                            if (r2.ok) {
+                              const body = await r2.json()
+                              setCommits((Array.isArray(body?.data) ? body.data : []) as Array<{ id: string; message: string; created_at: string; branch?: string }>)
+                            }
+                          } catch (e) {
+                            console.error(e)
+                            notify('Amend failed', 'error')
+                          }
+                        }}
+                        className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 hover:text-white"
+                      >Amend</button>
+                      <button
+                        onClick={async () => {
                           try {
                             await navigator.clipboard.writeText(c.id)
                           } catch {}
@@ -1389,6 +1441,51 @@ export default function ProjectDetailPage() {
                 })()
               )}
             </div>
+          </div>
+        )}
+
+        {isOwner && (
+          <div className="mt-8 bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-6">
+            <div className="flex items-center mb-4">
+              <h3 className="text-xl font-semibold text-white mr-3">Terminal history</h3>
+              <button
+                onClick={async () => {
+                  try {
+                    const { data: sessionData } = await supabase.auth.getSession()
+                    const token = sessionData?.session?.access_token
+                    const res = await fetch(`/api/projects/${project.id}/terminal`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }, cache: 'no-store' })
+                    if (!res.ok) return
+                    const body = await res.json()
+                    const rows = Array.isArray(body?.data) ? body.data : []
+                    setTerminalSessions(rows as Array<{ id: string; created_at: string; last_active: string; commands?: Array<unknown> }>)
+                  } catch {}
+                }}
+                className="ml-auto px-2 py-1 bg-slate-800/50 border border-slate-600 rounded text-slate-300 hover:text-white"
+              >Refresh</button>
+            </div>
+            {terminalSessions.length === 0 ? (
+              <div className="text-slate-400 text-sm">No terminal sessions yet.</div>
+            ) : (
+              <div className="space-y-3">
+                {terminalSessions.map(s => (
+                  <div key={s.id} className="border border-slate-700/50 rounded p-3">
+                    <div className="text-slate-300 text-sm mb-2">Session {s.id.slice(0,8)} • started {new Date(s.created_at).toLocaleString()} • last active {new Date(s.last_active).toLocaleString()}</div>
+                    <div className="text-slate-400 text-xs whitespace-pre-wrap">
+                      {Array.isArray(s.commands) && s.commands.length ? (
+                        (s.commands as Array<unknown>).slice(-50).map((c, idx) => {
+                          const obj = (c && typeof c === 'object') ? c as Record<string, unknown> : {}
+                          const ts = typeof obj.ts === 'string' ? obj.ts : ''
+                          const cmd = typeof obj.command === 'string' ? obj.command : ''
+                          return <div key={idx}>[{ts}] $ {cmd}</div>
+                        })
+                      ) : (
+                        <div>(no commands logged)</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

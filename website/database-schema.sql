@@ -380,6 +380,97 @@ ALTER TABLE project_branches ENABLE ROW LEVEL SECURITY;
 -- Index for quick lookup by project and name
 CREATE INDEX IF NOT EXISTS idx_project_branches_project_name ON project_branches(project_id, name);
 
+-- Terminal sessions tracking
+CREATE TABLE IF NOT EXISTS terminal_sessions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  commands JSONB[] DEFAULT '{}',
+  working_directory TEXT,
+  environment_vars JSONB DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  last_active TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE terminal_sessions ENABLE ROW LEVEL SECURITY;
+
+-- Owners can read their terminal sessions
+DROP POLICY IF EXISTS terminal_sessions_owner_select ON terminal_sessions;
+CREATE POLICY terminal_sessions_owner_select ON terminal_sessions
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- Owners can insert sessions
+DROP POLICY IF EXISTS terminal_sessions_owner_insert ON terminal_sessions;
+CREATE POLICY terminal_sessions_owner_insert ON terminal_sessions
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- Owners can update their sessions
+DROP POLICY IF EXISTS terminal_sessions_owner_update ON terminal_sessions;
+CREATE POLICY terminal_sessions_owner_update ON terminal_sessions
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+CREATE INDEX IF NOT EXISTS idx_terminal_sessions_project_id ON terminal_sessions(project_id);
+CREATE INDEX IF NOT EXISTS idx_terminal_sessions_last_active ON terminal_sessions(last_active DESC);
+
+-- Build configuration per project
+CREATE TABLE IF NOT EXISTS project_build_configs (
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE PRIMARY KEY,
+  build_command TEXT DEFAULT 'npm run build',
+  environment JSONB DEFAULT '{}',
+  deploy_target TEXT DEFAULT 'netlify',
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE project_build_configs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS project_build_configs_owner_select ON project_build_configs;
+CREATE POLICY project_build_configs_owner_select ON project_build_configs
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS project_build_configs_owner_upsert ON project_build_configs;
+CREATE POLICY project_build_configs_owner_upsert ON project_build_configs
+  FOR INSERT TO PUBLIC
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS project_build_configs_owner_update ON project_build_configs;
+CREATE POLICY project_build_configs_owner_update ON project_build_configs
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
 -- Owners can read their commits
 DROP POLICY IF EXISTS project_commits_owner_select ON project_commits;
 CREATE POLICY project_commits_owner_select ON project_commits

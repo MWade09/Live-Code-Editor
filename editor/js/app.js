@@ -12,6 +12,7 @@ import { AIManager } from './modules/AIManager.js';
 import { InlineAIManager } from './modules/InlineAIManager.js';
 import { AICodeActionsManager } from './modules/AICodeActionsManager.js';
 import { ProjectSyncManager } from './modules/ProjectSyncManager.js';
+import { TerminalManager } from './modules/TerminalManager.js';
 import { VersionControlManager } from './modules/VersionControlManager.js';
 
 // Load chat panel scripts - CSS is now loaded directly in HTML
@@ -93,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileExplorerManager = new FileExplorerManager(fileManager, editor);
     const projectSync = new ProjectSyncManager(fileManager);
     const versionControl = new VersionControlManager(projectSync, fileManager);
+    const terminalManager = new TerminalManager(projectSync);
     
     // Global app state
     window.app = {
@@ -110,7 +112,8 @@ document.addEventListener('DOMContentLoaded', () => {
         hideModal,
         renderFileTabs,
         projectSync,
-        versionControl
+        versionControl,
+        terminalManager
     };
     
     // Expose inline AI manager globally for debugging
@@ -506,6 +509,21 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Keyboard shortcuts
         document.addEventListener('keydown', handleKeyboardShortcuts);
+
+        // Add Terminal button to header
+        try {
+            const controls = document.querySelector('header .controls .view-controls');
+            const themeToggle = document.getElementById('theme-toggle');
+            if (controls && themeToggle) {
+                const termBtn = document.createElement('button');
+                termBtn.id = 'terminal-btn';
+                termBtn.className = 'community-btn';
+                termBtn.title = 'Terminal';
+                termBtn.innerHTML = '<i class="fas fa-terminal"></i> <span>Terminal</span>';
+                termBtn.addEventListener('click', () => toggleTerminalPanel());
+                controls.insertBefore(termBtn, themeToggle);
+            }
+        } catch {}
     }
 
     function initVcsPanel() {
@@ -678,6 +696,71 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function initTerminalPanel() {
+        if (document.getElementById('terminal-panel')) return;
+        const panel = document.createElement('div');
+        panel.id = 'terminal-panel';
+        panel.style.position = 'fixed';
+        panel.style.bottom = '16px';
+        panel.style.left = '16px';
+        panel.style.right = '16px';
+        panel.style.height = '220px';
+        panel.style.background = 'var(--bg-secondary, #1f1f1f)';
+        panel.style.border = '1px solid rgba(255,255,255,0.1)';
+        panel.style.borderRadius = '8px';
+        panel.style.boxShadow = '0 10px 30px rgba(0,0,0,0.4)';
+        panel.style.display = 'none';
+        panel.style.zIndex = '1000';
+        panel.innerHTML = `
+          <div style="padding:8px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.08)">
+            <strong>Terminal</strong>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input id="terminal-input" placeholder="Type command..." style="width:420px; padding:6px; background:transparent; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:inherit;" />
+              <button id="terminal-run" class="deploy-btn"><i class="fas fa-play"></i> Run</button>
+              <button id="terminal-close" class="btn btn-secondary" style="padding:4px 8px">✕</button>
+            </div>
+          </div>
+          <div id="terminal-output" style="padding:10px; font-family:monospace; font-size:12px; overflow:auto; height:160px;"></div>
+        `;
+        document.body.appendChild(panel);
+        document.getElementById('terminal-close').addEventListener('click', toggleTerminalPanel);
+        document.getElementById('terminal-run').addEventListener('click', onTerminalRun);
+        document.getElementById('terminal-input').addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') onTerminalRun();
+        });
+    }
+
+    function toggleTerminalPanel() {
+        const panel = document.getElementById('terminal-panel');
+        if (!panel) { initTerminalPanel(); return toggleTerminalPanel(); }
+        const show = panel.style.display === 'none';
+        panel.style.display = show ? 'block' : 'none';
+        if (show) {
+            setTimeout(() => document.getElementById('terminal-input')?.focus(), 0);
+        }
+    }
+
+    async function onTerminalRun() {
+        const input = document.getElementById('terminal-input');
+        const out = document.getElementById('terminal-output');
+        const cmd = (input.value || '').trim();
+        if (!cmd) return;
+        // Echo command
+        const line = document.createElement('div');
+        line.innerHTML = `<span style="color:#7aa2f7;">$</span> ${escapeHtml(cmd)}`;
+        out.appendChild(line);
+        out.scrollTop = out.scrollHeight;
+        // Log to website (no remote execution; just store history for now)
+        const res = await window.app.terminalManager.logToWebsite(cmd);
+        if (!res.ok) {
+            const err = document.createElement('div');
+            err.style.color = '#f66';
+            err.textContent = `! ${res.error || 'Failed'}`;
+            out.appendChild(err);
+        }
+        input.value = '';
+    }
+
     function toggleVcsPanel() {
         const panel = document.getElementById('vcs-panel');
         if (!panel) return;
@@ -713,6 +796,37 @@ document.addEventListener('DOMContentLoaded', () => {
             renderVcsCommits();
         } else if (result.error && String(result.error).includes('401')) {
             status.textContent = 'Login required to commit';
+        } else if (result.conflict) {
+            status.textContent = 'Resolve…';
+            try {
+                const currentBranch = versionControl.cache.currentBranch || 'main';
+                const latest = await versionControl.getLatestCommitForBranch(currentBranch);
+                const full = latest && latest.id ? await versionControl.getCommit(latest.id) : null;
+                const serverContent = (full && typeof full.content === 'string') ? full.content : '';
+                showConflictDialog(serverContent, async (action) => {
+                    if (action === 'pull') {
+                        const file = versionControl.fileManager.getCurrentFile();
+                        if (file) file.content = serverContent;
+                        if (typeof versionControl.fileManager.clearAllDirty === 'function') versionControl.fileManager.clearAllDirty();
+                        renderVcsDiff();
+                        status.textContent = 'Pulled latest';
+                    } else if (action === 'overwrite') {
+                        // Refresh head so expectedHeadId will match, then retry commit on top
+                        await versionControl.listCommits();
+                        const retry = await versionControl.createCommit(message);
+                        if (retry.ok) {
+                            status.textContent = 'Commit created';
+                            input.value = '';
+                            renderVcsCommits();
+                        } else {
+                            status.textContent = 'Commit failed';
+                        }
+                    }
+                });
+            } catch (e) {
+                console.warn('Conflict resolution failed', e);
+                status.textContent = 'Commit conflict';
+            }
         } else {
             status.textContent = 'Commit failed';
         }
