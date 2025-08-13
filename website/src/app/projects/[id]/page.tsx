@@ -40,7 +40,7 @@ export default function ProjectDetailPage() {
   const [commits, setCommits] = useState<Array<{ id: string; message: string; created_at: string; branch?: string }>>([])
   const [commitTotal, setCommitTotal] = useState<number>(0)
   const [commitPage, setCommitPage] = useState<number>(1)
-  const [commitPageSize, setCommitPageSize] = useState<number>(15)
+  const commitPageSize = 15
   const [selectedBranch, setSelectedBranch] = useState<string>('')
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([])
   const [newBranchName, setNewBranchName] = useState<string>('')
@@ -313,7 +313,7 @@ export default function ProjectDetailPage() {
     loadSaves()
   }, [project?.id])
 
-  const isOwner = currentUser && project?.user_id === currentUser.id
+  const isOwner = !!(currentUser && project && project.user_id === currentUser.id)
 
   // Load branches (owner only)
   useEffect(() => {
@@ -330,7 +330,7 @@ export default function ProjectDetailPage() {
       } catch {}
     }
     loadBranches()
-  }, [project?.id, isOwner])
+  }, [project?.id, isOwner, supabase])
 
   // Load commits with pagination and branch filter (owner only)
   useEffect(() => {
@@ -352,7 +352,7 @@ export default function ProjectDetailPage() {
       } catch {}
     }
     loadCommits()
-  }, [project?.id, isOwner, selectedBranch, commitPage, commitPageSize])
+  }, [project?.id, isOwner, selectedBranch, commitPage, commitPageSize, supabase])
 
   const viewCommit = async (commitId: string) => {
     if (!project) return
@@ -670,7 +670,7 @@ export default function ProjectDetailPage() {
           if (!selectedBranch || selectedBranch === (row.branch || 'main')) {
             setCommitPage(1)
             // Lightweight prepend if already on page 1
-            setCommits(prev => [{ id: row.id, message: (row as any).message || '', created_at: row.created_at, branch: row.branch }, ...prev].slice(0, commitPageSize))
+            setCommits(prev => [{ id: row.id, message: (row as unknown as { message?: string }).message || '', created_at: row.created_at, branch: row.branch }, ...prev].slice(0, commitPageSize))
             setCommitTotal(t => t + 1)
           }
         }
@@ -695,7 +695,7 @@ export default function ProjectDetailPage() {
       try { supabase.removeChannel(channel) } catch {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project?.id, isOwner, selectedBranch, commitPageSize])
+  }, [project?.id, isOwner, selectedBranch, commitPageSize, supabase])
 
   // Realtime updates for branches (owner only)
   useEffect(() => {
@@ -858,7 +858,7 @@ export default function ProjectDetailPage() {
     )
   }
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil((commitTotal || 0) / (commitPageSize || 1))), [commitTotal, commitPageSize])
+  const totalPages = useMemo(() => Math.max(1, Math.ceil((commitTotal || 0) / (commitPageSize || 1))), [commitTotal])
   const fromParam = searchParams.get('from')
   const backHref = fromParam === 'my-projects' ? '/my-projects' : '/projects'
 
@@ -1301,7 +1301,7 @@ export default function ProjectDetailPage() {
                           <div key={idx} className="text-slate-500 text-xs py-1 px-2 italic opacity-70">… {g.skipCount} unchanged lines …</div>
                         )
                       }
-                      const data = g.data as any
+                      const data = g.data as unknown as { t?: 'change' | 'ctx' | 'add' | 'rem'; a?: { v: string; ln?: number }; b?: { v: string; ln?: number }; ln?: number; v?: string }
                       if (data?.t === 'change') {
                         const { prefix, aMid, bMid, suffix } = inlineDiffSegments(data.a.v, data.b.v)
                         return (
