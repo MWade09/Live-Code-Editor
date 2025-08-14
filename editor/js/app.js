@@ -287,75 +287,22 @@ document.addEventListener('DOMContentLoaded', () => {
                                 };
                                 syncBtn.addEventListener('click', doSync);
                                 // Source Control button
-                                const scBtn = document.createElement('button');
-                                scBtn.id = 'source-control-btn';
-                                scBtn.className = 'community-btn';
-                                scBtn.title = 'Source Control';
-                                scBtn.innerHTML = '<i class="fas fa-code-branch"></i> <span>Source</span>';
-                                scBtn.addEventListener('click', () => toggleVcsPanel());
-
-                                // Branch quick switch in header
-                                const branchWrap = document.createElement('div');
-                                branchWrap.style.display = 'inline-flex';
-                                branchWrap.style.alignItems = 'center';
-                                branchWrap.style.gap = '6px';
-                                branchWrap.style.marginRight = '6px';
-                                const branchLabel = document.createElement('span');
-                                branchLabel.textContent = 'Branch:';
-                                branchLabel.style.fontSize = '12px';
-                                branchLabel.style.opacity = '0.8';
-                                const branchSelect = document.createElement('select');
-                                branchSelect.id = 'header-branch-select';
-                                branchSelect.className = 'community-btn';
-                                branchSelect.style.padding = '4px 8px';
-                                branchSelect.style.background = 'transparent';
-                                branchSelect.style.borderRadius = '6px';
-                                branchSelect.style.border = '1px solid rgba(255,255,255,0.1)';
-                                const branchNewBtn = document.createElement('button');
-                                branchNewBtn.className = 'community-btn';
-                                branchNewBtn.title = 'New branch from current';
-                                branchNewBtn.innerHTML = '<i class="fas fa-plus"></i>';
-                                branchSelect.addEventListener('change', async (e) => {
-                                  const name = e.target.value;
-                                  await versionControl.checkoutBranch(name);
-                                  renderVcsCommits();
-                                });
-                                branchNewBtn.addEventListener('click', async () => {
-                                  const name = prompt('New branch name');
-                                  if (!name) return;
-                                  const syncBtn = document.getElementById('project-sync-btn');
-                                  const prev = syncBtn?.querySelector('span')?.textContent;
-                                  if (syncBtn) syncBtn.querySelector('span').textContent = 'Creating…';
-                                  const res = await versionControl.createBranch(name.trim());
-                                  if (res.ok) {
-                                    await versionControl.checkoutBranch(name.trim());
-                                    await versionControl.createCommit('Initial commit on ' + name.trim(), name.trim());
-                                    await renderVcsBranches();
-                                    await renderVcsCommits();
-                                  }
-                                  if (syncBtn && prev) syncBtn.querySelector('span').textContent = prev;
-                                });
-                                branchWrap.appendChild(branchLabel);
-                                branchWrap.appendChild(branchSelect);
-                                branchWrap.appendChild(branchNewBtn);
+                                // Control Dock launcher to declutter header
+                                const dockBtn = document.createElement('button');
+                                dockBtn.id = 'control-dock-btn';
+                                dockBtn.className = 'community-btn';
+                                dockBtn.title = 'Open Control Panel';
+                                dockBtn.innerHTML = '<i class="fas fa-bars"></i> <span>Panel</span>';
+                                dockBtn.addEventListener('click', () => toggleControlDock());
 
                                 controls.insertBefore(saveBtn, themeToggle);
                                 controls.insertBefore(syncBtn, themeToggle);
-                                controls.insertBefore(scBtn, themeToggle);
-                                controls.insertBefore(branchWrap, scBtn);
+                                controls.insertBefore(dockBtn, themeToggle);
                                 // Initial sync shortly after load
                                 setTimeout(doSync, 500);
                                 // Preload commits silently
                                 versionControl.listCommits().catch(() => {});
-                                // Load header branches
-                                (async () => {
-                                  const select = document.getElementById('header-branch-select');
-                                  if (!select) return;
-                                  const branches = await versionControl.listBranches();
-                                  const names = ['main', ...branches.map(b => b.name).filter(n => n !== 'main')];
-                                  select.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
-                                  select.value = versionControl.cache.currentBranch || 'main';
-                                })();
+                                // No header branch selector when dock is used
 
                                 // Queued save badge next to Sync button
                                 const queuedBadge = document.createElement('span');
@@ -541,13 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
                 controls.insertBefore(buildBtn, themeToggle);
-                const termBtn = document.createElement('button');
-                termBtn.id = 'terminal-btn';
-                termBtn.className = 'community-btn';
-                termBtn.title = 'Terminal';
-                termBtn.innerHTML = '<i class="fas fa-terminal"></i> <span>Terminal</span>';
-                termBtn.addEventListener('click', () => toggleTerminalPanel());
-                controls.insertBefore(termBtn, themeToggle);
+                // Terminal is available inside the Control Dock
             }
         } catch {}
     }
@@ -722,6 +663,105 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function initControlDock() {
+        if (document.getElementById('control-dock')) return;
+        const dock = document.createElement('div');
+        dock.id = 'control-dock';
+        dock.style.position = 'fixed';
+        dock.style.right = '16px';
+        dock.style.top = '64px';
+        dock.style.width = '360px';
+        dock.style.maxHeight = '75vh';
+        dock.style.overflow = 'auto';
+        dock.style.background = 'var(--bg-secondary, #1f1f1f)';
+        dock.style.border = '1px solid rgba(255,255,255,0.1)';
+        dock.style.borderRadius = '10px';
+        dock.style.boxShadow = '0 10px 30px rgba(0,0,0,0.4)';
+        dock.style.display = 'none';
+        dock.style.zIndex = '1000';
+        dock.innerHTML = `
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:10px; border-bottom:1px solid rgba(255,255,255,0.08)">
+            <strong>Control Panel</strong>
+            <button id="dock-close" class="btn btn-secondary" style="padding:4px 8px">✕</button>
+          </div>
+          <div style="display:flex; gap:6px; padding:8px; border-bottom:1px solid rgba(255,255,255,0.08)">
+            <button class="community-btn" data-dock-tab="vcs"><i class="fas fa-code-branch"></i> VCS</button>
+            <button class="community-btn" data-dock-tab="terminal"><i class="fas fa-terminal"></i> Terminal</button>
+            <button class="community-btn" data-dock-tab="build"><i class="fas fa-hammer"></i> Build</button>
+            <button class="community-btn" data-dock-tab="sync"><i class="fas fa-rotate"></i> Sync</button>
+          </div>
+          <div id="dock-content" style="padding:10px;">
+            <div data-tab="vcs" style="display:none;">
+              <div style="margin-bottom:8px"><button class="community-btn" id="dock-vcs-open">Open VCS Panel</button></div>
+              <div style="font-size:12px; opacity:.8">Quick actions:</div>
+              <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+                <button class="deploy-btn" id="dock-commit">Commit</button>
+                <button class="community-btn" id="dock-refresh-commits">Refresh commits</button>
+                <button class="community-btn" id="dock-diff">Diff vs last</button>
+              </div>
+            </div>
+            <div data-tab="terminal" style="display:none;">
+              <div style="margin-bottom:6px; font-size:12px; opacity:.8">Integrated terminal</div>
+              <div style="margin-bottom:6px"><button class="community-btn" id="dock-terminal-open">Open Terminal</button></div>
+            </div>
+            <div data-tab="build" style="display:none;">
+              <div style="margin-bottom:6px; font-size:12px; opacity:.8">Project build</div>
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="deploy-btn" id="dock-build-now">Build Now</button>
+                <button class="community-btn" id="dock-open-settings">Open Build Settings</button>
+              </div>
+            </div>
+            <div data-tab="sync" style="display:none;">
+              <div style="margin-bottom:6px; font-size:12px; opacity:.8">Synchronization</div>
+              <div style="display:flex; gap:6px;">
+                <button class="deploy-btn" id="dock-sync">Sync Now</button>
+              </div>
+            </div>
+            <div id="dock-empty" style="opacity:.7; font-size:12px;">Select a tab above.</div>
+          </div>
+        `;
+        document.body.appendChild(dock);
+        document.getElementById('dock-close').addEventListener('click', toggleControlDock);
+        dock.querySelectorAll('[data-dock-tab]').forEach(btn => {
+          btn.addEventListener('click', () => showDockTab(btn.getAttribute('data-dock-tab')));
+        });
+        document.getElementById('dock-vcs-open').addEventListener('click', () => toggleVcsPanel());
+        document.getElementById('dock-terminal-open').addEventListener('click', () => toggleTerminalPanel());
+        document.getElementById('dock-diff').addEventListener('click', () => renderVcsDiff());
+        document.getElementById('dock-refresh-commits').addEventListener('click', () => renderVcsCommits());
+        document.getElementById('dock-commit').addEventListener('click', () => {
+          const p = document.getElementById('vcs-panel');
+          if (!p || p.style.display === 'none') toggleVcsPanel();
+          setTimeout(() => document.getElementById('vcs-message')?.focus(), 0);
+        });
+        document.getElementById('dock-build-now').addEventListener('click', () => document.getElementById('build-btn')?.click());
+        document.getElementById('dock-open-settings').addEventListener('click', () => {
+          const site = window.app.projectSync.websiteAPI?.replace(/\/api$/, '') || '';
+          const pid = window.app.projectSync.currentProject?.id;
+          if (site && pid) window.open(`${site}/projects/${pid}`, '_blank');
+        });
+        document.getElementById('dock-sync').addEventListener('click', async () => {
+          const res = await window.app.projectSync.saveToWebsite();
+          showStatusMessage(res.ok ? 'Synced' : 'Sync failed');
+        });
+    }
+
+    function toggleControlDock() {
+        const dock = document.getElementById('control-dock');
+        if (!dock) { initControlDock(); return toggleControlDock(); }
+        const show = dock.style.display === 'none';
+        dock.style.display = show ? 'block' : 'none';
+        if (show) showDockTab('vcs');
+    }
+
+    function showDockTab(name) {
+        const content = document.getElementById('dock-content');
+        if (!content) return;
+        const panels = content.querySelectorAll('[data-tab]');
+        panels.forEach(p => p.style.display = (p.getAttribute('data-tab') === name ? 'block' : 'none'));
+        const empty = document.getElementById('dock-empty');
+        if (empty) empty.style.display = 'none';
+    }
     function initTerminalPanel() {
         if (document.getElementById('terminal-panel')) return;
         const panel = document.createElement('div');
