@@ -721,37 +721,56 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function initSidebarRail() {
-        if (document.getElementById('sidebar-rail')) return;
+        const container = document.querySelector('.editor-container');
+        if (!container) return;
+        const existing = document.getElementById('sidebar-rail');
+        if (existing) {
+            // Ensure it's part of the layout, not overlay
+            if (existing.parentElement !== container) {
+                container.insertBefore(existing, container.firstChild);
+            }
+            existing.style.position = '';
+            existing.style.left = '';
+            existing.style.top = '';
+            existing.style.bottom = '';
+            existing.style.width = '';
+            existing.style.zIndex = '';
+            existing.style.display = 'flex';
+            existing.style.flexDirection = 'column';
+            existing.style.alignItems = 'center';
+            existing.style.gap = '10px';
+            existing.style.padding = '10px 6px';
+            existing.style.background = '#0b1220';
+            existing.style.borderRight = '1px solid rgba(30,58,138,0.45)';
+            existing.style.flex = '0 0 44px';
+            existing.style.height = '100%';
+            return;
+        }
         const rail = document.createElement('div');
         rail.id = 'sidebar-rail';
-        rail.style.position = 'fixed';
-        rail.style.left = '0';
-        rail.style.top = '64px';
-        rail.style.bottom = '0';
-        rail.style.width = '44px';
-        rail.style.background = '#0b1220';
-        rail.style.borderRight = '1px solid rgba(30,58,138,0.45)';
         rail.style.display = 'flex';
         rail.style.flexDirection = 'column';
         rail.style.alignItems = 'center';
         rail.style.gap = '10px';
         rail.style.padding = '10px 6px';
-        rail.style.zIndex = '998';
+        rail.style.background = '#0b1220';
+        rail.style.borderRight = '1px solid rgba(30,58,138,0.45)';
+        rail.style.flex = '0 0 44px';
+        rail.style.height = '100%';
         rail.innerHTML = `
           <button class="community-btn" data-rail="files" title="Files" style="width:32px; height:32px;"><i class="fas fa-folder"></i></button>
           <button class="community-btn" data-rail="vcs" title="Source Control" style="width:32px; height:32px;"><i class="fas fa-code-branch"></i></button>
           <button class="community-btn" data-rail="extensions" title="Extensions" style="width:32px; height:32px;"><i class="fas fa-plug"></i></button>
         `;
-        document.body.appendChild(rail);
+        // Place rail at the start of editor-container to participate in flex layout
+        container.insertBefore(rail, container.firstChild);
         rail.querySelectorAll('button[data-rail]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const tab = btn.getAttribute('data-rail');
-                // ensure sidebar is open
                 const sidebar = document.getElementById('file-explorer-sidebar');
                 if (sidebar && sidebar.style.display === 'none') {
                     document.getElementById('file-explorer-toggle')?.click();
                 }
-                // switch to tab
                 const headerTabs = document.getElementById('explorer-tabs');
                 if (headerTabs) {
                     const tbtn = headerTabs.querySelector(`button[data-explorer-tab="${tab}"]`);
