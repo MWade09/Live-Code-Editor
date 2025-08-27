@@ -472,6 +472,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 controls.insertBefore(buildBtn, themeToggle);
             }
         } catch {}
+
+        // Initialize activity bar and left dock
+        initActivityBar();
+        initControlDock();
     }
 
     function initVcsPanel() {
@@ -641,6 +645,39 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!p || !btn) return;
           if (p.style.display === 'none') return;
           if (!p.contains(e.target) && e.target !== btn) p.style.display = 'none';
+        });
+    }
+
+    function initActivityBar() {
+        if (document.getElementById('activity-bar')) return;
+        const bar = document.createElement('div');
+        bar.id = 'activity-bar';
+        bar.style.position = 'fixed';
+        bar.style.left = '0';
+        bar.style.top = '64px';
+        bar.style.bottom = '0';
+        bar.style.width = '44px';
+        bar.style.background = '#0b1220';
+        bar.style.borderRight = '1px solid rgba(30,58,138,0.45)';
+        bar.style.display = 'flex';
+        bar.style.flexDirection = 'column';
+        bar.style.alignItems = 'center';
+        bar.style.gap = '10px';
+        bar.style.padding = '10px 6px';
+        bar.style.zIndex = '999';
+        bar.innerHTML = `
+          <button class="community-btn" data-activity="files" title="Files" style="width:32px; height:32px;"><i class="fas fa-folder"></i></button>
+          <button class="community-btn" data-activity="vcs" title="Source Control" style="width:32px; height:32px;"><i class="fas fa-code-branch"></i></button>
+          <button class="community-btn" data-activity="extensions" title="Extensions" style="width:32px; height:32px;"><i class="fas fa-plug"></i></button>
+        `;
+        document.body.appendChild(bar);
+        bar.querySelectorAll('button[data-activity]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.getAttribute('data-activity');
+                const dock = document.getElementById('control-dock');
+                if (!dock || dock.style.display === 'none') toggleControlDock();
+                showDockTab(tab);
+            });
         });
     }
 
