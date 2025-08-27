@@ -287,17 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 };
                                 syncBtn.addEventListener('click', doSync);
                                 // Source Control button
-                                // Control Dock launcher to declutter header
-                                const dockBtn = document.createElement('button');
-                                dockBtn.id = 'control-dock-btn';
-                                dockBtn.className = 'community-btn';
-                                dockBtn.title = 'Open Control Panel';
-                                dockBtn.innerHTML = '<i class="fas fa-bars"></i> <span>Panel</span>';
-                                dockBtn.addEventListener('click', () => toggleControlDock());
-
-                                controls.insertBefore(saveBtn, themeToggle);
-                                controls.insertBefore(syncBtn, themeToggle);
-                                controls.insertBefore(dockBtn, themeToggle);
+        controls.insertBefore(saveBtn, themeToggle);
+        controls.insertBefore(syncBtn, themeToggle);
                                 // Initial sync shortly after load
                                 setTimeout(doSync, 500);
                                 // Preload commits silently
@@ -457,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Keyboard shortcuts
         document.addEventListener('keydown', handleKeyboardShortcuts);
 
-        // Add Terminal button to header
+        // Add Build button to header (kept compact)
         try {
             const controls = document.querySelector('header .controls .view-controls');
             const themeToggle = document.getElementById('theme-toggle');
@@ -466,29 +457,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 buildBtn.id = 'build-btn';
                 buildBtn.className = 'deploy-btn';
                 buildBtn.title = 'Build project';
-                buildBtn.innerHTML = '<i class="fas fa-hammer"></i> <span>Build</span>';
+                buildBtn.innerHTML = '<i class="fas fa-hammer"></i>';
                 buildBtn.addEventListener('click', async () => {
-                    const status = document.getElementById('status-message');
                     showStatusMessage('Preparing build…');
                     try {
                         const project = window.app.projectSync.currentProject;
                         if (!project) { showStatusMessage('No project'); return; }
-                        // Fetch build config from website (so editor can honor it later)
                         const res = await fetch(`${window.app.projectSync.websiteAPI}/projects/${project.id}/build-config`, { headers: window.app.projectSync.authHeader || {} });
-                        if (res.ok) {
-                            const body = await res.json();
-                            console.log('[Build] Using config:', body?.data || {});
-                        }
-                        // For now, just sync to website and show a success message as a placeholder
+                        if (res.ok) { await res.json(); }
                         const result = await window.app.projectSync.saveToWebsite();
-                        if (result.ok) showStatusMessage('Build triggered (placeholder)'); else showStatusMessage('Build failed to start');
-                    } catch (e) {
-                        console.warn('Build failed', e);
-                        showStatusMessage('Build failed');
-                    }
+                        showStatusMessage(result.ok ? 'Build triggered (placeholder)' : 'Build failed to start');
+                    } catch (e) { console.warn('Build failed', e); showStatusMessage('Build failed'); }
                 });
                 controls.insertBefore(buildBtn, themeToggle);
-                // Terminal is available inside the Control Dock
             }
         } catch {}
     }
@@ -668,56 +649,42 @@ document.addEventListener('DOMContentLoaded', () => {
         const dock = document.createElement('div');
         dock.id = 'control-dock';
         dock.style.position = 'fixed';
-        dock.style.right = '16px';
+        dock.style.left = '0';
         dock.style.top = '64px';
-        dock.style.width = '360px';
-        dock.style.maxHeight = '75vh';
-        dock.style.overflow = 'auto';
-        dock.style.background = 'var(--bg-secondary, #1f1f1f)';
-        dock.style.border = '1px solid rgba(255,255,255,0.1)';
-        dock.style.borderRadius = '10px';
-        dock.style.boxShadow = '0 10px 30px rgba(0,0,0,0.4)';
+        dock.style.bottom = '0';
+        dock.style.width = '280px';
+        dock.style.background = '#0b1220';
+        dock.style.borderRight = '1px solid rgba(30,58,138,0.45)';
         dock.style.display = 'none';
         dock.style.zIndex = '1000';
         dock.innerHTML = `
-          <div style="display:flex; align-items:center; justify-content:space-between; padding:10px; border-bottom:1px solid rgba(255,255,255,0.08)">
-            <strong>Control Panel</strong>
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:10px; border-bottom:1px solid rgba(30,58,138,0.35)">
+            <strong style="color:#93c5fd">Explorer</strong>
             <button id="dock-close" class="btn btn-secondary" style="padding:4px 8px">✕</button>
           </div>
-          <div style="display:flex; gap:6px; padding:8px; border-bottom:1px solid rgba(255,255,255,0.08)">
-            <button class="community-btn" data-dock-tab="vcs"><i class="fas fa-code-branch"></i> VCS</button>
-            <button class="community-btn" data-dock-tab="terminal"><i class="fas fa-terminal"></i> Terminal</button>
-            <button class="community-btn" data-dock-tab="build"><i class="fas fa-hammer"></i> Build</button>
-            <button class="community-btn" data-dock-tab="sync"><i class="fas fa-rotate"></i> Sync</button>
+          <div style="display:flex; gap:6px; padding:8px; border-bottom:1px solid rgba(30,58,138,0.35)">
+            <button class="community-btn" data-dock-tab="files"><i class="fas fa-folder"></i></button>
+            <button class="community-btn" data-dock-tab="vcs"><i class="fas fa-code-branch"></i></button>
+            <button class="community-btn" data-dock-tab="extensions"><i class="fas fa-plug"></i></button>
           </div>
-          <div id="dock-content" style="padding:10px;">
-            <div data-tab="vcs" style="display:none;">
-              <div style="margin-bottom:8px"><button class="community-btn" id="dock-vcs-open">Open VCS Panel</button></div>
-              <div style="font-size:12px; opacity:.8">Quick actions:</div>
-              <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
-                <button class="deploy-btn" id="dock-commit">Commit</button>
-                <button class="community-btn" id="dock-refresh-commits">Refresh commits</button>
-                <button class="community-btn" id="dock-diff">Diff vs last</button>
+          <div id="dock-content" style="height: calc(100% - 86px); overflow:auto;">
+            <div data-tab="files" style="display:none; padding:10px;">
+              <div style="font-size:12px; opacity:.8; margin-bottom:6px; color:#bfdbfe">File System</div>
+              <div id="dock-file-explorer"></div>
+            </div>
+            <div data-tab="vcs" style="display:none; padding:10px;">
+              <div style="font-size:12px; opacity:.8; margin-bottom:6px; color:#bfdbfe">Source Control</div>
+              <div style="display:flex; gap:6px; margin-bottom:8px;">
+                <button class="deploy-btn" id="dock-commit" style="background:linear-gradient(135deg,#1e40af,#2563eb)">Commit</button>
+                <button class="community-btn" id="dock-diff" style="border:1px solid rgba(30,58,138,0.35)">Diff</button>
+                <button class="community-btn" id="dock-refresh-commits" style="border:1px solid rgba(30,58,138,0.35)">Refresh</button>
               </div>
+              <div id="dock-commits" style="font-size:12px"></div>
             </div>
-            <div data-tab="terminal" style="display:none;">
-              <div style="margin-bottom:6px; font-size:12px; opacity:.8">Integrated terminal</div>
-              <div style="margin-bottom:6px"><button class="community-btn" id="dock-terminal-open">Open Terminal</button></div>
+            <div data-tab="extensions" style="display:none; padding:10px;">
+              <div style="font-size:12px; opacity:.8; color:#bfdbfe">Extensions (coming soon)</div>
             </div>
-            <div data-tab="build" style="display:none;">
-              <div style="margin-bottom:6px; font-size:12px; opacity:.8">Project build</div>
-              <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button class="deploy-btn" id="dock-build-now">Build Now</button>
-                <button class="community-btn" id="dock-open-settings">Open Build Settings</button>
-              </div>
-            </div>
-            <div data-tab="sync" style="display:none;">
-              <div style="margin-bottom:6px; font-size:12px; opacity:.8">Synchronization</div>
-              <div style="display:flex; gap:6px;">
-                <button class="deploy-btn" id="dock-sync">Sync Now</button>
-              </div>
-            </div>
-            <div id="dock-empty" style="opacity:.7; font-size:12px;">Select a tab above.</div>
+            <div id="dock-empty" style="opacity:.7; font-size:12px; padding:10px; color:#94a3b8">Select a tab above.</div>
           </div>
         `;
         document.body.appendChild(dock);
@@ -725,24 +692,16 @@ document.addEventListener('DOMContentLoaded', () => {
         dock.querySelectorAll('[data-dock-tab]').forEach(btn => {
           btn.addEventListener('click', () => showDockTab(btn.getAttribute('data-dock-tab')));
         });
-        document.getElementById('dock-vcs-open').addEventListener('click', () => toggleVcsPanel());
-        document.getElementById('dock-terminal-open').addEventListener('click', () => toggleTerminalPanel());
+        const filesHost = document.getElementById('dock-file-explorer');
+        if (filesHost && window.fileExplorer && window.fileExplorer.renderSidebar) {
+          try { window.fileExplorer.renderSidebar(filesHost); } catch {}
+        }
         document.getElementById('dock-diff').addEventListener('click', () => renderVcsDiff());
         document.getElementById('dock-refresh-commits').addEventListener('click', () => renderVcsCommits());
         document.getElementById('dock-commit').addEventListener('click', () => {
           const p = document.getElementById('vcs-panel');
           if (!p || p.style.display === 'none') toggleVcsPanel();
           setTimeout(() => document.getElementById('vcs-message')?.focus(), 0);
-        });
-        document.getElementById('dock-build-now').addEventListener('click', () => document.getElementById('build-btn')?.click());
-        document.getElementById('dock-open-settings').addEventListener('click', () => {
-          const site = window.app.projectSync.websiteAPI?.replace(/\/api$/, '') || '';
-          const pid = window.app.projectSync.currentProject?.id;
-          if (site && pid) window.open(`${site}/projects/${pid}`, '_blank');
-        });
-        document.getElementById('dock-sync').addEventListener('click', async () => {
-          const res = await window.app.projectSync.saveToWebsite();
-          showStatusMessage(res.ok ? 'Synced' : 'Sync failed');
         });
     }
 
@@ -767,26 +726,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const panel = document.createElement('div');
         panel.id = 'terminal-panel';
         panel.style.position = 'fixed';
-        panel.style.bottom = '16px';
-        panel.style.left = '16px';
-        panel.style.right = '16px';
-        panel.style.height = '220px';
-        panel.style.background = 'var(--bg-secondary, #1f1f1f)';
-        panel.style.border = '1px solid rgba(255,255,255,0.1)';
+        panel.style.bottom = '0';
+        panel.style.left = '0';
+        panel.style.right = '0';
+        panel.style.height = '240px';
+        panel.style.background = '#0b1220';
+        panel.style.borderTop = '1px solid rgba(30, 58, 138, 0.5)';
         panel.style.borderRadius = '8px';
-        panel.style.boxShadow = '0 10px 30px rgba(0,0,0,0.4)';
+        panel.style.boxShadow = '0 -10px 30px rgba(0,0,0,0.3)';
         panel.style.display = 'none';
         panel.style.zIndex = '1000';
         panel.innerHTML = `
-          <div style="padding:8px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.08)">
-            <strong>Terminal</strong>
+          <div id="terminal-resizer" style="height:6px; cursor:ns-resize; background:linear-gradient(90deg, rgba(30,58,138,.5), rgba(37,99,235,.5)); border-top-left-radius:8px; border-top-right-radius:8px"></div>
+          <div style="padding:8px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(30,58,138,0.35)">
+            <strong style="color:#93c5fd">Terminal</strong>
             <div style="display:flex; gap:8px; align-items:center;">
-              <input id="terminal-input" placeholder="Type command..." style="width:420px; padding:6px; background:transparent; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:inherit;" />
-              <button id="terminal-run" class="deploy-btn"><i class="fas fa-play"></i> Run</button>
+              <input id="terminal-input" placeholder="Type command..." style="width:420px; padding:6px; background:transparent; border:1px solid rgba(30,58,138,0.35); border-radius:6px; color:#cbd5e1;" />
+              <button id="terminal-run" class="deploy-btn" style="background:linear-gradient(135deg,#1e40af,#2563eb);"><i class="fas fa-play"></i></button>
+              <button id="terminal-expand" class="community-btn" title="Expand" style="border:1px solid rgba(30,58,138,0.35)"><i class="fas fa-up-down"></i></button>
               <button id="terminal-close" class="btn btn-secondary" style="padding:4px 8px">✕</button>
             </div>
           </div>
-          <div id="terminal-output" style="padding:10px; font-family:monospace; font-size:12px; overflow:auto; height:160px;"></div>
+          <div id="terminal-output" style="padding:10px; font-family:monospace; font-size:12px; overflow:auto; height:180px; color:#dbeafe;"></div>
         `;
         document.body.appendChild(panel);
         document.getElementById('terminal-close').addEventListener('click', toggleTerminalPanel);
@@ -794,6 +755,27 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('terminal-input').addEventListener('keydown', (e) => {
           if (e.key === 'Enter') onTerminalRun();
         });
+        // expand/contract
+        const expandBtn = document.getElementById('terminal-expand');
+        let expanded = false;
+        expandBtn.addEventListener('click', () => {
+          expanded = !expanded;
+          panel.style.height = expanded ? '46vh' : '240px';
+          const out = document.getElementById('terminal-output');
+          if (out) out.style.height = expanded ? 'calc(46vh - 60px)' : '180px';
+        });
+        // resize with drag
+        const resizer = document.getElementById('terminal-resizer');
+        let isResizing = false;
+        resizer.addEventListener('mousedown', (e) => { isResizing = true; e.preventDefault(); });
+        window.addEventListener('mousemove', (e) => {
+          if (!isResizing) return;
+          const newHeight = Math.max(180, window.innerHeight - e.clientY);
+          panel.style.height = `${newHeight}px`;
+          const out = document.getElementById('terminal-output');
+          if (out) out.style.height = `${newHeight - 60}px`;
+        });
+        window.addEventListener('mouseup', () => { isResizing = false; });
     }
 
     function toggleTerminalPanel() {
