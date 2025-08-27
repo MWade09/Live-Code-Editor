@@ -473,9 +473,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch {}
 
-        // Initialize activity bar and left dock
-        initActivityBar();
-        initControlDock();
+        // Integrate VCS/Extensions into existing file explorer sidebar
+        initExplorerTabs();
     }
 
     function initVcsPanel() {
@@ -648,37 +647,76 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function initActivityBar() {
-        if (document.getElementById('activity-bar')) return;
-        const bar = document.createElement('div');
-        bar.id = 'activity-bar';
-        bar.style.position = 'fixed';
-        bar.style.left = '0';
-        bar.style.top = '64px';
-        bar.style.bottom = '0';
-        bar.style.width = '44px';
-        bar.style.background = '#0b1220';
-        bar.style.borderRight = '1px solid rgba(30,58,138,0.45)';
-        bar.style.display = 'flex';
-        bar.style.flexDirection = 'column';
-        bar.style.alignItems = 'center';
-        bar.style.gap = '10px';
-        bar.style.padding = '10px 6px';
-        bar.style.zIndex = '999';
-        bar.innerHTML = `
-          <button class="community-btn" data-activity="files" title="Files" style="width:32px; height:32px;"><i class="fas fa-folder"></i></button>
-          <button class="community-btn" data-activity="vcs" title="Source Control" style="width:32px; height:32px;"><i class="fas fa-code-branch"></i></button>
-          <button class="community-btn" data-activity="extensions" title="Extensions" style="width:32px; height:32px;"><i class="fas fa-plug"></i></button>
+    function initExplorerTabs() {
+        const sidebar = document.getElementById('file-explorer-sidebar');
+        if (!sidebar) return;
+        if (document.getElementById('explorer-tabs')) return;
+        const header = sidebar.querySelector('.file-explorer-header');
+        if (!header) return;
+        const tabs = document.createElement('div');
+        tabs.id = 'explorer-tabs';
+        tabs.style.display = 'flex';
+        tabs.style.gap = '6px';
+        tabs.style.marginTop = '6px';
+        tabs.innerHTML = `
+          <button class="explorer-btn" data-explorer-tab="files" title="Files"><i class="fas fa-folder"></i></button>
+          <button class="explorer-btn" data-explorer-tab="vcs" title="Source Control"><i class="fas fa-code-branch"></i></button>
+          <button class="explorer-btn" data-explorer-tab="extensions" title="Extensions"><i class="fas fa-plug"></i></button>
         `;
-        document.body.appendChild(bar);
-        bar.querySelectorAll('button[data-activity]').forEach(btn => {
+        header.appendChild(tabs);
+        // Create tab content containers
+        const contentHost = sidebar.querySelector('.file-explorer-content');
+        if (!contentHost) return;
+        const vcsHost = document.createElement('div');
+        vcsHost.id = 'explorer-vcs';
+        vcsHost.style.display = 'none';
+        vcsHost.innerHTML = `
+           <div style="display:flex; gap:6px; margin-bottom:8px;">
+             <button class="deploy-btn" id="explorer-commit" style="background:linear-gradient(135deg,#1e40af,#2563eb)">Commit</button>
+             <button class="community-btn" id="explorer-diff" style="border:1px solid rgba(30,58,138,0.35)">Diff</button>
+             <button class="community-btn" id="explorer-refresh-commits" style="border:1px solid rgba(30,58,138,0.35)">Refresh</button>
+           </div>
+           <div id="explorer-commits" style="font-size:12px"></div>
+        `;
+        contentHost.parentNode.insertBefore(vcsHost, contentHost.nextSibling);
+        const extHost = document.createElement('div');
+        extHost.id = 'explorer-extensions';
+        extHost.style.display = 'none';
+        extHost.innerHTML = `<div style="font-size:12px; opacity:.8; color:#bfdbfe">Extensions (coming soon)</div>`;
+        contentHost.parentNode.insertBefore(extHost, vcsHost.nextSibling);
+        // Tab switch logic
+        tabs.querySelectorAll('button[data-explorer-tab]').forEach(btn => {
             btn.addEventListener('click', () => {
-                const tab = btn.getAttribute('data-activity');
-                const dock = document.getElementById('control-dock');
-                if (!dock || dock.style.display === 'none') toggleControlDock();
-                showDockTab(tab);
+                const tab = btn.getAttribute('data-explorer-tab');
+                contentHost.style.display = (tab === 'files') ? 'block' : 'none';
+                vcsHost.style.display = (tab === 'vcs') ? 'block' : 'none';
+                extHost.style.display = (tab === 'extensions') ? 'block' : 'none';
+                if (tab === 'vcs') {
+                  // lazy render commits
+                  renderVcsCommitsInto(vcsHost.querySelector('#explorer-commits'));
+                }
             });
         });
+        // Hook VCS buttons
+        vcsHost.querySelector('#explorer-diff').addEventListener('click', renderVcsDiff);
+        vcsHost.querySelector('#explorer-refresh-commits').addEventListener('click', () => renderVcsCommitsInto(vcsHost.querySelector('#explorer-commits')));
+        vcsHost.querySelector('#explorer-commit').addEventListener('click', () => {
+          const p = document.getElementById('vcs-panel');
+          if (!p || p.style.display === 'none') toggleVcsPanel();
+          setTimeout(() => document.getElementById('vcs-message')?.focus(), 0);
+        });
+    }
+
+    async function renderVcsCommitsInto(container) {
+        if (!container) return;
+        container.textContent = 'Loading...';
+        try {
+          const commits = await window.app.versionControl.listCommits();
+          if (!commits.length) { container.textContent = 'No commits yet'; return; }
+          container.innerHTML = commits.map(c => `<div class="dropdown-item"><div style="display:flex; justify-content:space-between; gap:8px; align-items:center;"><div style="flex:1 1 auto; min-width:0;"><strong>${escapeHtml(c.message || '')}</strong><div style="opacity:.7; font-size:12px;">${new Date(c.created_at).toLocaleString()} • ${c.branch || 'main'}</div></div></div></div>`).join('');
+        } catch {
+          container.textContent = 'Failed to load commits';
+        }
     }
 
     function initControlDock() {
