@@ -799,6 +799,16 @@ button i {
     overflow: hidden;
 }
 
+/* Bottom terminal dock inside left-pane */
+#terminal-panel {
+    display: none; /* managed by JS */
+}
+
+#terminal-panel #terminal-resizer {
+    border-top-left-radius: var(--panel-radius);
+    border-top-right-radius: var(--panel-radius);
+}
+
 .active-view {
     opacity: 1;
     z-index: 10;

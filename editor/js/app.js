@@ -178,6 +178,20 @@ document.addEventListener('DOMContentLoaded', () => {
         
         console.log('Application initialized successfully');
 
+        // Initialize terminal dock and restore visibility
+        try {
+            initTerminalPanel();
+            const toggle = document.getElementById('terminal-toggle-btn');
+            if (toggle) toggle.addEventListener('click', toggleTerminalPanel);
+            const wasVisible = localStorage.getItem('terminalVisible') === '1';
+            if (wasVisible) {
+                const panel = document.getElementById('terminal-panel');
+                if (panel) panel.style.display = 'block';
+                const btn = document.getElementById('terminal-toggle-btn');
+                if (btn) btn.classList.add('active');
+            }
+        } catch {}
+
         // If URL contains ?project=, load from website and enable auto-save
         try {
             const params = new URLSearchParams(window.location.search);
@@ -780,6 +794,45 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Make left file explorer resizable by inserting a resizer between it and left-pane
+    (function initLeftSidebarResizer(){
+        try {
+            const sidebar = document.getElementById('file-explorer-sidebar');
+            const leftPane = document.querySelector('.left-pane');
+            const container = document.querySelector('.editor-container');
+            if (!sidebar || !leftPane || !container) return;
+            if (document.getElementById('left-sidebar-resizer')) return;
+            const resizer = document.createElement('div');
+            resizer.id = 'left-sidebar-resizer';
+            resizer.className = 'resizer';
+            // Insert between sidebar and left-pane
+            container.insertBefore(resizer, leftPane);
+            let startX = 0, startWidth = 0, isDragging = false;
+            const minW = 200, maxW = 500;
+            resizer.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX;
+                startWidth = sidebar.getBoundingClientRect().width;
+                document.body.style.cursor = 'col-resize';
+                e.preventDefault();
+            });
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                let w = Math.max(minW, Math.min(maxW, startWidth + dx));
+                sidebar.style.display = 'flex';
+                sidebar.style.width = `${w}px`;
+                localStorage.setItem('sidebarWidthPx', String(w));
+            });
+            window.addEventListener('mouseup', () => {
+                if (isDragging) { isDragging = false; document.body.style.cursor = ''; }
+            });
+            // restore width if visible
+            const saved = parseInt(localStorage.getItem('sidebarWidthPx') || '0', 10);
+            if (!Number.isNaN(saved) && saved > 0) sidebar.style.width = `${saved}px`;
+        } catch {}
+    })();
+
     function initControlDock() {
         if (document.getElementById('control-dock')) return;
         const dock = document.createElement('div');
@@ -859,21 +912,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function initTerminalPanel() {
         if (document.getElementById('terminal-panel')) return;
+        const leftPane = document.querySelector('.left-pane');
+        if (!leftPane) return;
         const panel = document.createElement('div');
         panel.id = 'terminal-panel';
-        panel.style.position = 'fixed';
-        panel.style.bottom = '0';
-        panel.style.left = '0';
-        panel.style.right = '0';
-        panel.style.height = '240px';
+        panel.style.display = 'none';
+        panel.style.flex = '0 0 240px';
         panel.style.background = '#0b1220';
         panel.style.borderTop = '1px solid rgba(30, 58, 138, 0.5)';
-        panel.style.borderRadius = '8px';
-        panel.style.boxShadow = '0 -10px 30px rgba(0,0,0,0.3)';
-        panel.style.display = 'none';
-        panel.style.zIndex = '1000';
+        panel.style.boxShadow = 'inset 0 6px 12px rgba(0,0,0,0.25)';
         panel.innerHTML = `
-          <div id="terminal-resizer" style="height:6px; cursor:ns-resize; background:linear-gradient(90deg, rgba(30,58,138,.5), rgba(37,99,235,.5)); border-top-left-radius:8px; border-top-right-radius:8px"></div>
+          <div id="terminal-resizer" style="height:6px; cursor:ns-resize; background:linear-gradient(90deg, rgba(30,58,138,.5), rgba(37,99,235,.5));"></div>
           <div style="padding:8px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(30,58,138,0.35)">
             <strong style="color:#93c5fd">Terminal</strong>
             <div style="display:flex; gap:8px; align-items:center;">
@@ -885,43 +934,62 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div id="terminal-output" style="padding:10px; font-family:monospace; font-size:12px; overflow:auto; height:180px; color:#dbeafe;"></div>
         `;
-        document.body.appendChild(panel);
+        // Insert after content-area within left-pane so it docks like VS Code
+        const contentArea = leftPane.querySelector('.content-area');
+        if (contentArea && contentArea.nextSibling) {
+            leftPane.insertBefore(panel, contentArea.nextSibling);
+        } else {
+            leftPane.appendChild(panel);
+        }
         document.getElementById('terminal-close').addEventListener('click', toggleTerminalPanel);
         document.getElementById('terminal-run').addEventListener('click', onTerminalRun);
         document.getElementById('terminal-input').addEventListener('keydown', (e) => {
           if (e.key === 'Enter') onTerminalRun();
         });
+        // restore height/state
+        const savedHeight = parseInt(localStorage.getItem('terminalHeightPx') || '240', 10);
+        if (!Number.isNaN(savedHeight) && savedHeight > 120) {
+          panel.style.flex = `0 0 ${savedHeight}px`;
+          const out = document.getElementById('terminal-output');
+          if (out) out.style.height = `${Math.max(60, savedHeight - 60)}px`;
+        }
         // expand/contract
         const expandBtn = document.getElementById('terminal-expand');
         let expanded = false;
         expandBtn.addEventListener('click', () => {
           expanded = !expanded;
-          panel.style.height = expanded ? '46vh' : '240px';
+          const target = expanded ? Math.round(window.innerHeight * 0.46) : 240;
+          panel.style.flex = `0 0 ${target}px`;
           const out = document.getElementById('terminal-output');
-          if (out) out.style.height = expanded ? 'calc(46vh - 60px)' : '180px';
+          if (out) out.style.height = `${Math.max(60, target - 60)}px`;
+          localStorage.setItem('terminalHeightPx', String(target));
         });
-        // resize with drag
+        // resize with drag relative to left-pane bottom
         const resizer = document.getElementById('terminal-resizer');
         let isResizing = false;
-        resizer.addEventListener('mousedown', (e) => { isResizing = true; e.preventDefault(); });
+        resizer.addEventListener('mousedown', (e) => { isResizing = true; e.preventDefault(); document.body.style.cursor = 'ns-resize'; });
         window.addEventListener('mousemove', (e) => {
           if (!isResizing) return;
-          const newHeight = Math.max(180, window.innerHeight - e.clientY);
-          panel.style.height = `${newHeight}px`;
+          const paneRect = leftPane.getBoundingClientRect();
+          const newHeight = Math.max(120, Math.min(Math.round(paneRect.bottom - e.clientY), Math.round(paneRect.height * 0.9)));
+          panel.style.flex = `0 0 ${newHeight}px`;
           const out = document.getElementById('terminal-output');
-          if (out) out.style.height = `${newHeight - 60}px`;
+          if (out) out.style.height = `${Math.max(60, newHeight - 60)}px`;
+          localStorage.setItem('terminalHeightPx', String(newHeight));
         });
-        window.addEventListener('mouseup', () => { isResizing = false; });
+        window.addEventListener('mouseup', () => { if (isResizing) { isResizing = false; document.body.style.cursor = ''; } });
     }
 
     function toggleTerminalPanel() {
-        const panel = document.getElementById('terminal-panel');
-        if (!panel) { initTerminalPanel(); return toggleTerminalPanel(); }
+        let panel = document.getElementById('terminal-panel');
+        if (!panel) { initTerminalPanel(); panel = document.getElementById('terminal-panel'); }
+        if (!panel) return;
         const show = panel.style.display === 'none';
         panel.style.display = show ? 'block' : 'none';
-        if (show) {
-            setTimeout(() => document.getElementById('terminal-input')?.focus(), 0);
-        }
+        try { localStorage.setItem('terminalVisible', show ? '1' : '0'); } catch {}
+        const btn = document.getElementById('terminal-toggle-btn');
+        if (btn) btn.classList.toggle('active', show);
+        if (show) setTimeout(() => document.getElementById('terminal-input')?.focus(), 0);
     }
 
     async function onTerminalRun() {
