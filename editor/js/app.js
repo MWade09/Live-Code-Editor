@@ -12,6 +12,8 @@ import { AIManager } from './modules/AIManager.js';
 import { InlineAIManager } from './modules/InlineAIManager.js';
 import { AICodeActionsManager } from './modules/AICodeActionsManager.js';
 import { ProjectSyncManager } from './modules/ProjectSyncManager.js';
+import { AuthManager } from './modules/AuthManager.js';
+import { RealtimeSync } from './modules/RealtimeSync.js';
 import { TerminalManager } from './modules/TerminalManager.js';
 import { VersionControlManager } from './modules/VersionControlManager.js';
 
@@ -93,6 +95,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const fileExplorerManager = new FileExplorerManager(fileManager, editor);
     const projectSync = new ProjectSyncManager(fileManager);
+    const authManager = new AuthManager(projectSync);
+    authManager.initFromUrl();
+    const realtimeSync = new RealtimeSync(projectSync);
     const versionControl = new VersionControlManager(projectSync, fileManager);
     const terminalManager = new TerminalManager(projectSync);
     
@@ -113,7 +118,9 @@ document.addEventListener('DOMContentLoaded', () => {
         renderFileTabs,
         projectSync,
         versionControl,
-        terminalManager
+        terminalManager,
+        authManager,
+        realtimeSync
     };
     
     // Expose inline AI manager globally for debugging
