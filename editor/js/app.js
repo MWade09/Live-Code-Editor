@@ -378,8 +378,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 } else {
                                     if (syncBtn) {
                                         syncBtn.querySelector('span').textContent = 'Synced';
-                                        lastSavedAt = Date.now();
-                                        updateSaveTooltip();
+                                        if (typeof lastSavedAt !== 'undefined' && typeof updateSaveTooltip === 'function') {
+                                            lastSavedAt = Date.now();
+                                            updateSaveTooltip();
+                                        }
                                     }
                                     // Clear dirty flag for current file
                                     const current = fileManager.getCurrentFile();
