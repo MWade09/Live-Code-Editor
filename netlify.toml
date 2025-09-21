@@ -28,12 +28,3 @@
   to = "/index.html"
   status = 200
   conditions = {Role = ["admin"]}
-
-# netlify.toml
-[[headers]]
-for = "/*"
-  [headers.values]
-  Cross-Origin-Opener-Policy = "same-origin"
-  Cross-Origin-Embedder-Policy = "require-corp"
-  Cross-Origin-Resource-Policy = "cross-origin"
-  X-Content-Type-Options = "nosniff"

@@ -378,10 +378,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 } else {
                                     if (syncBtn) {
                                         syncBtn.querySelector('span').textContent = 'Synced';
-                                        if (typeof lastSavedAt !== 'undefined' && typeof updateSaveTooltip === 'function') {
-                                            lastSavedAt = Date.now();
-                                            updateSaveTooltip();
-                                        }
+                                        lastSavedAt = Date.now();
+                                        updateSaveTooltip();
                                     }
                                     // Clear dirty flag for current file
                                     const current = fileManager.getCurrentFile();
@@ -1004,26 +1002,15 @@ document.addEventListener('DOMContentLoaded', () => {
         line.innerHTML = `<span style="color:#7aa2f7;">$</span> ${escapeHtml(cmd)}`;
         out.appendChild(line);
         out.scrollTop = out.scrollHeight;
-        input.value = '';
-        // Execute via WebContainer; stream output
-        const append = (text) => {
-          const span = document.createElement('span');
-          span.textContent = text;
-          out.appendChild(span);
-          out.scrollTop = out.scrollHeight;
-        };
-        const result = await window.app.terminalManager.runCommand(cmd, { onData: append });
-        if (!result.ok) {
-          const err = document.createElement('div');
-          err.style.color = '#f66';
-          err.textContent = `! ${result.error || 'Execution failed'}`;
-          out.appendChild(err);
-        } else {
-          const code = document.createElement('div');
-          code.style.opacity = '0.7';
-          code.textContent = `Exited with code ${result.code}`;
-          out.appendChild(code);
+        // Log to website (no remote execution; just store history for now)
+        const res = await window.app.terminalManager.logToWebsite(cmd);
+        if (!res.ok) {
+            const err = document.createElement('div');
+            err.style.color = '#f66';
+            err.textContent = `! ${res.error || 'Failed'}`;
+            out.appendChild(err);
         }
+        input.value = '';
     }
 
     function toggleVcsPanel() {
