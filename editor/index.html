@@ -22,8 +22,33 @@
     <link rel="stylesheet" href="css/chat-panel-clean.css">
     <!-- Font Awesome with correct version -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head> 
+</head>
 <body class="dark-theme">
+    <!-- Guest Mode Banner -->
+    <div id="guest-banner" class="guest-banner hidden">
+        <div class="guest-banner-content">
+            <div class="guest-info">
+                <span class="guest-icon">👤</span>
+                <span class="guest-text">Guest Mode</span>
+                <span class="guest-quota">
+                    <span id="guest-quota-used">0</span>/<span id="guest-quota-limit">10</span> AI requests remaining
+                </span>
+                <div class="guest-progress-bar">
+                    <div id="guest-progress-fill" class="guest-progress-fill"></div>
+                </div>
+            </div>
+            <div class="guest-actions">
+                <button id="guest-add-key-btn" class="guest-btn guest-btn-secondary">
+                    🔑 Add API Key
+                </button>
+                <button id="guest-signup-btn" class="guest-btn guest-btn-primary">
+                    ✨ Sign Up Free
+                </button>
+                <button id="guest-dismiss-btn" class="guest-btn-close">×</button>
+            </div>
+        </div>
+    </div>
+    
     <div class="container">
         <header>
             <div class="logo">Live Preview Code Editor</div>

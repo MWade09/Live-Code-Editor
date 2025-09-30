@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, Mail, Lock, User, Sparkles } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface AuthFormProps {
   type: 'login' | 'signup'
@@ -17,8 +17,20 @@ export function AuthForm({ type }: AuthFormProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [returnTo, setReturnTo] = useState<string | null>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+
+  // Extract return_to parameter from URL
+  useEffect(() => {
+    const returnToParam = searchParams.get('return_to')
+    if (returnToParam) {
+      setReturnTo(returnToParam)
+      // Store in sessionStorage for OAuth flows
+      sessionStorage.setItem('auth_return_to', returnToParam)
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -42,7 +54,9 @@ export function AuthForm({ type }: AuthFormProps) {
         if (data.user && !data.user.email_confirmed_at) {
           setMessage('Check your email for the confirmation link!')
         } else {
-          router.push('/dashboard')
+          // Redirect to return_to URL or dashboard
+          const redirectUrl = returnTo || '/dashboard'
+          router.push(redirectUrl)
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -51,7 +65,10 @@ export function AuthForm({ type }: AuthFormProps) {
         })
         
         if (error) throw error
-        router.push('/dashboard')
+        
+        // Redirect to return_to URL or dashboard
+        const redirectUrl = returnTo || '/dashboard'
+        router.push(redirectUrl)
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'An error occurred')
@@ -62,10 +79,15 @@ export function AuthForm({ type }: AuthFormProps) {
 
   const handleGoogleAuth = async () => {
     try {
+      // Build callback URL with return_to parameter if present
+      const callbackUrl = returnTo 
+        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`
+        : `${window.location.origin}/auth/callback`
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: callbackUrl,
         },
       })
       if (error) throw error
@@ -76,10 +98,15 @@ export function AuthForm({ type }: AuthFormProps) {
 
   const handleGithubAuth = async () => {
     try {
+      // Build callback URL with return_to parameter if present
+      const callbackUrl = returnTo 
+        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`
+        : `${window.location.origin}/auth/callback`
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: callbackUrl,
         },
       })
       if (error) throw error

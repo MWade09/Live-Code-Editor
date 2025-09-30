@@ -1,10 +1,12 @@
 /**
  * AIManager class - Handles AI assistant functionality
  */
-export class AIManager {    constructor(editor, fileManager) {
+export class AIManager {
+    constructor(editor, fileManager, guestBanner = null) {
         console.log('🤖 AIManager: Initializing...');
         this.editor = editor;
         this.fileManager = fileManager;
+        this.guestBanner = guestBanner;
         this.aiModal = document.getElementById('aiModal');
         this.aiStatus = document.getElementById('ai-status');
         
@@ -637,16 +639,27 @@ export class AIManager {    constructor(editor, fileManager) {
     }
     
     async callOpenRouteAPI(model, messages) {
-        // Enforce simple guest quota if no OpenRouter API key is set
+        // Enforce guest quota using GuestBannerManager if available
         const existingKey = localStorage.getItem('openrouter_api_key');
         if (!existingKey) {
-            const QUOTA_KEY = 'guest_ai_requests_used';
-            const LIMIT = 10; // guest session limit
-            const used = parseInt(localStorage.getItem(QUOTA_KEY) || '0', 10);
-            if (used >= LIMIT) {
-                throw new Error('Guest AI limit reached. Sign up or add an OpenRouter key to continue.');
+            if (this.guestBanner) {
+                // Use the guest banner manager for quota enforcement
+                if (!this.guestBanner.canMakeRequest()) {
+                    this.guestBanner.showQuotaExceededMessage();
+                    throw new Error('Guest AI limit reached (10 requests). Sign up for free unlimited AI requests or add your OpenRouter API key!');
+                }
+                // Increment quota BEFORE making the request
+                this.guestBanner.incrementQuota();
+            } else {
+                // Fallback to old method if guestBanner not available
+                const QUOTA_KEY = 'guest_ai_requests_used';
+                const LIMIT = 10;
+                const used = parseInt(localStorage.getItem(QUOTA_KEY) || '0', 10);
+                if (used >= LIMIT) {
+                    throw new Error('Guest AI limit reached. Sign up or add an OpenRouter key to continue.');
+                }
+                localStorage.setItem(QUOTA_KEY, String(used + 1));
             }
-            localStorage.setItem(QUOTA_KEY, String(used + 1));
         }
         // Define the API endpoint
         const API_URL = "https://openrouter.ai/api/v1/chat/completions";

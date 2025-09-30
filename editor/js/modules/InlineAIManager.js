@@ -10,10 +10,11 @@
  */
 
 export class InlineAIManager {
-    constructor(editor, aiManager, fileManager) {
+    constructor(editor, aiManager, fileManager, guestBanner = null) {
         this.editor = editor;
         this.aiManager = aiManager;
         this.fileManager = fileManager;
+        this.guestBanner = guestBanner;
         this.cm = editor.codeMirror; // Use codeMirror property from Editor class
         
         // Configuration
@@ -395,16 +396,27 @@ export class InlineAIManager {
             
             console.log('🔑 InlineAI: API key found, making request...');
             
-            // Lightweight guest quota (no key): enforce before request
+            // Enforce guest quota using GuestBannerManager if available
             const existingKey = localStorage.getItem('openrouter_api_key');
             if (!existingKey) {
-                const QUOTA_KEY = 'guest_ai_requests_used';
-                const LIMIT = 10;
-                const used = parseInt(localStorage.getItem(QUOTA_KEY) || '0', 10);
-                if (used >= LIMIT) {
-                    throw new Error('Guest AI limit reached. Sign up or add an OpenRouter key to continue.');
+                if (this.guestBanner) {
+                    // Use the guest banner manager for quota enforcement
+                    if (!this.guestBanner.canMakeRequest()) {
+                        this.guestBanner.showQuotaExceededMessage();
+                        throw new Error('Guest AI limit reached (10 requests). Sign up for free unlimited AI requests or add your OpenRouter API key!');
+                    }
+                    // Increment quota BEFORE making the request
+                    this.guestBanner.incrementQuota();
+                } else {
+                    // Fallback to old method if guestBanner not available
+                    const QUOTA_KEY = 'guest_ai_requests_used';
+                    const LIMIT = 10;
+                    const used = parseInt(localStorage.getItem(QUOTA_KEY) || '0', 10);
+                    if (used >= LIMIT) {
+                        throw new Error('Guest AI limit reached. Sign up or add an OpenRouter key to continue.');
+                    }
+                    localStorage.setItem(QUOTA_KEY, String(used + 1));
                 }
-                localStorage.setItem(QUOTA_KEY, String(used + 1));
             }
 
             // Use the existing AI manager to get suggestion

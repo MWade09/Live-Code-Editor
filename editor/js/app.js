@@ -16,6 +16,7 @@ import { AuthManager } from './modules/AuthManager.js';
 import { RealtimeSync } from './modules/RealtimeSync.js';
 import { TerminalManager } from './modules/TerminalManager.js';
 import { VersionControlManager } from './modules/VersionControlManager.js';
+import { GuestBannerManager } from './modules/GuestBannerManager.js';
 
 // Load chat panel scripts - CSS is now loaded directly in HTML
 (function() {
@@ -60,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modalElement.style.display = 'none';
         }, 300);
     }
-      // Initialize all managers
+    // Initialize all managers
     const fileManager = new FileManager();
     const editor = new Editor(document.getElementById('editor'), fileManager);
     const preview = new Preview(document.getElementById('preview-frame'), fileManager);
@@ -71,12 +72,17 @@ document.addEventListener('DOMContentLoaded', () => {
     );
     const themeManager = new ThemeManager();
     const deployManager = new DeployManager(fileManager);
-    const aiManager = new AIManager(editor, fileManager);
     
+    // Initialize Guest Banner FIRST (AI managers depend on it)
+    const guestBanner = new GuestBannerManager(fileManager);
+    
+    // Initialize AI managers with guest banner
+    const aiManager = new AIManager(editor, fileManager, guestBanner);
+
     // Initialize InlineAIManager with error handling
     let inlineAIManager;
     try {
-        inlineAIManager = new InlineAIManager(editor, aiManager, fileManager);
+        inlineAIManager = new InlineAIManager(editor, aiManager, fileManager, guestBanner);
         console.log('✅ InlineAIManager initialized successfully');
     } catch (error) {
         console.error('❌ Failed to initialize InlineAIManager:', error);
@@ -97,10 +103,95 @@ document.addEventListener('DOMContentLoaded', () => {
     const projectSync = new ProjectSyncManager(fileManager);
     const authManager = new AuthManager(projectSync);
     authManager.initFromUrl();
+    
+    // Check for editor state restoration after signup
+    const restoreEditorStateAfterSignup = async () => {
+        try {
+            const editorState = sessionStorage.getItem('editor_state_before_signup');
+            
+            if (editorState && authManager.isAuthenticated()) {
+                console.log('🔄 Restoring editor state after signup...');
+                const state = JSON.parse(editorState);
+                
+                // Restore files
+                if (state.files && state.files.length > 0) {
+                    for (const file of state.files) {
+                        fileManager.createFile(file.name, file.content || '');
+                    }
+                    
+                    // Open the active file
+                    if (state.activeFile) {
+                        const file = fileManager.getFile(state.activeFile);
+                        if (file) {
+                            editor.loadContent(file.content, file.name);
+                            fileManager.currentFile = file.name;
+                        }
+                    }
+                }
+                
+                // Auto-save the project
+                const projectTitle = state.activeFile ? state.activeFile.replace(/\.[^/.]+$/, '') : 'My First Project';
+                const mainContent = state.files.find(f => f.name === state.activeFile)?.content || '';
+                
+                const response = await fetch(`${projectSync.websiteAPI}/api/projects`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authManager.authToken}`
+                    },
+                    body: JSON.stringify({
+                        title: projectTitle,
+                        content: mainContent,
+                        language: 'HTML'
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Project auto-saved after signup:', result.id);
+                    
+                    // Show success message
+                    const successMsg = document.createElement('div');
+                    successMsg.className = 'success-message';
+                    successMsg.textContent = `Welcome! Your project "${projectTitle}" has been saved.`;
+                    successMsg.style.cssText = `
+                        position: fixed;
+                        top: 80px;
+                        right: 20px;
+                        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                        color: white;
+                        padding: 16px 24px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+                        z-index: 10000;
+                        animation: slideIn 0.3s ease-out;
+                        font-size: 14px;
+                        font-weight: 500;
+                    `;
+                    document.body.appendChild(successMsg);
+                    
+                    setTimeout(() => {
+                        successMsg.style.animation = 'slideOut 0.3s ease-in';
+                        setTimeout(() => successMsg.remove(), 300);
+                    }, 5000);
+                }
+                
+                // Clear the stored state
+                sessionStorage.removeItem('editor_state_before_signup');
+            }
+        } catch (error) {
+            console.error('Error restoring editor state:', error);
+        }
+    };
+    
+    // Restore state if coming back from signup
+    restoreEditorStateAfterSignup();
+    
     const realtimeSync = new RealtimeSync(projectSync);
     const versionControl = new VersionControlManager(projectSync, fileManager);
     const terminalManager = new TerminalManager(projectSync);
     
+
     // Global app state
     window.app = {
         fileManager,
