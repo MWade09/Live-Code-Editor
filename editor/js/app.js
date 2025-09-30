@@ -299,6 +299,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (editorToggle && !editorToggle.classList.contains('active')) {
                             editorToggle.click();
                         }
+                        
+                        // Show file explorer and chat panel when loading from website
+                        const fileExplorer = document.getElementById('file-explorer-sidebar');
+                        if (fileExplorer) {
+                            fileExplorer.style.display = 'flex';
+                        }
+                        const chatPane = document.querySelector('.chat-pane');
+                        if (chatPane) {
+                            chatPane.style.display = 'flex';
+                        }
+                        
                         console.log('[ProjectSync] Loaded project from website');
                         // Add Back to Website and Sync buttons into header near Deploy/Community
                         try {
