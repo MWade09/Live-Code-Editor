@@ -1,260 +1,205 @@
 /**
- * GuestBannerManager - Manages the guest mode banner and quota tracking
- * Displays AI usage quota for guest users and provides upgrade paths
+ * GuestBannerManager - Manages guest mode quota tracking (non-intrusive approach)
+ * Only shows UI for actual guest users, integrates with chat panel
  */
 export class GuestBannerManager {
   constructor(fileManager = null) {
     this.fileManager = fileManager
-    this.banner = document.getElementById('guest-banner')
-    this.quotaUsedEl = document.getElementById('guest-quota-used')
-    this.quotaLimitEl = document.getElementById('guest-quota-limit')
-    this.progressFill = document.getElementById('guest-progress-fill')
-    this.dismissBtn = document.getElementById('guest-dismiss-btn')
-    this.signupBtn = document.getElementById('guest-signup-btn')
-    this.addKeyBtn = document.getElementById('guest-add-key-btn')
     
+    // UI elements
+    this.quotaIndicator = document.getElementById('guest-quota-indicator')
+    this.quotaRemaining = document.getElementById('guest-quota-remaining')
+    this.quotaModal = document.getElementById('guestQuotaModal')
+    this.modalSignupBtn = document.getElementById('modal-signup-btn')
+    this.closeModalBtn = document.getElementById('close-quota-modal-btn')
+    
+    // Configuration
     this.QUOTA_KEY = 'guest_ai_requests_used'
-    this.DISMISSED_KEY = 'guest_banner_dismissed'
     this.LIMIT = 10
-    this.dismissed = false
+    this.isGuest = false
+    
+    this.init()
+  }
+  
+  async init() {
+    // Check if user is authenticated
+    this.isGuest = await this.checkIfGuest()
+    
+    if (this.isGuest) {
+      this.showQuotaIndicator()
+      this.updateQuotaDisplay()
+    }
     
     this.setupEventListeners()
-    this.checkGuestMode()
   }
   
   setupEventListeners() {
-    this.dismissBtn?.addEventListener('click', () => this.dismiss())
-    this.signupBtn?.addEventListener('click', () => this.redirectToSignup())
-    this.addKeyBtn?.addEventListener('click', () => this.showAPIKeyDialog())
+    this.modalSignupBtn?.addEventListener('click', () => this.redirectToSignup())
+    this.closeModalBtn?.addEventListener('click', () => this.hideQuotaModal())
   }
   
-  checkGuestMode() {
-    // Check if guest mode (URL param or no auth)
-    const urlParams = new URLSearchParams(window.location.search)
-    const isGuest = urlParams.has('guest') || !this.hasAuth()
-    
-    // Check if previously dismissed
-    const wasDismissed = localStorage.getItem(this.DISMISSED_KEY) === 'true'
-    this.dismissed = wasDismissed
-    
-    if (isGuest) {
-      this.showBanner()
-      this.updateQuota()
-    }
-  }
-  
-  hasAuth() {
-    // Check if user has auth token or OpenRouter API key
+  async checkIfGuest() {
+    // Check for OpenRouter API key
     const hasOpenRouterKey = !!localStorage.getItem('openrouter_api_key')
-    const hasAuthToken = !!localStorage.getItem('auth_token')
+    if (hasOpenRouterKey) return false
     
-    // Also check for Supabase session
-    const hasSupabaseSession = document.cookie.includes('sb-')
+    // Check for auth token (from AuthManager)
+    const hasAuthToken = !!localStorage.getItem('website_auth_token')
+    if (hasAuthToken) return false
     
-    return hasOpenRouterKey || hasAuthToken || hasSupabaseSession
+    // Check for Supabase session cookie
+    const hasSupabaseSession = document.cookie.split(';').some(cookie => 
+      cookie.trim().startsWith('sb-')
+    )
+    if (hasSupabaseSession) return false
+    
+    // Check with AuthManager if available
+    if (window.app?.authManager?.isAuthenticated()) return false
+    
+    // User is a guest
+    return true
   }
   
-  showBanner() {
-    if (!this.dismissed && this.banner) {
-      this.banner.classList.remove('hidden')
+  showQuotaIndicator() {
+    if (this.quotaIndicator) {
+      this.quotaIndicator.style.display = 'flex'
     }
   }
   
-  hideBanner() {
-    if (this.banner) {
-      this.banner.classList.add('hidden')
+  hideQuotaIndicator() {
+    if (this.quotaIndicator) {
+      this.quotaIndicator.style.display = 'none'
     }
   }
   
-  dismiss() {
-    this.dismissed = true
-    localStorage.setItem(this.DISMISSED_KEY, 'true')
-    this.hideBanner()
-    
-    // Reshow if quota gets low (< 3 remaining)
-    setTimeout(() => {
-      const used = this.getQuotaUsed()
-      if (used >= this.LIMIT - 2) {
-        this.dismissed = false
-        localStorage.setItem(this.DISMISSED_KEY, 'false')
-        this.showBanner()
-      }
-    }, 60000) // Check again in 1 minute
-  }
-  
-  getQuotaUsed() {
+  getUsedQuota() {
     try {
-      return parseInt(localStorage.getItem(this.QUOTA_KEY) || '0')
+      const used = parseInt(localStorage.getItem(this.QUOTA_KEY) || '0')
+      return Math.max(0, Math.min(used, this.LIMIT))
     } catch {
       return 0
     }
   }
   
-  updateQuota() {
-    const used = this.getQuotaUsed()
-    const remaining = Math.max(0, this.LIMIT - used)
-    const percentage = (used / this.LIMIT) * 100
+  getRemainingQuota() {
+    return Math.max(0, this.LIMIT - this.getUsedQuota())
+  }
+  
+  updateQuotaDisplay() {
+    const remaining = this.getRemainingQuota()
     
-    if (this.quotaUsedEl) this.quotaUsedEl.textContent = used
-    if (this.quotaLimitEl) this.quotaLimitEl.textContent = this.LIMIT
-    if (this.progressFill) this.progressFill.style.width = `${percentage}%`
-    
-    // Change color when quota is low
-    if (remaining <= 2 && this.progressFill) {
-      this.progressFill.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)'
-      // Force show banner if quota is critically low
-      if (remaining === 0) {
-        this.dismissed = false
-        localStorage.setItem(this.DISMISSED_KEY, 'false')
-        this.showBanner()
+    if (this.quotaRemaining) {
+      this.quotaRemaining.textContent = remaining
+      
+      // Update color based on remaining quota
+      if (remaining <= 2) {
+        this.quotaRemaining.style.color = '#ef4444' // red
+      } else if (remaining <= 5) {
+        this.quotaRemaining.style.color = '#f59e0b' // orange
+      } else {
+        this.quotaRemaining.style.color = '#10b981' // green
       }
     }
+  }
+  
+  incrementQuota() {
+    if (!this.isGuest) return true
     
-    // Warning when low
-    if (remaining <= 2 && remaining > 0) {
-      this.dismissed = false
-      localStorage.setItem(this.DISMISSED_KEY, 'false')
-      this.showBanner()
+    const used = this.getUsedQuota()
+    const newUsed = used + 1
+    
+    try {
+      localStorage.setItem(this.QUOTA_KEY, newUsed.toString())
+    } catch (e) {
+      console.warn('Failed to save quota:', e)
+    }
+    
+    this.updateQuotaDisplay()
+    
+    // Return true if still under limit
+    return newUsed <= this.LIMIT
+  }
+  
+  canMakeRequest() {
+    if (!this.isGuest) return true
+    
+    const remaining = this.getRemainingQuota()
+    return remaining > 0
+  }
+  
+  getRemainingRequests() {
+    if (!this.isGuest) return Infinity
+    return this.getRemainingQuota()
+  }
+  
+  showQuotaExceededModal() {
+    if (this.quotaModal) {
+      this.quotaModal.style.display = 'flex'
+    }
+  }
+  
+  hideQuotaModal() {
+    if (this.quotaModal) {
+      this.quotaModal.style.display = 'none'
     }
   }
   
   redirectToSignup() {
-    // Preserve current editor state
-    const currentState = this.getCurrentEditorState()
-    if (currentState) {
-      try {
-        sessionStorage.setItem('editor_state_before_signup', JSON.stringify(currentState))
-      } catch (e) {
-        console.warn('Could not save editor state:', e)
-      }
+    // Save editor state before redirecting
+    const editorState = this.getCurrentEditorState()
+    
+    try {
+      sessionStorage.setItem('editor_state_before_signup', JSON.stringify(editorState))
+    } catch (e) {
+      console.warn('Could not save editor state:', e)
     }
     
-    // Redirect to website signup
-    const websiteURL = 'https://ailiveeditor.netlify.app'
-    const returnURL = encodeURIComponent(window.location.href)
-    window.location.href = `${websiteURL}/auth/signup?return_to=${returnURL}`
-  }
-  
-  showAPIKeyDialog() {
-    // Show modal to add OpenRouter API key
-    const key = prompt(
-      'Enter your OpenRouter API key:\n\n' +
-      'Get your API key from: https://openrouter.ai/keys\n' +
-      'This will give you unlimited AI requests!'
-    )
+    // Redirect to signup with return URL
+    const websiteOrigin = this.getWebsiteOrigin()
+    const returnTo = encodeURIComponent(window.location.href)
+    const signupUrl = `${websiteOrigin}/auth/signup?return_to=${returnTo}`
     
-    if (key && key.trim()) {
-      localStorage.setItem('openrouter_api_key', key.trim())
-      alert('✅ API key saved! You now have unlimited AI requests.')
-      this.resetQuota()
-      this.hideBanner()
-      
-      // Reload to apply changes
-      window.location.reload()
-    }
+    window.location.href = signupUrl
   }
   
   getCurrentEditorState() {
-    // Get current file content, cursor position, etc.
-    if (!this.fileManager) {
-      return null
+    const files = []
+    
+    if (this.fileManager && this.fileManager.files) {
+      Object.entries(this.fileManager.files).forEach(([name, fileData]) => {
+        files.push({
+          name: name,
+          content: fileData.content || ''
+        })
+      })
     }
     
+    return {
+      files: files,
+      activeFile: this.fileManager?.currentFile || null,
+      timestamp: Date.now()
+    }
+  }
+  
+  getWebsiteOrigin() {
+    // Try localStorage first
     try {
-      return {
-        files: this.fileManager.files || [],
-        openTabs: this.fileManager.openTabs || [],
-        activeTabIndex: this.fileManager.activeTabIndex || 0,
-        timestamp: Date.now()
-      }
-    } catch (e) {
-      console.warn('Could not capture editor state:', e)
-      return null
-    }
+      const stored = localStorage.getItem('website_origin_base')
+      if (stored) return stored
+    } catch {}
+    
+    // Fallback to production URL
+    return 'https://ailiveeditor.netlify.app'
   }
   
-  // Call this after each AI request
-  incrementQuota() {
-    // Don't track if user has API key or auth
-    if (this.hasAuth()) {
-      return
-    }
-    
-    const used = this.getQuotaUsed()
-    const newUsed = used + 1
-    
-    localStorage.setItem(this.QUOTA_KEY, newUsed.toString())
-    this.updateQuota()
-    
-    // Show warning when approaching limit
-    if (newUsed >= this.LIMIT - 2) {
-      console.warn(`Guest quota warning: ${this.LIMIT - newUsed} requests remaining`)
-    }
-    
-    // Throw error when limit reached
-    if (newUsed >= this.LIMIT) {
-      throw new Error(
-        'Guest AI limit reached (10 requests). ' +
-        'Sign up for free unlimited AI requests or add your OpenRouter API key!'
-      )
-    }
-  }
-  
-  // Check if user can make AI request
-  canMakeRequest() {
-    if (this.hasAuth()) {
-      return true
-    }
-    
-    const used = this.getQuotaUsed()
-    return used < this.LIMIT
-  }
-  
-  // Get remaining requests
-  getRemainingRequests() {
-    if (this.hasAuth()) {
-      return Infinity
-    }
-    
-    const used = this.getQuotaUsed()
-    return Math.max(0, this.LIMIT - used)
-  }
-  
-  // Reset quota (called from settings or after auth)
+  // Reset quota (for testing/debugging)
   resetQuota() {
-    localStorage.setItem(this.QUOTA_KEY, '0')
-    this.updateQuota()
-  }
-  
-  // Show error message when quota exceeded
-  showQuotaExceededMessage() {
-    if (!this.banner) return
-    
-    // Flash the banner to draw attention
-    this.showBanner()
-    this.banner.style.animation = 'none'
-    setTimeout(() => {
-      this.banner.style.animation = 'slideDown 0.3s ease-out'
-    }, 10)
-    
-    // Highlight the signup button
-    if (this.signupBtn) {
-      this.signupBtn.style.animation = 'pulse 0.5s ease-in-out 3'
+    try {
+      localStorage.removeItem(this.QUOTA_KEY)
+      this.updateQuotaDisplay()
+      console.log('✅ Guest quota reset')
+    } catch (e) {
+      console.error('Failed to reset quota:', e)
     }
   }
 }
-
-// Add pulse animation for signup button
-const style = document.createElement('style')
-style.textContent = `
-  @keyframes pulse {
-    0%, 100% {
-      transform: scale(1);
-    }
-    50% {
-      transform: scale(1.05);
-    }
-  }
-`
-document.head.appendChild(style)
-

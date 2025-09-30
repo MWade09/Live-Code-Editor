@@ -645,8 +645,8 @@ export class AIManager {
             if (this.guestBanner) {
                 // Use the guest banner manager for quota enforcement
                 if (!this.guestBanner.canMakeRequest()) {
-                    this.guestBanner.showQuotaExceededMessage();
-                    throw new Error('Guest AI limit reached (10 requests). Sign up for free unlimited AI requests or add your OpenRouter API key!');
+                    this.guestBanner.showQuotaExceededModal();
+                    throw new Error('Guest AI limit reached');
                 }
                 // Increment quota BEFORE making the request
                 this.guestBanner.incrementQuota();
