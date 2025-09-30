@@ -294,6 +294,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (projectId) {
                 projectSync.loadWebsiteProject(projectId)
                     .then(() => {
+                        // Render file tabs to show the loaded project and hide welcome screen
+                        renderFileTabs();
+                        
                         // Hide welcome, show editor view
                         const editorToggle = document.getElementById('editor-toggle');
                         if (editorToggle && !editorToggle.classList.contains('active')) {
@@ -309,6 +312,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (chatPane) {
                             chatPane.style.display = 'flex';
                         }
+                        
+                        // Load the file in the editor
+                        editor.loadCurrentFile();
                         
                         console.log('[ProjectSync] Loaded project from website');
                         // Add Back to Website and Sync buttons into header near Deploy/Community
