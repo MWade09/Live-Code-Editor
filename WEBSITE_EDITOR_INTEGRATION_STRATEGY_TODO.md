@@ -412,9 +412,9 @@ CREATE TABLE IF NOT EXISTS ai_usage (
 - [X] Header branch selector + quick new branch with initial commit
 - [X] Restore confirmation dialog
 - [X] Queued save badge next to Sync button
-- [ ] Implement TerminalManager.js for terminal features
-- [ ] Add AuthManager.js for website authentication
-- [ ] Create RealtimeSync.js for live updates
+- [X] Implement TerminalManager.js for terminal features
+- [X] Add AuthManager.js for website authentication
+- [X] Create RealtimeSync.js for live updates
  - [ ] Guest mode banner + local AI cap when no OpenRouter key
 
 ### 🌐 Website Enhancements
