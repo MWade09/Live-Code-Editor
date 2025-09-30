@@ -1,12 +1,12 @@
 /**
  * AIManager class - Handles AI assistant functionality
+ * New model: Free models use platform key, paid models require user key
  */
 export class AIManager {
-    constructor(editor, fileManager, guestBanner = null) {
+    constructor(editor, fileManager) {
         console.log('🤖 AIManager: Initializing...');
         this.editor = editor;
         this.fileManager = fileManager;
-        this.guestBanner = guestBanner;
         this.aiModal = document.getElementById('aiModal');
         this.aiStatus = document.getElementById('ai-status');
         
@@ -26,6 +26,16 @@ export class AIManager {
         if (this.apiKey && apiKeyElement) {
             apiKeyElement.value = this.apiKey;
         }
+        
+        // Platform's OpenRouter key for free models (keep secure in production!)
+        this.platformKey = 'sk-or-v1-your-platform-key-here'; // TODO: Move to environment variable
+        
+        // Define which models are free (use platform key) vs paid (require user key)
+        this.freeModels = [
+            'deepseek/deepseek-r1-0528:free',
+            'deepseek/deepseek-chat-v3-0324:free',
+            'google/gemma-3-27b-it:free'
+        ];
           // Expose clearCorruptedData to global scope for debugging
         window.clearAIChat = () => this.clearCorruptedData();
         
@@ -639,35 +649,24 @@ export class AIManager {
     }
     
     async callOpenRouteAPI(model, messages) {
-        // Enforce guest quota using GuestBannerManager if available
-        const existingKey = localStorage.getItem('openrouter_api_key');
-        if (!existingKey) {
-            if (this.guestBanner) {
-                // Use the guest banner manager for quota enforcement
-                if (!this.guestBanner.canMakeRequest()) {
-                    this.guestBanner.showQuotaExceededModal();
-                    throw new Error('Guest AI limit reached');
-                }
-                // Increment quota BEFORE making the request
-                this.guestBanner.incrementQuota();
-            } else {
-                // Fallback to old method if guestBanner not available
-                const QUOTA_KEY = 'guest_ai_requests_used';
-                const LIMIT = 10;
-                const used = parseInt(localStorage.getItem(QUOTA_KEY) || '0', 10);
-                if (used >= LIMIT) {
-                    throw new Error('Guest AI limit reached. Sign up or add an OpenRouter key to continue.');
-                }
-                localStorage.setItem(QUOTA_KEY, String(used + 1));
-            }
-        }
         // Define the API endpoint
         const API_URL = "https://openrouter.ai/api/v1/chat/completions";
         
-        // Get fresh API key from localStorage (to ensure we have the latest from chat panel)
-        const apiKey = localStorage.getItem('openrouter_api_key');
-        if (!apiKey) {
-            throw new Error('No auth credentials found');
+        // Determine which key to use based on model
+        const isFreeModel = this.freeModels.includes(model);
+        let apiKey;
+        
+        if (isFreeModel) {
+            // Use platform key for free models
+            apiKey = this.platformKey;
+            console.log('🆓 Using platform key for free model:', model);
+        } else {
+            // Require user's API key for paid models
+            apiKey = localStorage.getItem('openrouter_api_key');
+            if (!apiKey) {
+                throw new Error('This model requires your OpenRouter API key. Please add it in the panel above.');
+            }
+            console.log('💳 Using user key for paid model:', model);
         }
         
         // Prepare the request body

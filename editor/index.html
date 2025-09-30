@@ -156,12 +156,6 @@
             <div class="chat-pane">
                 <div class="chat-header">
                     <div class="chat-title">AI Assistant</div>
-                    <!-- Guest quota indicator (only shown for guests) -->
-                    <div id="guest-quota-indicator" class="guest-quota-indicator" style="display: none;">
-                        <span class="quota-text">
-                            <span id="guest-quota-remaining">10</span> free requests
-                        </span>
-                    </div>
                     <div class="chat-controls">
                         <div class="mode-toggle">
                             <button id="chat-mode-btn" class="mode-btn active" title="Chat Mode"><i class="fas fa-comments"></i></button>
@@ -180,18 +174,18 @@
                         <label for="chat-ai-model">Model:</label>
                         <div class="model-selection-container">
                             <select id="chat-ai-model">
-                                <option value="deepseek/deepseek-r1-0528:free">DeepSeek R1.0528 (Free)</option>
-                                <option value="deepseek/deepseek-chat-v3-0324:free">DeepSeek Chat V3.0324 (Free)</option>
-                                <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-                                <option value="anthropic/claude-3.5-haiku">Claude 3.5 Haiku</option>
-                                <option value="anthropic/claude-sonnet-4">Claude Sonnet 4 (Top Coding Agent)</option>
-                                <option value="google/google/gemini-2.5-pro-preview">Gemini 2.5 Pro Preview</option>
-                                <option value="google/gemini-2.5-flash-preview-05-2023">Gemini 2.5 Flash Preview</option>
-                                <option value="google/gemma-3-27b-it:free">Gemma 3 27B (Free)</option>
-                                <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-                                <option value="openai/gpt-4.1">GPT-4.1</option>
-                                <option value="openai/o3">OpenAI o3</option>
-                                <option value="x-ai/grok-3-beta">Grok 3 Beta</option>
+                                <option value="deepseek/deepseek-r1-0528:free">🆓 DeepSeek R1.0528 (Free)</option>
+                                <option value="deepseek/deepseek-chat-v3-0324:free">🆓 DeepSeek Chat V3.0324 (Free)</option>
+                                <option value="google/gemma-3-27b-it:free">🆓 Gemma 3 27B (Free)</option>
+                                <option value="anthropic/claude-3.5-sonnet">🔑 Claude 3.5 Sonnet (Requires API Key)</option>
+                                <option value="anthropic/claude-3.5-haiku">🔑 Claude 3.5 Haiku (Requires API Key)</option>
+                                <option value="anthropic/claude-sonnet-4">🔑 Claude Sonnet 4 (Requires API Key)</option>
+                                <option value="google/google/gemini-2.5-pro-preview">🔑 Gemini 2.5 Pro (Requires API Key)</option>
+                                <option value="google/gemini-2.5-flash-preview-05-2023">🔑 Gemini 2.5 Flash (Requires API Key)</option>
+                                <option value="openai/gpt-4o-mini">🔑 GPT-4o Mini (Requires API Key)</option>
+                                <option value="openai/gpt-4.1">🔑 GPT-4.1 (Requires API Key)</option>
+                                <option value="openai/o3">🔑 OpenAI o3 (Requires API Key)</option>
+                                <option value="x-ai/grok-3-beta">🔑 Grok 3 Beta (Requires API Key)</option>
                                 <!-- Custom models will be added here dynamically -->
                             </select>
                             <button id="chat-manage-models-btn" type="button" class="small-btn" title="Manage Models">
@@ -200,7 +194,7 @@
                         </div>
                     </div>
                     <div class="form-group api-key-container">
-                        <input type="password" id="chat-api-key" placeholder="OpenRoute API Key">
+                        <input type="password" id="chat-api-key" placeholder="OpenRouter API Key (Required for 🔑 models)">
                         <button id="save-api-key-btn" class="small-btn" title="Save API Key"><i class="fas fa-save"></i></button>
                     </div>
                 </div>                <div id="chat-messages" class="chat-messages">
@@ -211,7 +205,12 @@
                             <li><strong>Chat Mode:</strong> Natural conversation, brainstorming, analysis, and general Q&A (with optional code snippets)</li>
                             <li><strong>Agent Mode:</strong> Direct file editing - I'll modify your current file based on your instructions</li>
                         </ul>
-                        <p><em>💡 Tip: Start with Chat Mode for discussions and planning, then use Agent Mode for implementation!</em></p>
+                        <p><em>💡 Models Guide:</em></p>
+                        <ul>
+                            <li><strong>🆓 Free Models:</strong> No API key needed - use DeepSeek or Gemma for unlimited free requests</li>
+                            <li><strong>🔑 Premium Models:</strong> Require your OpenRouter API key - GPT-4, Claude, Gemini Pro (you pay API costs + 20%)</li>
+                        </ul>
+                        <p><em>Get your API key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></em></p>
                     </div>
                 </div>
                 
@@ -371,32 +370,6 @@
         </div>
     </div>
 
-    <!-- Guest Quota Exceeded Modal -->
-    <div class="file-modal" id="guestQuotaModal" style="display: none;">
-        <div class="modal-content">
-            <h3>🎉 You've Used All Free AI Requests!</h3>
-            <p>You've made great progress! To continue using AI features, choose one of these options:</p>
-            <div class="quota-options">
-                <div class="quota-option">
-                    <i class="fas fa-key"></i>
-                    <h4>Add Your OpenRouter API Key</h4>
-                    <p>Use your own API key for unlimited requests</p>
-                    <small>Already have an API key in the panel above ↑</small>
-                </div>
-                <div class="quota-divider">OR</div>
-                <div class="quota-option">
-                    <i class="fas fa-user-plus"></i>
-                    <h4>Create a Free Account</h4>
-                    <p>Save your projects, get more free requests, and unlock premium features</p>
-                    <button id="modal-signup-btn" class="primary-btn">Sign Up Free</button>
-                </div>
-            </div>
-            <div class="modal-buttons">
-                <button id="close-quota-modal-btn">Maybe Later</button>
-            </div>
-        </div>
-    </div>
-    
     <!-- CodeMirror JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
     

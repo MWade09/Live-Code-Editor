@@ -16,7 +16,6 @@ import { AuthManager } from './modules/AuthManager.js';
 import { RealtimeSync } from './modules/RealtimeSync.js';
 import { TerminalManager } from './modules/TerminalManager.js';
 import { VersionControlManager } from './modules/VersionControlManager.js';
-import { GuestBannerManager } from './modules/GuestBannerManager.js';
 
 // Load chat panel scripts - CSS is now loaded directly in HTML
 (function() {
@@ -73,16 +72,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeManager = new ThemeManager();
     const deployManager = new DeployManager(fileManager);
     
-    // Initialize Guest Banner FIRST (AI managers depend on it)
-    const guestBanner = new GuestBannerManager(fileManager);
-    
-    // Initialize AI managers with guest banner
-    const aiManager = new AIManager(editor, fileManager, guestBanner);
+    // Initialize AI managers (no guest banner - new monetization model)
+    const aiManager = new AIManager(editor, fileManager);
 
     // Initialize InlineAIManager with error handling
     let inlineAIManager;
     try {
-        inlineAIManager = new InlineAIManager(editor, aiManager, fileManager, guestBanner);
+        inlineAIManager = new InlineAIManager(editor, aiManager, fileManager);
         console.log('✅ InlineAIManager initialized successfully');
     } catch (error) {
         console.error('❌ Failed to initialize InlineAIManager:', error);
