@@ -24,6 +24,7 @@ Website: https://ailiveeditor.netlify.app
 ├── Next.js app: / /dashboard /my-projects etc.
 ├── API routes: /api/*
 └── Static editor: /editor/* (vanilla JS files)
+    └── Includes back button for seamless navigation
 ```
 
 ## Benefits Achieved
@@ -45,6 +46,7 @@ Website: https://ailiveeditor.netlify.app
 - ✅ Faster loading (no DNS lookup for 2nd domain)
 - ✅ Single domain to remember
 - ✅ Better for SEO
+- ✅ Back button for easy navigation to dashboard/projects
 
 ### 4. Easier to Extract
 - ✅ Editor remains vanilla JS (portable)
@@ -169,6 +171,40 @@ editorUrl.searchParams.set('project', id)
 editorUrl.searchParams.set('token', token)
 window.location.href = editorUrl.toString()
 ```
+
+### 5. Navigation Enhancement
+
+**Back Button (index.html + app.js)**:
+```html
+<!-- Added to header -->
+<div class="logo-section">
+    <button id="back-to-website-btn" class="back-btn" title="Back to Dashboard">
+        <i class="fas fa-arrow-left"></i>
+    </button>
+    <div class="logo">Live Preview Code Editor</div>
+</div>
+```
+
+```javascript
+// Smart navigation based on context
+document.getElementById('back-to-website-btn').addEventListener('click', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectId = urlParams.get('project');
+    
+    // If from a project, go to my-projects, otherwise go to dashboard
+    if (projectId) {
+        window.location.href = '/my-projects';
+    } else {
+        window.location.href = '/dashboard';
+    }
+});
+```
+
+Benefits:
+- Contextual navigation (returns to project list if editing a project)
+- Smooth hover animation (slides left slightly)
+- Consistent with overall design language
+- Reduces friction for users switching between editor and dashboard
 
 ## URL Structure
 

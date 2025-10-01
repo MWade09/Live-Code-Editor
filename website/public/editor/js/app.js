@@ -565,6 +565,21 @@ document.addEventListener('DOMContentLoaded', () => {
             // Open community website in new tab
             window.open('https://ailiveeditor.netlify.app/community', '_blank');
         });
+        
+        // Back to website button
+        document.getElementById('back-to-website-btn').addEventListener('click', () => {
+            // Check if we have a project ID in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('project');
+            
+            // If we came from a project, go to my-projects, otherwise go to dashboard
+            if (projectId) {
+                window.location.href = '/my-projects';
+            } else {
+                window.location.href = '/dashboard';
+            }
+        });
+        
         // Init VCS panel container
         initVcsPanel();
           // AI Assistant functionality (handled by chat panel)
