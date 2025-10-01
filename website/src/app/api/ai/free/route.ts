@@ -44,15 +44,19 @@ function checkRateLimit(clientId: string): { allowed: boolean; remaining: number
 export async function POST(request: NextRequest) {
   try {
     if (!PLATFORM_API_KEY) {
-      console.error('OPENROUTER_PLATFORM_KEY not configured')
+      console.error('❌ OPENROUTER_PLATFORM_KEY not configured')
       return NextResponse.json(
-        { error: 'Service configuration error' },
+        { error: 'Service configuration error: Platform API key not set' },
         { status: 500 }
       )
     }
 
+    console.log('✅ Platform API key is set (length:', PLATFORM_API_KEY.length, ')')
+
     const body = await request.json()
     const { model, messages } = body
+
+    console.log('📥 Free tier request for model:', model)
 
     // Validate model is in free tier
     if (!FREE_MODELS.includes(model)) {
@@ -74,6 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Proxy request to OpenRouter with platform key
+    console.log('🚀 Sending request to OpenRouter...')
     const openrouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -88,11 +93,13 @@ export async function POST(request: NextRequest) {
       }),
     })
 
+    console.log('📡 OpenRouter response status:', openrouterResponse.status)
+
     if (!openrouterResponse.ok) {
       const errorData = await openrouterResponse.text()
-      console.error('OpenRouter API error:', errorData)
+      console.error('❌ OpenRouter API error:', errorData)
       return NextResponse.json(
-        { error: 'AI service error' },
+        { error: `AI service error: ${errorData}` },
         { status: openrouterResponse.status }
       )
     }
