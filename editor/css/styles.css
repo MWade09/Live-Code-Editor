@@ -729,6 +729,48 @@ button i {
     background-color: var(--primary-bg);
 }
 
+.view-toggle {
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    background-color: var(--secondary-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.view-toggle .toggle-btn {
+    flex: 1;
+    padding: 8px 16px;
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.view-toggle .toggle-btn:hover {
+    background-color: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.view-toggle .toggle-btn.active {
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+.content-area {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
 .chat-pane {
     display: flex;
     flex-direction: column;

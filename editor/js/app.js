@@ -256,16 +256,22 @@ document.addEventListener('DOMContentLoaded', () => {
         // Initialize file explorer manager
         fileExplorerManager.init();
         
-        // Load current file if available
-        editor.loadCurrentFile();
+        // Check if we're loading a project from URL - if so, skip initial file loading
+        const params = new URLSearchParams(window.location.search);
+        const loadingProject = params.get('project');
         
-        // Update preview if live preview is enabled
-        if (preview.isLivePreview) {
-            preview.updatePreview();
+        if (!loadingProject) {
+            // Load current file if available (only when NOT loading from URL)
+            editor.loadCurrentFile();
+            
+            // Update preview if live preview is enabled
+            if (preview.isLivePreview) {
+                preview.updatePreview();
+            }
+            
+            // Set up file tabs (this will show welcome screen if no tabs)
+            renderFileTabs();
         }
-        
-        // Set up file tabs
-        renderFileTabs();
         
         // Set up event listeners
         setupEventListeners();
@@ -294,13 +300,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (projectId) {
                 projectSync.loadWebsiteProject(projectId)
                     .then(() => {
+                        // Load the file in the editor first
+                        editor.loadCurrentFile();
+                        
                         // Render file tabs to show the loaded project and hide welcome screen
                         renderFileTabs();
                         
-                        // Hide welcome, show editor view
-                        const editorToggle = document.getElementById('editor-toggle');
-                        if (editorToggle && !editorToggle.classList.contains('active')) {
-                            editorToggle.click();
+                        // Explicitly hide welcome screen and show editor
+                        const welcomeScreen = document.getElementById('welcome-screen');
+                        const editorElement = document.getElementById('editor');
+                        if (welcomeScreen) {
+                            welcomeScreen.classList.remove('active-view', 'fade-in');
+                            welcomeScreen.classList.add('hidden-view');
+                        }
+                        if (editorElement) {
+                            editorElement.classList.remove('hidden-view');
+                            editorElement.classList.add('active-view');
                         }
                         
                         // Show file explorer and chat panel when loading from website
@@ -312,9 +327,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (chatPane) {
                             chatPane.style.display = 'flex';
                         }
-                        
-                        // Load the file in the editor
-                        editor.loadCurrentFile();
                         
                         console.log('[ProjectSync] Loaded project from website');
                         // Add Back to Website and Sync buttons into header near Deploy/Community
