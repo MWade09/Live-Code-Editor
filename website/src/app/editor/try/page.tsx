@@ -5,11 +5,8 @@ import { Loader2 } from 'lucide-react'
 
 export default function EditorTryPage() {
   useEffect(() => {
-    // Redirect to hosted editor in guest mode
-    // Append a hint so the editor can show a guest banner if needed
-    const url = new URL('https://ai-assisted-editor.netlify.app')
-    url.searchParams.set('guest', '1')
-    window.location.href = url.toString()
+    // Redirect to same-origin editor
+    window.location.href = '/editor/'
   }, [])
 
   return (
@@ -21,5 +18,3 @@ export default function EditorTryPage() {
     </div>
   )
 }
-
-

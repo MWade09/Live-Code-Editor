@@ -391,7 +391,7 @@ export class AIManager {
         try {
             const date = new Date(timestamp);
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } catch (e) {
+        } catch {
             return '';
         }
     }
@@ -652,14 +652,14 @@ export class AIManager {
         // Determine which endpoint to use based on model
         const isFreeModel = this.freeModels.includes(model);
         
-        // Get the website API base URL
-        const websiteAPI = window.app?.projectSync?.websiteAPI || 'https://ailiveeditor.netlify.app/api';
+        // Use same-origin API (editor is now served from same domain)
+        const apiBase = '/api';
         
         if (isFreeModel) {
             // Use backend /api/ai/free endpoint for free models
             console.log('🆓 Using free tier endpoint for model:', model);
             
-            const response = await fetch(`${websiteAPI}/ai/free`, {
+            const response = await fetch(`${apiBase}/ai/free`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -697,7 +697,7 @@ export class AIManager {
                 throw new Error('This model requires your OpenRouter API key. Please add it in the panel above.');
             }
             
-            const response = await fetch(`${websiteAPI}/ai/premium`, {
+            const response = await fetch(`${apiBase}/ai/premium`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

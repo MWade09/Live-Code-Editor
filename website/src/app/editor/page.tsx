@@ -10,14 +10,13 @@ export default function EditorBridgePage() {
   const searchParams = useSearchParams()
   const supabase = createClient()
   const projectId = searchParams.get('project')
-  const isTry = searchParams.get('try') === '1'
 
   useEffect(() => {
     const loadAndRedirect = async () => {
       try {
-        // If no project ID or explicit try mode, redirect to standalone editor (guest mode)
-        if (!projectId || isTry) {
-          window.location.href = 'https://ai-assisted-editor.netlify.app'
+        // If no project ID, redirect to editor directly (guest mode)
+        if (!projectId) {
+          window.location.href = '/editor/'
           return
         }
 
@@ -39,7 +38,7 @@ export default function EditorBridgePage() {
 
         if (projectError) {
           console.error('Project not found, redirecting to blank editor')
-          window.location.href = 'https://ai-assisted-editor.netlify.app'
+          window.location.href = '/editor/'
           return
         }
 
@@ -49,14 +48,13 @@ export default function EditorBridgePage() {
           return
         }
 
-        // Redirect to editor with project id param so it can sync from website
-        const editorUrl = new URL('https://ai-assisted-editor.netlify.app')
-        editorUrl.searchParams.set('project', projectData.id)
-        const siteOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN || window.location.origin
-        editorUrl.searchParams.set('site', siteOrigin)
-        // Include a bearer token so private projects can be read cross-origin
+        // Get auth token for API access
         const { data: sessionData } = await supabase.auth.getSession()
         const token = sessionData?.session?.access_token
+
+        // Redirect to editor with project ID and token
+        const editorUrl = new URL('/editor/', window.location.origin)
+        editorUrl.searchParams.set('project', projectData.id)
         if (token) {
           editorUrl.searchParams.set('token', token)
         }
@@ -64,19 +62,19 @@ export default function EditorBridgePage() {
 
       } catch (error) {
         console.error('Error loading project:', error)
-        // Fallback to standalone editor
-        window.location.href = 'https://ai-assisted-editor.netlify.app'
+        // Fallback to blank editor
+        window.location.href = '/editor/'
       }
     }
 
     loadAndRedirect()
-  }, [projectId, router, supabase, isTry])
+  }, [projectId, router, supabase])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
       <div className="flex items-center gap-3 text-white">
         <Loader2 className="w-8 h-8 animate-spin" />
-        <span className="text-lg">Loading your project in LiveEditor...</span>
+        <span className="text-lg">Loading your project...</span>
       </div>
     </div>
   )

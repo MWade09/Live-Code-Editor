@@ -1,19 +1,13 @@
 export class ProjectSyncManager {
   constructor(fileManager) {
     this.fileManager = fileManager
-    // Determine website API base from URL param if present (site=https://domain)
+    // Since editor is now served from the same domain, use relative /api path
+    // This works for both local dev and production
+    this.websiteAPI = '/api'
+    console.log('[ProjectSync] Using same-origin API:', this.websiteAPI)
+    
     try {
       const params = new URLSearchParams(window.location.search)
-      const siteBase = params.get('site')
-      if (siteBase) {
-        const origin = siteBase.replace(/\/$/, '')
-        this.websiteAPI = origin + '/api'
-        console.log('[ProjectSync] websiteAPI (from site param):', this.websiteAPI)
-      } else {
-        // No explicit site provided. We'll detect later in loadWebsiteProject.
-        this.websiteAPI = ''
-        console.log('[ProjectSync] websiteAPI not set yet (no site param)')
-      }
       // Capture optional auth token for private project access
       const token = params.get('token')
       this.authToken = token || ''
@@ -26,8 +20,7 @@ export class ProjectSyncManager {
         const sanitized = `${location.pathname}?${params.toString()}`
         try { history.replaceState(null, '', sanitized) } catch {}
       }
-    } catch (err) {
-      this.websiteAPI = ''
+    } catch {
       this.authToken = ''
     }
     this.currentProject = null
@@ -43,53 +36,24 @@ export class ProjectSyncManager {
 
   async loadWebsiteProject(projectId) {
     if (!projectId) return
-    const candidates = []
-    // Prefer origin from site param (if provided)
-    if (this.websiteAPI) {
-      candidates.push(this.websiteAPI.replace(/\/api$/, ''))
-    }
-    // Then try referrer origin
-    if (document.referrer) {
-      try {
-        const refOrigin = new URL(document.referrer).origin
-        if (!candidates.includes(refOrigin)) candidates.push(refOrigin)
-      } catch {}
-    }
-    // Known deployment (website) fallback
-    for (const known of ['https://ailiveeditor.netlify.app']) {
-      if (!candidates.includes(known)) candidates.push(known)
-    }
-
-    let project = null
-    let lastError = null
-    // Optional bearer token for private projects (captured in constructor)
+    
+    // Use same-origin API endpoint
+    const url = `/api/projects/${projectId}`
+    console.log('[ProjectSync] Loading project from:', url)
+    
+    // Optional bearer token for private projects
     const authHeader = this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}
 
-    for (const origin of candidates) {
-      try {
-        const url = `${origin.replace(/\/$/, '')}/api/projects/${projectId}`
-        try { console.log('[ProjectSync] Trying', url) } catch {}
-        // For public reads, no credentials; attach Authorization when provided
-        const res = await fetch(url, { headers: { ...authHeader } })
-        if (!res.ok) {
-          // Distinguish 404 for clarity
-          lastError = new Error(`HTTP ${res.status}`)
-          continue
-        }
-        project = await res.json()
-        this.websiteAPI = origin.replace(/\/$/, '') + '/api'
-        try { console.log('[ProjectSync] Using websiteAPI:', this.websiteAPI) } catch {}
-        break
-      } catch (err) {
-        lastError = err
-        continue
-      }
-    }
-    if (!project) throw new Error(`Failed to load project: ${lastError?.message || 'unknown'}`)
-
     try {
+      const res = await fetch(url, { headers: { ...authHeader } })
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+      const project = await res.json()
+      
       const content = typeof project.content === 'string' ? project.content : ''
       const filename = project.title?.trim() ? `${project.title}.html` : 'index.html'
+      
       // Clear current files and tabs so we don't show local leftovers
       this.fileManager.files = []
       this.fileManager.openTabs = []
@@ -253,7 +217,7 @@ export class ProjectSyncManager {
       // Continue flushing
       this._emitQueueChanged()
       if (this.pendingQueue.length) this.flushQueue()
-    } catch (e) {
+    } catch {
       this.pushError('Network error during retry')
       this.pendingQueue.push(next)
       this.retryTimer = setTimeout(() => { this.retryTimer = null; this.flushQueue() }, 7000)

@@ -1,52 +1,65 @@
 # Live Editor Claude - Complete Platform
 
-This repository contains both the **Live Code Editor** and the **Marketing/Community Website** as separate deployable applications.
+This repository contains the **Live Code Editor** integrated within a **Next.js Marketing & Community Website** as a unified platform.
 
 ## 🏗️ Project Structure
 
 ```
 LiveEditorClaude/
-├── editor/                    # Vanilla JS Live Code Editor
-│   ├── index.html            # Main editor application
-│   ├── css/                  # Editor styles
-│   ├── js/                   # Editor JavaScript modules
-│   └── netlify.toml          # Editor deployment config
-├── website/                   # Next.js Marketing & Community Site
+├── editor/                    # Source: Vanilla JS Editor (archived)
+│   ├── index.html            # Original editor files
+│   ├── css/                  # Original styles
+│   └── js/                   # Original JavaScript modules
+├── website/                   # Next.js Platform
+│   ├── public/
+│   │   └── editor/           # Static editor files served at /editor/
 │   ├── src/                  # Next.js application source
-│   ├── package.json          # Website dependencies
-│   └── next.config.ts        # Website build config
-├── docs/                     # Shared documentation
+│   ├── package.json          # Platform dependencies
+│   └── next.config.ts        # Platform build config
+├── docs/                     # Documentation
 └── shared/                   # Shared assets/configs
 ```
 
-## 🚀 Deployments
+## 🚀 Deployment
 
-- **Live Editor**: https://ai-assisted-editor.netlify.app (deploys from `/editor`)
-- **Website**: https://ailiveeditor.netlify.app (deploys from `/website`)
+**Single Domain**: https://ailiveeditor.netlify.app
+- Homepage & marketing pages: `/`
+- Live editor: `/editor/`
+- API endpoints: `/api/*`
+- User dashboard: `/dashboard`
+- Projects: `/my-projects`
+
+The entire platform deploys from `/website` directory. The editor is served as static files from `/public/editor/`.
 
 ## 💻 Local Development
 
-### Editor Development
+### Full Platform
 ```bash
-# Serve editor locally
+# Start Next.js development server (includes editor)
+cd website
+npm run dev
+
+# Access at:
+# http://localhost:3000/ - Homepage
+# http://localhost:3000/editor/ - Editor
+# http://localhost:3000/dashboard - Dashboard
+```
+
+### Editor Only (Standalone)
+```bash
+# Serve original editor files for development
 cd editor
 # Use Live Server extension or any static server
 ```
 
-### Website Development
-```bash
-# Start Next.js development server
-cd website
-npm run dev
-```
+## 🔗 Architecture
 
-## 🔗 Integration
-
-The editor and website are integrated through:
-- Shared authentication (Supabase)
-- Cross-navigation buttons
-- Project sharing capabilities
-- Unified user experience
+**Single-Origin Benefits**:
+- ✅ No CORS issues (same-origin API calls)
+- ✅ Simplified authentication flow
+- ✅ Unified deployment & environment variables
+- ✅ Faster navigation (no domain switching)
+- ✅ Editor remains portable for future desktop app
 
 ## 📚 Documentation
 
