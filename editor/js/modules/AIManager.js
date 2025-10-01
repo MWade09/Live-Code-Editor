@@ -649,49 +649,88 @@ export class AIManager {
     }
     
     async callOpenRouteAPI(model, messages) {
-        // Define the API endpoint
-        const API_URL = "https://openrouter.ai/api/v1/chat/completions";
-        
-        // Determine which key to use based on model
+        // Determine which endpoint to use based on model
         const isFreeModel = this.freeModels.includes(model);
-        let apiKey;
+        
+        // Get the website API base URL
+        const websiteAPI = window.app?.projectSync?.websiteAPI || 'https://ailiveeditor.netlify.app/api';
         
         if (isFreeModel) {
-            // Use platform key for free models
-            apiKey = this.platformKey;
-            console.log('🆓 Using platform key for free model:', model);
+            // Use backend /api/ai/free endpoint for free models
+            console.log('🆓 Using free tier endpoint for model:', model);
+            
+            const response = await fetch(`${websiteAPI}/ai/free`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model,
+                    messages
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                if (response.status === 429) {
+                    throw new Error('Rate limit exceeded. Please try again later or use your own API key for premium models.');
+                }
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Display remaining requests if available
+            const remaining = response.headers.get('X-RateLimit-Remaining');
+            if (remaining) {
+                console.log(`ℹ️ Free tier requests remaining: ${remaining}`);
+            }
+            
+            return data;
+            
         } else {
-            // Require user's API key for paid models
-            apiKey = localStorage.getItem('openrouter_api_key');
-            if (!apiKey) {
+            // Use backend /api/ai/premium endpoint for paid models
+            console.log('💳 Using premium tier endpoint for model:', model);
+            
+            const userApiKey = localStorage.getItem('openrouter_api_key');
+            if (!userApiKey) {
                 throw new Error('This model requires your OpenRouter API key. Please add it in the panel above.');
             }
-            console.log('💳 Using user key for paid model:', model);
+            
+            const response = await fetch(`${websiteAPI}/ai/premium`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model,
+                    messages,
+                    apiKey: userApiKey
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                if (response.status === 401) {
+                    throw new Error('Invalid API key. Please check your OpenRouter API key.');
+                }
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Display billing info if available
+            if (data._billing) {
+                console.log('💰 Request cost:', {
+                    tokens: data._billing.tokens,
+                    base: `$${data._billing.base_cost.toFixed(6)}`,
+                    markup: `$${data._billing.markup.toFixed(6)} (${data._billing.markup_percentage}%)`,
+                    total: `$${data._billing.total.toFixed(6)}`
+                });
+            }
+            
+            return data;
         }
-        
-        // Prepare the request body
-        const requestBody = {
-            model: model,
-            messages: messages
-        };
-        
-        // Make the API request
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-                'HTTP-Referer': window.location.origin,
-                'X-Title': 'Live Editor Claude'
-            },
-            body: JSON.stringify(requestBody)
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        return data;
     }
 }
+
