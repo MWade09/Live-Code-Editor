@@ -12,7 +12,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatInput = document.getElementById('chat-input');
     const chatSendBtn = document.getElementById('chat-send-btn');
     const chatModelSelect = document.getElementById('chat-ai-model');
-    const chatManageModelsBtn = document.getElementById('chat-manage-models-btn');
     const chatApiKey = document.getElementById('chat-api-key');
     const saveApiKeyBtn = document.getElementById('save-api-key-btn');
     
@@ -215,7 +214,21 @@ document.addEventListener('DOMContentLoaded', function() {
       async function processWithAI(message, model, apiKey) {
         addSystemMessage('AI is thinking...');
         try {
+            // Check if this is a free model
+            const freeModels = [
+                'deepseek/deepseek-r1-0528:free',
+                'deepseek/deepseek-chat-v3-0324:free',
+                'google/gemma-3-27b-it:free'
+            ];
+            const isFreeModel = freeModels.includes(model);
+            
             // Guest quota (no key): enforce before calling API
+            if (!apiKey && !isFreeModel) {
+                addSystemMessage('This model requires an API key. Please select a free model (🆓) or add your OpenRouter API key.');
+                return;
+            }
+            
+            // If no API key, check guest quota for free models
             if (!apiKey) {
                 const QUOTA_KEY = 'guest_ai_requests_used';
                 const LIMIT = 10;
@@ -226,6 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 localStorage.setItem(QUOTA_KEY, String(used + 1));
             }
+            
             // Get current file context for better responses (only when relevant)
             const currentFile = window.app?.fileManager?.getCurrentFile();
             let fileContext = '';
@@ -240,32 +254,68 @@ document.addEventListener('DOMContentLoaded', function() {
                 fileContext = `\n\nNote: User is currently working on ${currentFile.name} (${currentFile.type} file).`;
             }
             
-            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
-                    'HTTP-Referer': window.location.href,
-                    'X-Title': 'Live Preview Code Editor'
-                },                body: JSON.stringify({
-                    model: model,
-                    messages: [
-                        { 
-                            role: 'system', 
-                            content: `You are a helpful AI assistant. Have natural conversations and answer questions across any topic. When discussing code or programming, you can provide examples using markdown code blocks, but only when specifically relevant to the conversation.${fileContext}`
-                        },
-                        { role: 'user', content: message }
-                    ],max_tokens: 3000,
-                    temperature: 0.7
-                })
-            });
+            const messages = [
+                { 
+                    role: 'system', 
+                    content: `You are a helpful AI assistant. Have natural conversations and answer questions across any topic. When discussing code or programming, you can provide examples using markdown code blocks, but only when specifically relevant to the conversation.${fileContext}`
+                },
+                { role: 'user', content: message }
+            ];
+            
+            let response;
+            
+            if (isFreeModel) {
+                // Use backend /api/ai/free endpoint for free models
+                console.log('🆓 Chat using free tier endpoint for model:', model);
+                
+                response = await fetch('/api/ai/free', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model,
+                        messages
+                    })
+                });
+            } else {
+                // Use backend /api/ai/premium endpoint for paid models with user's API key
+                console.log('💳 Chat using premium tier endpoint for model:', model);
+                
+                response = await fetch('/api/ai/premium', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model,
+                        messages,
+                        apiKey
+                    })
+                });
+            }
             
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Chat API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                
+                // Handle specific error cases
+                if (response.status === 429) {
+                    throw new Error('Rate limit exceeded. Please try again later or use your own API key for premium models.');
+                }
+                if (response.status === 403) {
+                    throw new Error(errorData.error || 'This model is not available for free tier. Please select a free model (🆓) or add your API key.');
+                }
+                
+                throw new Error(errorData.error || `Chat API request failed: ${response.status}`);
             }
             
             const data = await response.json();
+            
+            // Display remaining requests if available (free tier)
+            const remaining = response.headers.get('X-RateLimit-Remaining');
+            if (remaining) {
+                console.log(`ℹ️ Free tier requests remaining: ${remaining}`);
+            }
             
             // Remove thinking message
             if (chatMessages.lastChild && chatMessages.lastChild.classList.contains('system-message')) {
@@ -339,7 +389,21 @@ document.addEventListener('DOMContentLoaded', function() {
         addSystemMessage('Agent is analyzing your request and editing the file...');
         
         try {
+            // Check if this is a free model
+            const freeModels = [
+                'deepseek/deepseek-r1-0528:free',
+                'deepseek/deepseek-chat-v3-0324:free',
+                'google/gemma-3-27b-it:free'
+            ];
+            const isFreeModel = freeModels.includes(model);
+            
             // Guest quota (no key): enforce before calling API
+            if (!apiKey && !isFreeModel) {
+                addSystemMessage('This model requires an API key. Please select a free model (🆓) or add your OpenRouter API key.');
+                return;
+            }
+            
+            // If no API key, check guest quota for free models
             if (!apiKey) {
                 const QUOTA_KEY = 'guest_ai_requests_used';
                 const LIMIT = 10;
@@ -350,6 +414,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 localStorage.setItem(QUOTA_KEY, String(used + 1));
             }
+            
             // Get current file context
             const currentFile = window.app?.fileManager?.getCurrentFile();
             let currentContent = currentFile?.content || '';
@@ -369,30 +434,65 @@ ${currentContent}
 
 Task: Modify the file based on the user's request. Return ONLY the complete updated file content, no explanations.`;
 
-            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
-                    'HTTP-Referer': window.location.href,
-                    'X-Title': 'Live Preview Code Editor'
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: message }
-                    ],                    max_tokens: 4000,
-                    temperature: 0.7
-                })
-            });
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: message }
+            ];
+            
+            let response;
+            
+            if (isFreeModel) {
+                // Use backend /api/ai/free endpoint for free models
+                console.log('🆓 Agent using free tier endpoint for model:', model);
+                
+                response = await fetch('/api/ai/free', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model,
+                        messages
+                    })
+                });
+            } else {
+                // Use backend /api/ai/premium endpoint for paid models with user's API key
+                console.log('💳 Agent using premium tier endpoint for model:', model);
+                
+                response = await fetch('/api/ai/premium', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model,
+                        messages,
+                        apiKey
+                    })
+                });
+            }
             
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Agent API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                
+                // Handle specific error cases
+                if (response.status === 429) {
+                    throw new Error('Rate limit exceeded. Please try again later or use your own API key for premium models.');
+                }
+                if (response.status === 403) {
+                    throw new Error(errorData.error || 'This model is not available for free tier. Please select a free model (🆓) or add your API key.');
+                }
+                
+                throw new Error(errorData.error || `Agent API request failed: ${response.status}`);
             }
             
             const data = await response.json();
+            
+            // Display remaining requests if available (free tier)
+            const remaining = response.headers.get('X-RateLimit-Remaining');
+            if (remaining) {
+                console.log(`ℹ️ Free tier requests remaining: ${remaining}`);
+            }
             
             // Remove thinking message
             if (chatMessages.lastChild && chatMessages.lastChild.classList.contains('system-message')) {
