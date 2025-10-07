@@ -333,18 +333,27 @@ document.addEventListener('DOMContentLoaded', () => {
                         try {
                             const controls = document.querySelector('header .controls .view-controls');
                             const themeToggle = document.getElementById('theme-toggle');
+                            
+                            console.log('[SaveButton] Controls element:', controls);
+                            console.log('[SaveButton] Theme toggle:', themeToggle);
+                            
                             if (controls && themeToggle) {
+                                // Update existing back button or create new one
                                 if (siteOrigin) {
-                                    const backBtn = document.createElement('button');
-                                    backBtn.id = 'back-to-website-btn';
-                                    backBtn.className = 'community-btn';
+                                    let backBtn = document.getElementById('back-to-website-btn');
+                                    if (!backBtn) {
+                                        backBtn = document.createElement('button');
+                                        backBtn.id = 'back-to-website-btn';
+                                        backBtn.className = 'community-btn';
+                                        controls.insertBefore(backBtn, themeToggle);
+                                    }
                                     backBtn.title = 'Back to Website';
                                     backBtn.innerHTML = '<i class="fas fa-arrow-left"></i> <span>Back</span>';
+                                    backBtn.style.display = '';  // Ensure it's visible
                                     backBtn.addEventListener('click', () => {
                                         const target = `${siteOrigin.replace(/\/$/, '')}/projects/${projectId}`;
                                         window.location.href = target;
                                     });
-                                    controls.insertBefore(backBtn, themeToggle);
                                 }
 
                                 const syncBtn = document.createElement('button');
@@ -367,6 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 saveBtn.id = 'project-save-btn';
                                 saveBtn.className = 'deploy-btn';
                                 saveBtn.title = 'Save Project (Ctrl+S)';
+                                saveBtn.style.display = '';  // Ensure visible
                                 saveBtn.innerHTML = '<i class="fas fa-save"></i> <span>Save</span>';
                                 saveBtn.addEventListener('click', async () => {
                                     setSaving();
@@ -424,8 +434,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                 };
                                 syncBtn.addEventListener('click', doSync);
                                 // Source Control button
+        console.log('[SaveButton] Inserting save button:', saveBtn);
+        console.log('[SaveButton] Inserting sync button:', syncBtn);
         controls.insertBefore(saveBtn, themeToggle);
         controls.insertBefore(syncBtn, themeToggle);
+        console.log('[SaveButton] Buttons inserted successfully');
                                 // Initial sync shortly after load
                                 setTimeout(doSync, 500);
                                 // Preload commits silently
@@ -456,8 +469,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                 document.addEventListener('projectSyncQueueChanged', (ev) => {
                                   updateBadge(ev.detail?.count || 0);
                                 });
+                            } else {
+                                console.error('[SaveButton] Missing required elements - controls:', controls, 'themeToggle:', themeToggle);
                             }
-                        } catch {}
+                        } catch (err) {
+                            console.error('[SaveButton] Error creating save/sync buttons:', err);
+                        }
                         // Clear any stale local files after loading
                         try {
                             localStorage.removeItem('editorFiles');
