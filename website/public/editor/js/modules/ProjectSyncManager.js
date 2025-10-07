@@ -44,12 +44,14 @@ export class ProjectSyncManager {
     // Optional bearer token for private projects
     const authHeader = this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}
 
+    let project = null;  // ✅ Declare outside try block
+    
     try {
       const res = await fetch(url, { headers: { ...authHeader } })
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`)
       }
-      const project = await res.json()
+      project = await res.json()
       
       const content = typeof project.content === 'string' ? project.content : ''
       const filename = project.title?.trim() ? `${project.title}.html` : 'index.html'
@@ -65,6 +67,7 @@ export class ProjectSyncManager {
     }
 
     this.currentProject = project
+    this.projectId = projectId  // ✅ Store project ID for later use
     this.syncEnabled = true
     return project
   }
