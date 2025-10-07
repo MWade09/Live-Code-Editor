@@ -1319,7 +1319,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             
             // First check if save button exists (project mode)
-            const saveBtn = document.getElementById('save-btn');
+            const saveBtn = document.getElementById('project-save-btn');
             if (saveBtn && saveBtn.offsetParent !== null) {
                 saveBtn.click();
                 return;
@@ -1605,8 +1605,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     })();
 
-    // Warn before unload when dirty
+    // Warn before unload when dirty (only in project mode)
     window.addEventListener('beforeunload', (e) => {
+        // Only warn if we're in project mode (projectSync is active)
+        if (!projectSync || !projectSync.projectId) {
+            return; // No warning in standalone mode
+        }
+        
         const open = fileManager.getOpenTabFiles();
         const hasDirty = open.some(f => fileManager.isDirty && fileManager.isDirty(f.id));
         if (hasDirty) {
