@@ -1,3 +1,5 @@
+SUPABASE QUERIES:
+
 -- =============================================
 -- LiveEditor Claude - Database Schema
 -- Complete database setup for user profiles, projects, and community features
@@ -39,9 +41,6 @@ CREATE TABLE user_profiles (
   profile_visibility TEXT DEFAULT 'public' CHECK (profile_visibility IN ('public', 'private', 'friends')),
   email_notifications BOOLEAN DEFAULT true,
   marketing_emails BOOLEAN DEFAULT false,
-  
-  -- Role-Based Access Control (added Oct 6, 2025)
-  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'moderator')),
   
   -- Metadata
   onboarding_completed BOOLEAN DEFAULT false,
@@ -119,26 +118,6 @@ CREATE TABLE comments (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Save history (lightweight)
-CREATE TABLE project_saves (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
-  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
-  change_summary TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Reports (moderation)
-CREATE TABLE project_reports (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
-  reporter_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
-  reason TEXT NOT NULL,
-  status TEXT DEFAULT 'open' CHECK (status IN ('open','reviewing','resolved','dismissed')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
 -- User follows (social features)
 CREATE TABLE user_follows (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -179,7 +158,6 @@ CREATE TABLE notifications (
 CREATE INDEX idx_user_profiles_username ON user_profiles(username);
 CREATE INDEX idx_user_profiles_created_at ON user_profiles(created_at);
 CREATE INDEX idx_user_profiles_last_seen ON user_profiles(last_seen_at);
-CREATE INDEX idx_user_profiles_role ON user_profiles(role);
 
 -- Projects indexes
 CREATE INDEX idx_projects_user_id ON projects(user_id);
@@ -224,8 +202,6 @@ ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_activity ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE project_reports ENABLE ROW LEVEL SECURITY;
-ALTER TABLE project_saves ENABLE ROW LEVEL SECURITY;
 
 -- User Profiles Policies
 CREATE POLICY "Public profiles are viewable by everyone" ON user_profiles
@@ -293,13 +269,6 @@ CREATE POLICY "Users can update their own comments" ON comments
 CREATE POLICY "Users can delete their own comments" ON comments
   FOR DELETE USING (auth.uid() = user_id);
 
--- Project Reports Policies
-CREATE POLICY "Users can view their own reports" ON project_reports
-  FOR SELECT USING (auth.uid() = reporter_id);
-
-CREATE POLICY "Authenticated users can create reports" ON project_reports
-  FOR INSERT WITH CHECK (auth.uid() = reporter_id);
-
 -- User Follows Policies
 CREATE POLICY "Anyone can view public follows" ON user_follows
   FOR SELECT USING (true);
@@ -327,274 +296,6 @@ CREATE POLICY "Users can update their own notifications" ON notifications
 CREATE POLICY "System can create notifications" ON notifications
   FOR INSERT WITH CHECK (true);
 
--- Project Saves Policies
-CREATE POLICY "View saves for public or own projects" ON project_saves
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM projects 
-      WHERE projects.id = project_saves.project_id 
-      AND (
-        (projects.is_public = true AND projects.status = 'published')
-        OR projects.user_id = auth.uid()
-      )
-    )
-  );
-
-CREATE POLICY "Owners can insert saves" ON project_saves
-  FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM projects 
-      WHERE projects.id = project_saves.project_id 
-      AND projects.user_id = auth.uid()
-    )
-  );
-
--- =============================================
--- VERSION CONTROL TABLES AND POLICIES
--- =============================================
-
--- Commits per project (lightweight text snapshot + message)
-CREATE TABLE IF NOT EXISTS project_commits (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
-  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
-  message TEXT NOT NULL,
-  content TEXT NOT NULL,
-  branch TEXT NOT NULL DEFAULT 'main',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_project_commits_project_id ON project_commits(project_id);
-CREATE INDEX IF NOT EXISTS idx_project_commits_created_at ON project_commits(created_at DESC);
--- Composite index for paginated lookups with branch filter
-CREATE INDEX IF NOT EXISTS idx_project_commits_project_branch_created_at ON project_commits(project_id, branch, created_at DESC);
-
--- Branch registry (for future expansion)
-CREATE TABLE IF NOT EXISTS project_branches (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
-  name TEXT NOT NULL,
-  created_by UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(project_id, name)
-);
-
-ALTER TABLE project_commits ENABLE ROW LEVEL SECURITY;
-ALTER TABLE project_branches ENABLE ROW LEVEL SECURITY;
--- Index for quick lookup by project and name
-CREATE INDEX IF NOT EXISTS idx_project_branches_project_name ON project_branches(project_id, name);
-
--- Terminal sessions tracking
-CREATE TABLE IF NOT EXISTS terminal_sessions (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
-  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
-  commands JSONB[] DEFAULT '{}',
-  working_directory TEXT,
-  environment_vars JSONB DEFAULT '{}',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  last_active TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE terminal_sessions ENABLE ROW LEVEL SECURITY;
-
--- Owners can read their terminal sessions
-DROP POLICY IF EXISTS terminal_sessions_owner_select ON terminal_sessions;
-CREATE POLICY terminal_sessions_owner_select ON terminal_sessions
-  FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
-
--- Owners can insert sessions
-DROP POLICY IF EXISTS terminal_sessions_owner_insert ON terminal_sessions;
-CREATE POLICY terminal_sessions_owner_insert ON terminal_sessions
-  FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
-
--- Owners can update their sessions
-DROP POLICY IF EXISTS terminal_sessions_owner_update ON terminal_sessions;
-CREATE POLICY terminal_sessions_owner_update ON terminal_sessions
-  FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
-
-CREATE INDEX IF NOT EXISTS idx_terminal_sessions_project_id ON terminal_sessions(project_id);
-CREATE INDEX IF NOT EXISTS idx_terminal_sessions_last_active ON terminal_sessions(last_active DESC);
-
--- Build configuration per project
-CREATE TABLE IF NOT EXISTS project_build_configs (
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE PRIMARY KEY,
-  build_command TEXT DEFAULT 'npm run build',
-  environment JSONB DEFAULT '{}',
-  deploy_target TEXT DEFAULT 'netlify',
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE project_build_configs ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS project_build_configs_owner_select ON project_build_configs;
-CREATE POLICY project_build_configs_owner_select ON project_build_configs
-  FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
-
-DROP POLICY IF EXISTS project_build_configs_owner_upsert ON project_build_configs;
-CREATE POLICY project_build_configs_owner_upsert ON project_build_configs
-  FOR INSERT TO PUBLIC
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
-
-DROP POLICY IF EXISTS project_build_configs_owner_update ON project_build_configs;
-CREATE POLICY project_build_configs_owner_update ON project_build_configs
-  FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
-
--- Owners can read their commits
-DROP POLICY IF EXISTS project_commits_owner_select ON project_commits;
-CREATE POLICY project_commits_owner_select ON project_commits
-  FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
-
--- Owners can write commits
-DROP POLICY IF EXISTS project_commits_owner_insert ON project_commits;
-CREATE POLICY project_commits_owner_insert ON project_commits
-  FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
-
--- Owners may delete their commits
-DROP POLICY IF EXISTS project_commits_owner_delete ON project_commits;
-CREATE POLICY project_commits_owner_delete ON project_commits
-  FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
-
--- Owners can read their branches
-DROP POLICY IF EXISTS project_branches_owner_select ON project_branches;
-CREATE POLICY project_branches_owner_select ON project_branches
-  FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
-
--- Owners can create branches
-DROP POLICY IF EXISTS project_branches_owner_insert ON project_branches;
-CREATE POLICY project_branches_owner_insert ON project_branches
-  FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
-
--- Owners can delete their branches
-DROP POLICY IF EXISTS project_branches_owner_delete ON project_branches;
-CREATE POLICY project_branches_owner_delete ON project_branches
-  FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM projects p
-      WHERE p.id = project_id AND p.user_id = auth.uid()
-    )
-  );
-
--- =============================================
--- AI USAGE TRACKING
--- =============================================
-
--- AI Usage tracking table for billing and analytics (added Oct 6, 2025)
-CREATE TABLE IF NOT EXISTS public.ai_usage (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    model TEXT NOT NULL,
-    tokens_used INTEGER NOT NULL DEFAULT 0,
-    cost_usd DECIMAL(10, 6) NOT NULL DEFAULT 0,
-    markup_usd DECIMAL(10, 6) NOT NULL DEFAULT 0,
-    total_usd DECIMAL(10, 6) NOT NULL DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Indexes for efficient queries
-CREATE INDEX IF NOT EXISTS ai_usage_user_id_idx ON public.ai_usage(user_id);
-CREATE INDEX IF NOT EXISTS ai_usage_created_at_idx ON public.ai_usage(created_at DESC);
-CREATE INDEX IF NOT EXISTS ai_usage_user_created_idx ON public.ai_usage(user_id, created_at DESC);
-
--- Row Level Security
-ALTER TABLE public.ai_usage ENABLE ROW LEVEL SECURITY;
-
--- Users can only view their own usage
-CREATE POLICY "Users can view their own usage"
-    ON public.ai_usage
-    FOR SELECT
-    USING (auth.uid() = user_id);
-
--- Only the service (backend API) can insert usage records
-CREATE POLICY "Service can insert usage records"
-    ON public.ai_usage
-    FOR INSERT
-    WITH CHECK (true);
-
--- Admins can view all usage
-CREATE POLICY "Admins can view all usage"
-    ON public.ai_usage
-    FOR SELECT
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.user_profiles
-            WHERE user_profiles.id = auth.uid()
-            AND user_profiles.role = 'admin'
-        )
-    );
-
-COMMENT ON TABLE public.ai_usage IS 'Tracks AI API usage for billing and analytics';
-COMMENT ON COLUMN public.ai_usage.tokens_used IS 'Total tokens used in the request';
-COMMENT ON COLUMN public.ai_usage.cost_usd IS 'Base API cost in USD';
-COMMENT ON COLUMN public.ai_usage.markup_usd IS 'Platform markup (20%) in USD';
-COMMENT ON COLUMN public.ai_usage.total_usd IS 'Total cost charged to user in USD';
-
 -- =============================================
 -- FUNCTIONS AND TRIGGERS
 -- =============================================
@@ -617,10 +318,6 @@ CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects
 
 CREATE TRIGGER update_comments_updated_at BEFORE UPDATE ON comments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_project_reports_updated_at BEFORE UPDATE ON project_reports
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
--- No updated trigger needed for project_saves since immutable rows
 
 -- Function to create user profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -779,3 +476,317 @@ BEGIN
   RAISE NOTICE 'Triggers and functions implemented';
   RAISE NOTICE 'Views created for common queries';
 END $$;
+
+2nd Quiry:
+
+-- Reports (moderation)
+CREATE TABLE project_reports (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
+  reporter_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  reason TEXT NOT NULL,
+  status TEXT DEFAULT 'open' CHECK (status IN ('open','reviewing','resolved','dismissed')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE project_reports ENABLE ROW LEVEL SECURITY;
+
+-- Project Reports Policies
+CREATE POLICY "Users can view their own reports" ON project_reports
+  FOR SELECT USING (auth.uid() = reporter_id);
+
+CREATE POLICY "Authenticated users can create reports" ON project_reports
+  FOR INSERT WITH CHECK (auth.uid() = reporter_id);
+
+CREATE TRIGGER update_project_reports_updated_at BEFORE UPDATE ON project_reports
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+  3rd Quiry:
+
+  -- Save history (lightweight)
+CREATE TABLE project_saves (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  change_summary TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE project_saves ENABLE ROW LEVEL SECURITY;
+
+-- Project Saves Policies
+CREATE POLICY "View saves for public or own projects" ON project_saves
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM projects 
+      WHERE projects.id = project_saves.project_id 
+      AND (
+        (projects.is_public = true AND projects.status = 'published')
+        OR projects.user_id = auth.uid()
+      )
+    )
+  );
+
+CREATE POLICY "Owners can insert saves" ON project_saves
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM projects 
+      WHERE projects.id = project_saves.project_id 
+      AND projects.user_id = auth.uid()
+    )
+  );
+
+4th Quiry:
+
+-- =============================================
+-- VERSION CONTROL TABLES AND POLICIES
+-- =============================================
+
+-- Commits per project (lightweight text snapshot + message)
+CREATE TABLE IF NOT EXISTS project_commits (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  message TEXT NOT NULL,
+  content TEXT NOT NULL,
+  branch TEXT NOT NULL DEFAULT 'main',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_commits_project_id ON project_commits(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_commits_created_at ON project_commits(created_at DESC);
+
+-- Branch registry (for future expansion)
+CREATE TABLE IF NOT EXISTS project_branches (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  created_by UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(project_id, name)
+);
+
+ALTER TABLE project_commits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE project_branches ENABLE ROW LEVEL SECURITY;
+
+-- Owners can read their commits
+DROP POLICY IF EXISTS project_commits_owner_select ON project_commits;
+CREATE POLICY project_commits_owner_select ON project_commits
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- Owners can write commits
+DROP POLICY IF EXISTS project_commits_owner_insert ON project_commits;
+CREATE POLICY project_commits_owner_insert ON project_commits
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- Owners may delete their commits
+DROP POLICY IF EXISTS project_commits_owner_delete ON project_commits;
+CREATE POLICY project_commits_owner_delete ON project_commits
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- Owners can read their branches
+DROP POLICY IF EXISTS project_branches_owner_select ON project_branches;
+CREATE POLICY project_branches_owner_select ON project_branches
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- Owners can create branches
+DROP POLICY IF EXISTS project_branches_owner_insert ON project_branches;
+CREATE POLICY project_branches_owner_insert ON project_branches
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- Owners can delete their branches
+DROP POLICY IF EXISTS project_branches_owner_delete ON project_branches;
+CREATE POLICY project_branches_owner_delete ON project_branches
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+  5th Quiry:
+
+  -- Composite index for paginated lookups with branch filter
+CREATE INDEX IF NOT EXISTS idx_project_commits_project_branch_created_at ON project_commits(project_id, branch, created_at DESC);
+
+-- Index for quick lookup by project and name
+CREATE INDEX IF NOT EXISTS idx_project_branches_project_name ON project_branches(project_id, name);
+
+6th Quiry:
+
+-- Terminal sessions tracking
+CREATE TABLE IF NOT EXISTS terminal_sessions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  commands JSONB[] DEFAULT '{}',
+  working_directory TEXT,
+  environment_vars JSONB DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  last_active TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE terminal_sessions ENABLE ROW LEVEL SECURITY;
+
+-- Owners can read their terminal sessions
+DROP POLICY IF EXISTS terminal_sessions_owner_select ON terminal_sessions;
+CREATE POLICY terminal_sessions_owner_select ON terminal_sessions
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- Owners can insert sessions
+DROP POLICY IF EXISTS terminal_sessions_owner_insert ON terminal_sessions;
+CREATE POLICY terminal_sessions_owner_insert ON terminal_sessions
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+-- Owners can update their sessions
+DROP POLICY IF EXISTS terminal_sessions_owner_update ON terminal_sessions;
+CREATE POLICY terminal_sessions_owner_update ON terminal_sessions
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+CREATE INDEX IF NOT EXISTS idx_terminal_sessions_project_id ON terminal_sessions(project_id);
+CREATE INDEX IF NOT EXISTS idx_terminal_sessions_last_active ON terminal_sessions(last_active DESC);
+
+7th Quiry:
+
+-- Build configuration per project
+CREATE TABLE IF NOT EXISTS project_build_configs (
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE PRIMARY KEY,
+  build_command TEXT DEFAULT 'npm run build',
+  environment JSONB DEFAULT '{}',
+  deploy_target TEXT DEFAULT 'netlify',
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE project_build_configs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS project_build_configs_owner_select ON project_build_configs;
+CREATE POLICY project_build_configs_owner_select ON project_build_configs
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS project_build_configs_owner_upsert ON project_build_configs;
+CREATE POLICY project_build_configs_owner_upsert ON project_build_configs
+  FOR INSERT TO PUBLIC
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS project_build_configs_owner_update ON project_build_configs;
+CREATE POLICY project_build_configs_owner_update ON project_build_configs
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_id AND p.user_id = auth.uid()
+    )
+  );
+
+  8th Quiry:
+
+  CREATE TABLE IF NOT EXISTS public.ai_usage (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    model TEXT NOT NULL,
+    tokens_used INTEGER NOT NULL DEFAULT 0,
+    cost_usd DECIMAL(10, 6) NOT NULL DEFAULT 0,
+    markup_usd DECIMAL(10, 6) NOT NULL DEFAULT 0,
+    total_usd DECIMAL(10, 6) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Indexes for efficient queries
+CREATE INDEX IF NOT EXISTS ai_usage_user_id_idx ON public.ai_usage(user_id);
+CREATE INDEX IF NOT EXISTS ai_usage_created_at_idx ON public.ai_usage(created_at DESC);
+CREATE INDEX IF NOT EXISTS ai_usage_user_created_idx ON public.ai_usage(user_id, created_at DESC);
+
+-- Row Level Security
+ALTER TABLE public.ai_usage ENABLE ROW LEVEL SECURITY;
+
+-- Users can only view their own usage
+CREATE POLICY "Users can view their own usage"
+    ON public.ai_usage
+    FOR SELECT
+    USING (auth.uid() = user_id);
+
+-- Only the service (backend API) can insert usage records
+-- This requires service role key, not accessible from client
+CREATE POLICY "Service can insert usage records"
+    ON public.ai_usage
+    FOR INSERT
+    WITH CHECK (true);
+
+-- Admins can view all usage
+CREATE POLICY "Admins can view all usage"
+    ON public.ai_usage
+    FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE profiles.id = auth.uid()
+            AND profiles.role = 'admin'
+        )
+    );
+
+COMMENT ON TABLE public.ai_usage IS 'Tracks AI API usage for billing and analytics';
+COMMENT ON COLUMN public.ai_usage.tokens_used IS 'Total tokens used in the request';
+COMMENT ON COLUMN public.ai_usage.cost_usd IS 'Base API cost in USD';
+COMMENT ON COLUMN public.ai_usage.markup_usd IS 'Platform markup (20%) in USD';
+COMMENT ON COLUMN public.ai_usage.total_usd IS 'Total cost charged to user in USD';

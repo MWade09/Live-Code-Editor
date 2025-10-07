@@ -63,4 +63,45 @@ cd editor
 
 ## 📚 Documentation
 
-See `/docs` folder for detailed documentation on both applications.
+**[📖 Full Documentation Index](./docs/README.md)** - Complete documentation organized by purpose
+
+### Quick Links
+- **[Active Plans](./docs/plans/)** - Current development roadmap and TODO
+- **[Setup Guides](./docs/guides/)** - Environment setup, deployment, and development
+- **[Archive](./docs/archive/)** - Completed features and historical docs
+
+### Getting Started
+1. **[Quick Start Guide](./docs/guides/QUICK_START_GUIDE.md)** - Get running in 5 minutes
+2. **[Environment Setup](./docs/guides/ENVIRONMENT_SETUP.md)** - Configure your dev environment
+3. **[Quick Deployment](./docs/guides/QUICK_DEPLOYMENT_GUIDE.md)** - Deploy to production
+
+### For Developers
+- **[Development Rules](./docs/guides/DEVELOPMENT_RULES.md)** - Coding standards
+- **[Production Roadmap](./docs/plans/PRODUCTION_ROADMAP.md)** - Feature roadmap
+- **[TODO List](./docs/plans/TODO.md)** - Active tasks
+
+---
+
+## 🎯 Current Status (October 2025)
+
+### ✅ Production Features
+- ✅ Single-domain architecture
+- ✅ Free tier AI (no API key required)
+- ✅ Premium tier AI (user API keys)  
+- ✅ Rate limiting (100 req/hour)
+- ✅ User authentication
+- ✅ Project management
+- ✅ Real-time collaboration
+
+### 📊 Tech Stack
+- **Frontend**: Next.js 15 + Vanilla JS
+- **Database**: Supabase (PostgreSQL)
+- **AI**: OpenRouter
+- **Hosting**: Netlify
+- **Auth**: Supabase Auth
+
+---
+
+## 🤝 Contributing
+
+See [Development Rules](./docs/guides/DEVELOPMENT_RULES.md) for coding standards and guidelines.
