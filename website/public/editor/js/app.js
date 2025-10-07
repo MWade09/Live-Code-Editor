@@ -471,9 +471,24 @@ document.addEventListener('DOMContentLoaded', () => {
                             clearTimeout(saveTimer);
                             saveTimer = setTimeout(async () => {
                                 const syncBtn = document.getElementById('project-sync-btn');
+                                const saveBtn = document.getElementById('project-save-btn');
                                 if (syncBtn) syncBtn.querySelector('span').textContent = 'Saving...';
                                 const result = await projectSync.saveToWebsite();
-                                if (!result.ok) {
+                                if (result.ok) {
+                                    // ✅ Clear dirty flags on successful auto-save
+                                    const openFiles = fileManager.getOpenTabFiles();
+                                    openFiles.forEach(f => fileManager.clearDirty(f.id));
+                                    renderFileTabs();
+                                    if (syncBtn) syncBtn.querySelector('span').textContent = 'Synced';
+                                    // Show visual feedback on save button
+                                    if (saveBtn) {
+                                        const originalText = saveBtn.querySelector('span').textContent;
+                                        saveBtn.querySelector('span').textContent = 'Saved ✓';
+                                        setTimeout(() => {
+                                            saveBtn.querySelector('span').textContent = originalText;
+                                        }, 2000);
+                                    }
+                                } else if (!result.ok) {
                                     console.warn('Save failed:', result.error);
                                     if (syncBtn) syncBtn.querySelector('span').textContent = result.conflict ? 'Resolve…' : 'Retry Sync';
                                     if (result.conflict) {
@@ -481,6 +496,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                             if (action === 'pull') {
                                                 const r = await projectSync.pullLatest();
                                                 if (r.ok) {
+                                                    // Clear dirty flags after pulling latest
+                                                    const openFiles = fileManager.getOpenTabFiles();
+                                                    openFiles.forEach(f => fileManager.clearDirty(f.id));
                                                     renderFileTabs();
                                                     syncBtn.querySelector('span').textContent = 'Synced';
                                                     lastSavedAt = Date.now();
@@ -775,6 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const file = versionControl.fileManager.getCurrentFile();
           if (file) file.content = sourceHead.content || '';
           const switchRes = await versionControl.checkoutBranch(target);
+          if (!switchRes.ok) { showStatusMessage('Branch checkout failed'); return; }
           await projectSync.saveToWebsite();
           const msg = `Merge ${source} -> ${target}: ${sourceHead.message || ''}`.slice(0, 120);
           const r = await versionControl.createCommit(msg, target);
@@ -1261,7 +1280,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
               });
             });
-        } catch (e) {
+        } catch {
             container.innerHTML = '<div style="color:#f66">Failed to load commits</div>';
         }
     }
@@ -1295,9 +1314,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function handleKeyboardShortcuts(e) {
-        // Ctrl+S - Save (sync to website when enabled)
-        if (e.ctrlKey && e.key === 's') {
+        // Ctrl+S - Save (trigger save button or sync to website when enabled)
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
+            
+            // First check if save button exists (project mode)
+            const saveBtn = document.getElementById('save-btn');
+            if (saveBtn && saveBtn.offsetParent !== null) {
+                saveBtn.click();
+                return;
+            }
+            
+            // Otherwise use legacy sync logic
             (async () => {
                 if (projectSync && projectSync.syncEnabled) {
                     const result = await projectSync.saveToWebsite();
@@ -1483,7 +1511,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show/hide welcome screen based on open tabs
         updateViewState(openTabFiles.length === 0);
         
-        openTabFiles.forEach((file, index) => {
+        openTabFiles.forEach((file) => {
             if (!file) return; // Skip if file was deleted but still in tabs
             
             const tab = document.createElement('div');
@@ -1832,7 +1860,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const site = projectSync.websiteAPI.replace(/\/api$/, '')
             // Redirect to website editor bridge which will attach token and route back to hosted editor with params
             window.location.href = `${site}/editor?project=${encodeURIComponent(data.id)}&site=${encodeURIComponent(site)}`
-        } catch (e) {
+        } catch {
             showStatusMessage('Login required to save')
             const site = projectSync.websiteAPI ? projectSync.websiteAPI.replace(/\/api$/, '') : 'https://ailiveeditor.netlify.app'
             window.location.href = `${site}/auth/login`

@@ -12,7 +12,8 @@ import {
   Heart,
   Eye,
   Activity,
-  Shield
+  Shield,
+  Brain
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -23,6 +24,17 @@ interface DashboardContentProps {
   user: User
 }
 
+interface AIUsageRecord {
+  id: string
+  user_id: string
+  model: string
+  tokens_used: number
+  cost_usd: number
+  markup_usd: number
+  total_usd: number
+  created_at: string
+}
+
 export function DashboardContent({ user }: DashboardContentProps) {
   // Database hooks for real user data
   const { profile, loading: profileLoading, updateProfile } = useUserProfile(user.id)
@@ -30,6 +42,52 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const { projects, loading: projectsLoading, error: projectsError } = useUserProjects(user.id, true)
   const { stats, loading: statsLoading } = useUserStats(user.id)
   const { activity, loading: activityLoading, error: activityError } = useUserActivity(user.id)
+
+  // AI Usage state
+  const [aiUsage, setAiUsage] = useState<{
+    monthlyTokens: number
+    monthlyCost: number
+    loading: boolean
+  }>({
+    monthlyTokens: 0,
+    monthlyCost: 0,
+    loading: true
+  })
+
+  // Fetch AI usage for current month
+  useEffect(() => {
+    async function fetchAIUsage() {
+      try {
+        const currentMonthStart = new Date()
+        currentMonthStart.setDate(1)
+        currentMonthStart.setHours(0, 0, 0, 0)
+        
+        const response = await fetch('/api/ai/usage')
+        if (response.ok) {
+          const data: AIUsageRecord[] = await response.json()
+          const currentMonthData = data.filter((record: AIUsageRecord) => 
+            new Date(record.created_at) >= currentMonthStart
+          )
+          
+          const monthlyTokens = currentMonthData.reduce((sum: number, record: AIUsageRecord) => 
+            sum + (record.tokens_used || 0), 0
+          )
+          const monthlyCost = currentMonthData.reduce((sum: number, record: AIUsageRecord) => 
+            sum + (record.total_usd || 0), 0
+          )
+          
+          setAiUsage({ monthlyTokens, monthlyCost, loading: false })
+        } else {
+          setAiUsage({ monthlyTokens: 0, monthlyCost: 0, loading: false })
+        }
+      } catch (error) {
+        console.error('Error fetching AI usage:', error)
+        setAiUsage({ monthlyTokens: 0, monthlyCost: 0, loading: false })
+      }
+    }
+    
+    fetchAIUsage()
+  }, [user.id])
 
   // Debug logging
   useEffect(() => {
@@ -159,7 +217,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center">
@@ -204,13 +262,33 @@ export function DashboardContent({ user }: DashboardContentProps) {
               <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center">
                 <Users className="w-6 h-6 text-orange-400" />
               </div>
-              <span className="text-2xl">�</span>
+              <span className="text-2xl">👥</span>
             </div>
             <h3 className="text-2xl font-bold text-white mb-1">
               {statsLoading ? '...' : stats?.followers_count || 0}
             </h3>
             <p className="text-slate-400 text-sm">Followers</p>
           </div>
+
+          {/* AI Usage Card */}
+          <Link 
+            href="/profile/usage"
+            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all duration-200 transform hover:scale-[1.02] cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Brain className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-2xl">🤖</span>
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-1">
+              {aiUsage.loading ? '...' : `$${aiUsage.monthlyCost.toFixed(4)}`}
+            </h3>
+            <p className="text-slate-400 text-sm">AI Usage This Month</p>
+            <p className="text-xs text-cyan-400 mt-2 group-hover:underline">
+              View details →
+            </p>
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
