@@ -3,10 +3,13 @@
  * New model: Free models use platform key, paid models require user key
  */
 export class AIManager {
-    constructor(editor, fileManager) {
+    constructor(editor, fileManager, projectContextManager = null) {
         console.log('🤖 AIManager: Initializing...');
         this.editor = editor;
         this.fileManager = fileManager;
+        this.projectContextManager = projectContextManager;
+        this.multiFileEditManager = null; // Will be set externally after initialization
+        this.fileCreationManager = null; // Will be set externally after initialization
         this.aiModal = document.getElementById('aiModal');
         this.aiStatus = document.getElementById('ai-status');
         
@@ -17,7 +20,16 @@ export class AIManager {
         
         // Initialize chat messages array
         this.messages = [];
-          // Load chat history from local storage if available
+        
+        // File context system
+        this.selectedFileIds = new Set(); // Track selected files for context
+        this.maxContextSize = 100 * 1024; // 100KB max context size
+        this.warningThreshold = 50 * 1024; // 50KB warning threshold
+        
+        // Project context system
+        this.includeProjectContext = false; // Toggle for project structure context
+        
+        // Load chat history from local storage if available
         this.loadChatHistory();
         
         // Load API key from local storage if available
@@ -36,11 +48,23 @@ export class AIManager {
             'deepseek/deepseek-chat-v3-0324:free',
             'google/gemma-3-27b-it:free'
         ];
-          // Expose clearCorruptedData to global scope for debugging
+        
+        // Expose clearCorruptedData to global scope for debugging
         window.clearAIChat = () => this.clearCorruptedData();
         
         // Expose aiManager instance globally for code insertion from messages
         window.aiManager = this;
+        
+        // Set up file change listener to refresh file context list
+        this.fileManager.onFilesChanged = () => {
+            this.updateFileList();
+        };
+        
+        // Initialize file context selector
+        this.initializeFileContextSelector();
+        
+        // Initialize project context toggle
+        this.initializeProjectContextToggle();
         
         // Add event listener for Send button and Enter key
         const sendButton = document.getElementById('send-message-btn');
@@ -259,6 +283,13 @@ export class AIManager {
             const previewLines = codeLines.slice(0, 8); // Show first 8 lines
             const hasMore = codeLines.length > 8;
             
+            // Detect language (you can improve this detection)
+            const language = this.detectCodeLanguage(message.codeBlock);
+            
+            // Apply syntax highlighting using Prism.js
+            const highlightedPreview = this.highlightCode(previewLines.join('\n'), language);
+            const highlightedFull = this.highlightCode(message.codeBlock, language);
+            
             codePreviewHTML = `
                 <div class="code-preview-container">
                     <div class="code-preview-header">
@@ -269,10 +300,11 @@ export class AIManager {
                             </svg>
                             Code Preview
                         </span>
+                        <span class="language-badge">${language.toUpperCase()}</span>
                         ${hasMore ? `<span class="code-line-count">${codeLines.length} lines</span>` : ''}
                     </div>
                     <div class="code-preview-content ${hasMore ? 'expandable' : ''}">
-                        <pre><code>${this.escapeHtml(previewLines.join('\n'))}</code></pre>
+                        <pre class="line-numbers"><code class="language-${language}">${highlightedPreview}</code></pre>
                         ${hasMore ? `
                             <div class="code-preview-expand" onclick="this.parentElement.classList.toggle('expanded')">
                                 <span class="expand-text">Show ${codeLines.length - 8} more lines</span>
@@ -282,11 +314,18 @@ export class AIManager {
                                 </svg>
                             </div>
                             <div class="code-preview-full">
-                                <pre><code>${this.escapeHtml(message.codeBlock)}</code></pre>
+                                <pre class="line-numbers"><code class="language-${language}">${highlightedFull}</code></pre>
                             </div>
                         ` : ''}
                     </div>
                     <div class="code-preview-actions">
+                        <button class="copy-code-btn" onclick="window.aiManager.copyCodeToClipboard('${message.timestamp}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            Copy Code
+                        </button>
                         <button class="insert-code-btn" onclick="window.aiManager.insertCodeFromMessage('${message.timestamp}')">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -462,6 +501,20 @@ export class AIManager {
                 }
             }
             
+            // Build file context from selected files
+            const fileContext = this.buildContextFromFiles();
+            if (fileContext) {
+                systemMessage += fileContext;
+                console.log(`📁 Including ${this.selectedFileIds.size} file(s) in context`);
+            }
+            
+            // Build project context if enabled
+            const projectContext = this.buildProjectContext();
+            if (projectContext) {
+                systemMessage += projectContext;
+                console.log('🗂️ Including project structure in context');
+            }
+            
             // Create messages array for the API
             const apiMessages = [
                 { role: "system", content: systemMessage }
@@ -486,6 +539,24 @@ export class AIManager {
                 
                 // Extract code block if present
                 const extractedCode = this.extractCodeFromResponse(aiResponse);
+                
+                // Check for multi-file edit proposals
+                if (this.multiFileEditManager) {
+                    const edits = this.multiFileEditManager.parseEditProposals(aiResponse);
+                    if (edits.length > 0) {
+                        console.log(`📝 Found ${edits.length} file edit proposal(s) in AI response`);
+                        this.multiFileEditManager.showDiffViewer(edits);
+                    }
+                }
+                
+                // Check for file creation proposals
+                if (this.fileCreationManager) {
+                    const creations = this.fileCreationManager.parseFileCreations(aiResponse);
+                    if (creations.length > 0) {
+                        console.log(`✨ Found ${creations.length} file creation proposal(s) in AI response`);
+                        this.fileCreationManager.showCreationDialog(creations);
+                    }
+                }
                 
                 // Add AI message to chat with code block only if code was found
                 this.addMessageToHistory('assistant', aiResponse, extractedCode);
@@ -732,5 +803,420 @@ export class AIManager {
             return data;
         }
     }
+    
+    // ============================================
+    // FILE CONTEXT SYSTEM
+    // ============================================
+    
+    /**
+     * Initialize the file context selector UI and event listeners
+     */
+    initializeFileContextSelector() {
+        console.log('📁 AIManager: Initializing file context selector...');
+        
+        const contextSelector = document.getElementById('file-context-selector');
+        const contextHeader = document.getElementById('context-header');
+        const contextToggleBtn = document.getElementById('context-toggle-btn');
+        const selectAllBtn = document.getElementById('select-all-files-btn');
+        const clearAllBtn = document.getElementById('clear-all-files-btn');
+        const fileList = document.getElementById('context-file-list');
+        
+        if (!contextSelector || !fileList) {
+            console.warn('⚠️ File context selector elements not found');
+            return;
+        }
+        
+        // Toggle file selector collapse/expand
+        if (contextHeader && contextToggleBtn) {
+            contextHeader.addEventListener('click', () => {
+                contextSelector.classList.toggle('collapsed');
+                // Save state to localStorage
+                localStorage.setItem('fileContextCollapsed', contextSelector.classList.contains('collapsed'));
+            });
+        }
+        
+        // Load collapsed state from localStorage
+        const isCollapsed = localStorage.getItem('fileContextCollapsed') === 'true';
+        if (isCollapsed) {
+            contextSelector.classList.add('collapsed');
+        }
+        
+        // Select all files
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', () => {
+                this.fileManager.files.forEach(file => {
+                    this.selectedFileIds.add(file.id);
+                });
+                this.updateFileList();
+                this.updateContextSize();
+            });
+        }
+        
+        // Clear all files
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', () => {
+                this.selectedFileIds.clear();
+                this.updateFileList();
+                this.updateContextSize();
+            });
+        }
+        
+        // Initial render
+        this.updateFileList();
+        
+        console.log('✅ AIManager: File context selector initialized');
+    }
+    
+    /**
+     * Update the file list in the context selector
+     */
+    updateFileList() {
+        const fileList = document.getElementById('context-file-list');
+        const contextBadge = document.getElementById('context-badge');
+        
+        if (!fileList) return;
+        
+        // Clear existing list
+        fileList.innerHTML = '';
+        
+        // Check if there are any files
+        if (this.fileManager.files.length === 0) {
+            fileList.innerHTML = `
+                <div class="file-list-empty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                        <polyline points="13 2 13 9 20 9"></polyline>
+                    </svg>
+                    <p>No files in project</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Render each file
+        this.fileManager.files.forEach(file => {
+            const isSelected = this.selectedFileIds.has(file.id);
+            const fileSize = this.formatFileSize(this.getFileSize(file.content));
+            
+            const fileItem = document.createElement('div');
+            fileItem.className = `file-item ${isSelected ? 'selected' : ''}`;
+            fileItem.innerHTML = `
+                <input type="checkbox" ${isSelected ? 'checked' : ''} data-file-id="${file.id}">
+                <svg class="file-item-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                    <polyline points="13 2 13 9 20 9"></polyline>
+                </svg>
+                <div class="file-item-info">
+                    <div class="file-item-name">${this.escapeHtml(file.name)}</div>
+                    <div class="file-item-size">${fileSize}</div>
+                </div>
+            `;
+            
+            // Add checkbox event listener
+            const checkbox = fileItem.querySelector('input[type="checkbox"]');
+            checkbox.addEventListener('change', (e) => {
+                e.stopPropagation(); // Prevent triggering the file item click
+                if (checkbox.checked) {
+                    this.selectedFileIds.add(file.id);
+                    fileItem.classList.add('selected');
+                } else {
+                    this.selectedFileIds.delete(file.id);
+                    fileItem.classList.remove('selected');
+                }
+                this.updateContextSize();
+            });
+            
+            // Add file item click to toggle checkbox
+            fileItem.addEventListener('click', (e) => {
+                if (e.target !== checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+            });
+            
+            fileList.appendChild(fileItem);
+        });
+        
+        // Update badge count
+        if (contextBadge) {
+            contextBadge.textContent = this.selectedFileIds.size;
+        }
+        
+        // Update context size
+        this.updateContextSize();
+    }
+    
+    /**
+     * Update the total context size display and warning
+     */
+    updateContextSize() {
+        const sizeInfo = document.getElementById('context-size-info');
+        const warning = document.getElementById('context-warning');
+        const badge = document.getElementById('context-badge');
+        
+        let totalSize = 0;
+        this.selectedFileIds.forEach(fileId => {
+            const file = this.fileManager.files.find(f => f.id === fileId);
+            if (file) {
+                totalSize += this.getFileSize(file.content);
+            }
+        });
+        
+        // Update size display
+        if (sizeInfo) {
+            sizeInfo.textContent = this.formatFileSize(totalSize);
+        }
+        
+        // Update badge
+        if (badge) {
+            badge.textContent = this.selectedFileIds.size;
+        }
+        
+        // Show/hide warning
+        if (warning) {
+            if (totalSize > this.warningThreshold) {
+                warning.style.display = 'flex';
+            } else {
+                warning.style.display = 'none';
+            }
+        }
+    }
+    
+    /**
+     * Build context string from selected files
+     * @returns {string} Formatted context for AI
+     */
+    buildContextFromFiles() {
+        if (this.selectedFileIds.size === 0) {
+            return '';
+        }
+        
+        let context = '\n\n## Project Files Context\n\n';
+        context += `The user has included ${this.selectedFileIds.size} file(s) for context:\n\n`;
+        
+        this.selectedFileIds.forEach(fileId => {
+            const file = this.fileManager.files.find(f => f.id === fileId);
+            if (file) {
+                context += `### File: ${file.name}\n`;
+                context += '```' + (file.language || 'text') + '\n';
+                context += file.content;
+                context += '\n```\n\n';
+            }
+        });
+        
+        context += '\nPlease use the above files as context when answering the user\'s question.\n';
+        
+        return context;
+    }
+    
+    /**
+     * Get file size in bytes
+     * @param {string} content - File content
+     * @returns {number} Size in bytes
+     */
+    getFileSize(content) {
+        return new Blob([content]).size;
+    }
+    
+    /**
+     * Format file size for display
+     * @param {number} bytes - Size in bytes
+     * @returns {string} Formatted size string
+     */
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+    }
+    
+    // ============================================
+    // PROJECT CONTEXT SYSTEM
+    // ============================================
+    
+    /**
+     * Initialize the project context toggle button
+     */
+    initializeProjectContextToggle() {
+        console.log('🗂️ AIManager: Initializing project context toggle...');
+        
+        if (!this.projectContextManager) {
+            console.warn('⚠️ ProjectContextManager not available');
+            return;
+        }
+        
+        const toggleBtn = document.getElementById('project-context-toggle-btn');
+        const sizeBadge = document.getElementById('project-context-size');
+        
+        if (!toggleBtn) {
+            console.warn('⚠️ Project context toggle button not found');
+            return;
+        }
+        
+        // Load saved state from localStorage
+        const savedState = localStorage.getItem('includeProjectContext');
+        this.includeProjectContext = savedState === 'true';
+        
+        // Set initial button state
+        if (this.includeProjectContext) {
+            toggleBtn.classList.add('active');
+        }
+        
+        // Update size badge
+        this.updateProjectContextSize();
+        
+        // Add click event listener
+        toggleBtn.addEventListener('click', () => {
+            this.includeProjectContext = !this.includeProjectContext;
+            
+            // Update button state
+            if (this.includeProjectContext) {
+                toggleBtn.classList.add('active');
+                console.log('✅ Project context enabled');
+            } else {
+                toggleBtn.classList.remove('active');
+                console.log('❌ Project context disabled');
+            }
+            
+            // Save state
+            localStorage.setItem('includeProjectContext', this.includeProjectContext);
+            
+            // Update size badge
+            this.updateProjectContextSize();
+        });
+        
+        console.log('✅ AIManager: Project context toggle initialized');
+    }
+    
+    /**
+     * Update the project context size badge
+     */
+    updateProjectContextSize() {
+        const sizeBadge = document.getElementById('project-context-size');
+        
+        if (!sizeBadge || !this.projectContextManager) {
+            return;
+        }
+        
+        try {
+            const summary = this.projectContextManager.generateProjectSummary();
+            const size = this.getFileSize(summary);
+            sizeBadge.textContent = `~${this.formatFileSize(size)}`;
+        } catch (e) {
+            console.warn('Failed to calculate project context size', e);
+            sizeBadge.textContent = '~2KB';
+        }
+    }
+    
+    /**
+     * Build project context string for AI
+     * @returns {string} Project context
+     */
+    buildProjectContext() {
+        if (!this.includeProjectContext || !this.projectContextManager) {
+            return '';
+        }
+        
+        try {
+            const summary = this.projectContextManager.generateProjectSummary();
+            return '\n' + summary;
+        } catch (e) {
+            console.error('Error generating project context:', e);
+            return '';
+        }
+    }
+    
+    // ============================================
+    // SYNTAX HIGHLIGHTING SYSTEM
+    // ============================================
+    
+    /**
+     * Detect programming language from code content
+     * @param {string} code - Code content
+     * @returns {string} Language identifier
+     */
+    detectCodeLanguage(code) {
+        // Check for common patterns
+        if (code.includes('<!DOCTYPE') || code.includes('<html')) return 'html';
+        if (code.includes('function') && code.includes('=>')) return 'javascript';
+        if (code.includes('const ') || code.includes('let ') || code.includes('var ')) return 'javascript';
+        if (code.includes('import ') && code.includes('from ')) return 'javascript';
+        if (code.includes('interface ') || code.includes(': string') || code.includes(': number')) return 'typescript';
+        if (code.includes('def ') || code.includes('import ') && code.includes('print(')) return 'python';
+        if (code.match(/\.(class|id)\s*\{/) || code.includes('@media')) return 'css';
+        if (code.includes('{') && code.includes(':') && code.includes('}') && !code.includes('function')) return 'json';
+        if (code.includes('```') || code.includes('#')) return 'markdown';
+        if (code.includes('#!/bin/bash') || code.includes('echo ')) return 'bash';
+        
+        // Default to javascript
+        return 'javascript';
+    }
+    
+    /**
+     * Highlight code using Prism.js
+     * @param {string} code - Code to highlight
+     * @param {string} language - Language identifier
+     * @returns {string} Highlighted HTML
+     */
+    highlightCode(code, language) {
+        // Check if Prism is available
+        if (typeof Prism === 'undefined') {
+            console.warn('Prism.js not loaded, returning escaped code');
+            return this.escapeHtml(code);
+        }
+        
+        try {
+            // Get the grammar for the language
+            const grammar = Prism.languages[language] || Prism.languages.javascript;
+            
+            // Highlight the code
+            const highlighted = Prism.highlight(code, grammar, language);
+            
+            return highlighted;
+        } catch (e) {
+            console.warn('Error highlighting code:', e);
+            return this.escapeHtml(code);
+        }
+    }
+    
+    /**
+     * Copy code to clipboard
+     * @param {string} timestamp - Message timestamp to find code
+     */
+    copyCodeToClipboard(timestamp) {
+        const message = this.messages.find(m => m.timestamp === timestamp);
+        
+        if (!message || !message.codeBlock) {
+            console.warn('No code found for timestamp:', timestamp);
+            return;
+        }
+        
+        // Copy to clipboard
+        navigator.clipboard.writeText(message.codeBlock).then(() => {
+            console.log('✅ Code copied to clipboard');
+            this.updateStatus('Code copied to clipboard!', 'success');
+            
+            // Visual feedback - update button text temporarily
+            const copyBtn = event?.target?.closest('.copy-code-btn');
+            if (copyBtn) {
+                const originalHTML = copyBtn.innerHTML;
+                copyBtn.innerHTML = `
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Copied!
+                `;
+                copyBtn.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalHTML;
+                    copyBtn.style.background = '';
+                }, 2000);
+            }
+        }).catch(err => {
+            console.error('Failed to copy code:', err);
+            this.updateStatus('Failed to copy code', 'error');
+        });
+    }
 }
-

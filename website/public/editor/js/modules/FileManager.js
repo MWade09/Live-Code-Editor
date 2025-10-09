@@ -14,6 +14,9 @@ export class FileManager {
         // Track unsaved changes per file id
         this.dirtyById = {}; // { [fileId]: true }
         
+        // Callback for file changes (for file context selector)
+        this.onFilesChanged = null;
+        
         // Load files from local storage if available
         this.loadFilesFromStorage();
     }
@@ -137,6 +140,11 @@ export class FileManager {
             localStorage.setItem('editorRecentFiles', JSON.stringify(this.recentFiles));
             localStorage.setItem('editorOpenTabs', JSON.stringify(this.openTabs));
             localStorage.setItem('editorActiveTabIndex', this.activeTabIndex.toString());
+            
+            // Trigger callback if set (for file context selector)
+            if (typeof this.onFilesChanged === 'function') {
+                this.onFilesChanged();
+            }
         } catch (err) {
             console.error('Error saving files to storage:', err);
             alert('Failed to save to local storage. Your work may not be saved.');

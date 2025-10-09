@@ -16,6 +16,9 @@ import { AuthManager } from './modules/AuthManager.js';
 import { RealtimeSync } from './modules/RealtimeSync.js';
 import { TerminalManager } from './modules/TerminalManager.js';
 import { VersionControlManager } from './modules/VersionControlManager.js';
+import { ProjectContextManager } from './modules/ProjectContextManager.js';
+import { MultiFileEditManager } from './modules/MultiFileEditManager.js';
+import { AIFileCreationManager } from './modules/AIFileCreationManager.js';
 
 // Load chat panel scripts - CSS is now loaded directly in HTML
 (function() {
@@ -72,8 +75,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeManager = new ThemeManager();
     const deployManager = new DeployManager(fileManager);
     
+    // Initialize ProjectContextManager for AI context awareness
+    const projectContextManager = new ProjectContextManager(fileManager);
+    
     // Initialize AI managers (no guest banner - new monetization model)
-    const aiManager = new AIManager(editor, fileManager);
+    const aiManager = new AIManager(editor, fileManager, projectContextManager);
+    
+    // Initialize MultiFileEditManager for AI multi-file edits
+    const multiFileEditManager = new MultiFileEditManager(fileManager, editor, aiManager);
+    
+    // Connect multiFileEditManager to aiManager
+    aiManager.multiFileEditManager = multiFileEditManager;
+    
+    // Expose globally for onclick handlers in diff viewer
+    window.multiFileEditManager = multiFileEditManager;
+    
+    // Initialize AIFileCreationManager for AI file creation
+    const aiFileCreationManager = new AIFileCreationManager(fileManager);
+    
+    // Connect fileCreationManager to aiManager
+    aiManager.fileCreationManager = aiFileCreationManager;
+    
+    // Expose globally for onclick handlers
+    window.aiFileCreationManager = aiFileCreationManager;
 
     // Initialize InlineAIManager with error handling
     let inlineAIManager;
