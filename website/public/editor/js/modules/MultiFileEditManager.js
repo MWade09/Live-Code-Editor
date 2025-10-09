@@ -318,6 +318,7 @@ export class MultiFileEditManager {
         // Apply each edit in sequence
         const editsToApply = [...this.pendingEdits];
         editsToApply.forEach((edit, index) => {
+            console.log(`  Applying edit ${index + 1}/${editsToApply.length}: ${edit.filename}`);
             this.applyEdit(0); // Always apply index 0 since array shrinks
         });
         

@@ -357,7 +357,8 @@ export class FileManager {
             };
             
             reader.onerror = (err) => {
-                reject(new Error('Failed to read file'));
+                console.error('FileReader error:', err);
+                reject(new Error('Failed to read file: ' + (err?.message || 'Unknown error')));
             };
             
             reader.readAsText(file);

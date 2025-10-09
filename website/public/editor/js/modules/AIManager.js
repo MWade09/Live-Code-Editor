@@ -1054,6 +1054,10 @@ export class AIManager {
             return;
         }
         
+        if (!sizeBadge) {
+            console.warn('⚠️ Project context size badge not found');
+        }
+        
         // Load saved state from localStorage
         const savedState = localStorage.getItem('includeProjectContext');
         this.includeProjectContext = savedState === 'true';
