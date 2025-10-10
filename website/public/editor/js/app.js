@@ -499,13 +499,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         } catch (err) {
                             console.error('[SaveButton] Error creating save/sync buttons:', err);
                         }
-                        // Clear any stale local files after loading
+                        
+                        // Clear any stale local files after loading A PROJECT
+                        // This prevents local files from mixing with website project files
+                        // IMPORTANT: Only clear when we've successfully loaded a project
                         try {
+                            console.log('[ProjectSync] Clearing local storage after loading project:', projectId);
                             localStorage.removeItem('editorFiles');
                             localStorage.removeItem('editorOpenTabs');
                             localStorage.removeItem('editorActiveTabIndex');
                             localStorage.removeItem('editorRecentFiles');
-                        } catch {}
+                        } catch (err) {
+                            console.error('[ProjectSync] Error clearing local storage:', err);
+                        }
+                        
                         // Hook up auto-save (debounced)
                         let saveTimer = null;
                         editor.codeMirror.on('change', () => {

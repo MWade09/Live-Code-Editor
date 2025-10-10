@@ -25,10 +25,17 @@ export class FileManager {
             // If a website project is being loaded (?project=...), skip loading any local/default files
             const urlParams = new URLSearchParams(window.location.search);
             const hasProjectParam = !!urlParams.get('project');
+            
+            console.log('[FileManager] Loading files from storage. Has project param:', hasProjectParam);
+            
             const savedFiles = hasProjectParam ? null : localStorage.getItem('editorFiles');
             if (savedFiles) {
+                console.log('[FileManager] Found saved files in localStorage');
                 this.files = JSON.parse(savedFiles);
                 this.fileCounter = this.files.length;
+                
+                console.log('[FileManager] Loaded', this.files.length, 'files:', this.files.map(f => f.name).join(', '));
+                
                 if (this.files.length > 0) {
                     this.currentFileIndex = 0;
                     // Defer opening the first file in a tab to avoid method order issues
@@ -39,11 +46,14 @@ export class FileManager {
                     }, 0);
                 } else {
                     if (!hasProjectParam) {
+                        console.log('[FileManager] No files found, creating default file');
                         this.createDefaultFile();
                     }
                 }
             } else {
+                console.log('[FileManager] No saved files found in localStorage');
                 if (!hasProjectParam) {
+                    console.log('[FileManager] Creating default file');
                     this.createDefaultFile();
                 }
             }
@@ -136,10 +146,14 @@ export class FileManager {
     
     saveFilesToStorage() {
         try {
+            console.log('[FileManager] Saving', this.files.length, 'files to localStorage:', this.files.map(f => f.name).join(', '));
+            
             localStorage.setItem('editorFiles', JSON.stringify(this.files));
             localStorage.setItem('editorRecentFiles', JSON.stringify(this.recentFiles));
             localStorage.setItem('editorOpenTabs', JSON.stringify(this.openTabs));
             localStorage.setItem('editorActiveTabIndex', this.activeTabIndex.toString());
+            
+            console.log('[FileManager] Files saved successfully to localStorage');
             
             // Trigger callback if set (for file context selector)
             if (typeof this.onFilesChanged === 'function') {
@@ -148,6 +162,25 @@ export class FileManager {
         } catch (err) {
             console.error('Error saving files to storage:', err);
             alert('Failed to save to local storage. Your work may not be saved.');
+        }
+    }
+    
+    /**
+     * Update a specific file's content in storage
+     * Called when editor content changes
+     */
+    updateFileInStorage(file) {
+        if (!file) return;
+        
+        console.log('[FileManager] Updating file in storage:', file.name);
+        
+        // Find and update the file in the files array
+        const fileIndex = this.files.findIndex(f => f.id === file.id);
+        if (fileIndex !== -1) {
+            this.files[fileIndex] = file;
+            this.saveFilesToStorage();
+        } else {
+            console.warn('[FileManager] File not found in files array:', file.name);
         }
     }
     
