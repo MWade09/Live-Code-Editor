@@ -265,13 +265,15 @@ document.addEventListener('DOMContentLoaded', function() {
             let response;
             
             if (isFreeModel) {
-                // Use backend /api/ai/free endpoint for free models
-                console.log('🆓 Chat using free tier endpoint for model:', model);
+                // Call OpenRouter directly for free models
+                console.log('🆓 Chat using OpenRouter free tier for model:', model);
                 
-                response = await fetch('/api/ai/free', {
+                response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'HTTP-Referer': window.location.origin,
+                        'X-Title': 'Live Code Editor'
                     },
                     body: JSON.stringify({
                         model,
@@ -279,18 +281,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     })
                 });
             } else {
-                // Use backend /api/ai/premium endpoint for paid models with user's API key
-                console.log('💳 Chat using premium tier endpoint for model:', model);
+                // Call OpenRouter directly with user's API key for paid models
+                console.log('💳 Chat using OpenRouter premium tier for model:', model);
                 
-                response = await fetch('/api/ai/premium', {
+                response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`,
+                        'HTTP-Referer': window.location.origin,
+                        'X-Title': 'Live Code Editor'
                     },
                     body: JSON.stringify({
                         model,
-                        messages,
-                        apiKey
+                        messages
                     })
                 });
             }
@@ -442,13 +446,15 @@ Task: Modify the file based on the user's request. Return ONLY the complete upda
             let response;
             
             if (isFreeModel) {
-                // Use backend /api/ai/free endpoint for free models
-                console.log('🆓 Agent using free tier endpoint for model:', model);
+                // Call OpenRouter directly for free models
+                console.log('🆓 Agent using OpenRouter free tier for model:', model);
                 
-                response = await fetch('/api/ai/free', {
+                response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'HTTP-Referer': window.location.origin,
+                        'X-Title': 'Live Code Editor'
                     },
                     body: JSON.stringify({
                         model,
@@ -456,18 +462,20 @@ Task: Modify the file based on the user's request. Return ONLY the complete upda
                     })
                 });
             } else {
-                // Use backend /api/ai/premium endpoint for paid models with user's API key
-                console.log('💳 Agent using premium tier endpoint for model:', model);
+                // Call OpenRouter directly with user's API key for paid models
+                console.log('💳 Agent using OpenRouter premium tier for model:', model);
                 
-                response = await fetch('/api/ai/premium', {
+                response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`,
+                        'HTTP-Referer': window.location.origin,
+                        'X-Title': 'Live Code Editor'
                     },
                     body: JSON.stringify({
                         model,
-                        messages,
-                        apiKey
+                        messages
                     })
                 });
             }
