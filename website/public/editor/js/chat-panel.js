@@ -390,18 +390,48 @@ document.addEventListener('DOMContentLoaded', function() {
             const fileType = currentFile?.type || 'html';
             const fileName = currentFile?.name || 'untitled.html';
             
+            // Detect if user wants to create a new file
+            const createFileKeywords = ['create', 'new file', 'make a file', 'add a file', 'generate a file'];
+            const isFileCreationRequest = createFileKeywords.some(keyword => 
+                message.toLowerCase().includes(keyword)
+            );
+            
             // Limit content length to avoid API limits (max 2000 chars)
             if (currentContent.length > 2000) {
                 currentContent = currentContent.substring(0, 2000) + '\n... (content truncated)';
             }
             
-            // Escape content properly and build a concise system prompt
-            const systemPrompt = `You are a coding agent that edits ${fileType} files. 
+            // Build system prompt based on request type
+            let systemPrompt;
+            
+            if (isFileCreationRequest) {
+                systemPrompt = `You are a helpful coding assistant in agent mode. You can create new files or edit existing ones.
 
-Current file "${fileName}" content:
+Current context:
+- Working directory has existing file: "${fileName}"
+- User has requested: "${message}"
+
+Instructions:
+1. If user wants to CREATE A NEW FILE:
+   - Respond with JSON: {"action": "create", "filename": "name.ext", "content": "complete file content"}
+   - Make sure to include the complete, working code
+   - Choose appropriate filename and extension
+   
+2. If user wants to EDIT THE CURRENT FILE:
+   - Just return the complete updated file content
+   - No JSON, no explanations, just the code
+
+IMPORTANT: Be smart about the request. If they say "create a new file" or "make a file", use JSON format. If they say "add this to my file" or "update my file", return the code directly.`;
+            } else {
+                systemPrompt = `You are a helpful coding assistant in agent mode editing a ${fileType} file.
+
+Current file "${fileName}":
 ${currentContent}
 
-Task: Modify the file based on the user's request. Return ONLY the complete updated file content, no explanations.`;
+User request: "${message}"
+
+Return ONLY the complete updated file content. No explanations, no markdown code blocks, just the raw code that should replace the entire file.`;
+            }
 
             const messages = [
                 { role: 'system', content: systemPrompt },
@@ -476,27 +506,92 @@ Task: Modify the file based on the user's request. Return ONLY the complete upda
             if (data.choices && data.choices[0]) {
                 const aiResponse = data.choices[0].message.content;
                 
-                // In agent mode, directly replace the file content
-                if (window.app?.editor?.codeMirror) {
-                    // Extract code from response (remove any explanation text)
-                    const codeContent = extractMainCode(aiResponse, fileType);
+                // Check if AI wants to create a new file (JSON format)
+                let fileCreationData = null;
+                try {
+                    // Try to parse as JSON for file creation
+                    const jsonMatch = aiResponse.match(/\{[\s\S]*"action"\s*:\s*"create"[\s\S]*\}/);
+                    if (jsonMatch) {
+                        fileCreationData = JSON.parse(jsonMatch[0]);
+                    }
+                } catch (e) {
+                    // Not JSON, treat as regular file edit
+                    console.log('Agent response is not JSON file creation format:', e.message);
+                }
+                
+                if (fileCreationData && fileCreationData.action === 'create') {
+                    // FILE CREATION MODE
+                    const newFileName = fileCreationData.filename;
+                    const newFileContent = fileCreationData.content;
                     
-                    // Replace the entire file content
-                    window.app.editor.codeMirror.setValue(codeContent);
-                    
-                    // Switch to editor view to show the changes
-                    if (editorToggle) {
-                        editorToggle.click();
+                    if (!newFileName || !newFileContent) {
+                        addSystemMessage('Error: AI did not provide valid filename or content for new file.');
+                        return;
                     }
                     
-                    // Show success message
-                    addSystemMessage(`✅ File updated with your changes. ${codeContent.split('\n').length} lines generated.`);
-                    
-                    // Show what was changed in a collapsible way
-                    addAIMessage(`I've updated your ${fileType} file based on your request: "${message}"\n\nThe file has been modified and is now visible in the editor.`);
+                    // Use AIFileCreationManager if available
+                    if (window.aiFileCreationManager) {
+                        console.log('📄 Agent creating new file:', newFileName);
+                        
+                        // Show preview dialog
+                        const confirmed = await window.aiFileCreationManager.showFileCreationDialog({
+                            filename: newFileName,
+                            content: newFileContent,
+                            reason: `Created based on request: "${message}"`
+                        });
+                        
+                        if (confirmed) {
+                            addSystemMessage(`✅ New file "${newFileName}" created successfully!`);
+                            addAIMessage(`Done! I created "${newFileName}" with ${newFileContent.split('\n').length} lines of code. You can find it in your file explorer.`);
+                        } else {
+                            addSystemMessage(`⚠️ File creation cancelled.`);
+                        }
+                    } else {
+                        // Fallback: create file directly
+                        console.log('📄 Agent creating new file (direct):', newFileName);
+                        
+                        const fileType = newFileName.split('.').pop() || 'txt';
+                        const newFile = {
+                            name: newFileName,
+                            type: fileType,
+                            content: newFileContent,
+                            lastModified: Date.now()
+                        };
+                        
+                        if (window.app?.fileManager) {
+                            window.app.fileManager.addFile(newFile);
+                            window.app.fileManager.switchToFile(newFile);
+                            
+                            addSystemMessage(`✅ New file "${newFileName}" created successfully!`);
+                            addAIMessage(`Done! Created "${newFileName}" and opened it in the editor. It has ${newFileContent.split('\n').length} lines.`);
+                        } else {
+                            addSystemMessage('Error: FileManager not available for file creation.');
+                        }
+                    }
                 } else {
-                    addSystemMessage('Error: Editor not available for file modification.');
-                }            } else {
+                    // FILE EDITING MODE (existing behavior)
+                    if (window.app?.editor?.codeMirror) {
+                        // Extract code from response (remove any explanation text)
+                        const codeContent = extractMainCode(aiResponse, fileType);
+                        
+                        // Replace the entire file content
+                        window.app.editor.codeMirror.setValue(codeContent);
+                        
+                        // Switch to editor view to show the changes
+                        if (editorToggle) {
+                            editorToggle.click();
+                        }
+                        
+                        // Show success message
+                        addSystemMessage(`✅ File updated with your changes. ${codeContent.split('\n').length} lines generated.`);
+                        
+                        // Show what was changed
+                        addAIMessage(`Updated "${fileName}" (${codeContent.split('\n').length} lines). Changes are live in the editor.`);
+                    } else {
+                        addSystemMessage('Error: Editor not available for file modification.');
+                    }
+                }
+            } else {
                 addSystemMessage('Error: Received an unexpected response format from the AI service.');
             }
         } catch (error) {
