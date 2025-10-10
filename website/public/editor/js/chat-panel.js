@@ -222,24 +222,6 @@ document.addEventListener('DOMContentLoaded', function() {
             ];
             const isFreeModel = freeModels.includes(model);
             
-            // Guest quota (no key): enforce before calling API
-            if (!apiKey && !isFreeModel) {
-                addSystemMessage('This model requires an API key. Please select a free model (🆓) or add your OpenRouter API key.');
-                return;
-            }
-            
-            // If no API key, check guest quota for free models
-            if (!apiKey) {
-                const QUOTA_KEY = 'guest_ai_requests_used';
-                const LIMIT = 10;
-                const used = parseInt(localStorage.getItem(QUOTA_KEY) || '0', 10);
-                if (used >= LIMIT) {
-                    addSystemMessage('Guest AI limit reached. Sign up or add an OpenRouter key to continue.');
-                    return;
-                }
-                localStorage.setItem(QUOTA_KEY, String(used + 1));
-            }
-            
             // Get current file context for better responses (only when relevant)
             const currentFile = window.app?.fileManager?.getCurrentFile();
             let fileContext = '';
@@ -265,15 +247,13 @@ document.addEventListener('DOMContentLoaded', function() {
             let response;
             
             if (isFreeModel) {
-                // Call OpenRouter directly for free models
-                console.log('🆓 Chat using OpenRouter free tier for model:', model);
+                // Use backend /api/ai/free endpoint for free models (uses platform key)
+                console.log('🆓 Chat using free tier for model:', model);
                 
-                response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                response = await fetch('/api/ai/free', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'HTTP-Referer': window.location.origin,
-                        'X-Title': 'Live Code Editor'
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         model,
@@ -281,20 +261,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     })
                 });
             } else {
-                // Call OpenRouter directly with user's API key for paid models
-                console.log('💳 Chat using OpenRouter premium tier for model:', model);
+                // Use backend /api/ai/premium endpoint for premium models (requires user key)
+                if (!apiKey) {
+                    addSystemMessage('This model requires an API key. Please add your OpenRouter API key above or select a free model (💰).');
+                    return;
+                }
                 
-                response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                console.log('💳 Chat using premium tier for model:', model);
+                
+                response = await fetch('/api/ai/premium', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`,
-                        'HTTP-Referer': window.location.origin,
-                        'X-Title': 'Live Code Editor'
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         model,
-                        messages
+                        messages,
+                        apiKey
                     })
                 });
             }
@@ -401,24 +384,6 @@ document.addEventListener('DOMContentLoaded', function() {
             ];
             const isFreeModel = freeModels.includes(model);
             
-            // Guest quota (no key): enforce before calling API
-            if (!apiKey && !isFreeModel) {
-                addSystemMessage('This model requires an API key. Please select a free model (🆓) or add your OpenRouter API key.');
-                return;
-            }
-            
-            // If no API key, check guest quota for free models
-            if (!apiKey) {
-                const QUOTA_KEY = 'guest_ai_requests_used';
-                const LIMIT = 10;
-                const used = parseInt(localStorage.getItem(QUOTA_KEY) || '0', 10);
-                if (used >= LIMIT) {
-                    addSystemMessage('Guest AI limit reached. Sign up or add an OpenRouter key to continue.');
-                    return;
-                }
-                localStorage.setItem(QUOTA_KEY, String(used + 1));
-            }
-            
             // Get current file context
             const currentFile = window.app?.fileManager?.getCurrentFile();
             let currentContent = currentFile?.content || '';
@@ -446,15 +411,13 @@ Task: Modify the file based on the user's request. Return ONLY the complete upda
             let response;
             
             if (isFreeModel) {
-                // Call OpenRouter directly for free models
-                console.log('🆓 Agent using OpenRouter free tier for model:', model);
+                // Use backend /api/ai/free endpoint for free models (uses platform key)
+                console.log('🆓 Agent using free tier for model:', model);
                 
-                response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                response = await fetch('/api/ai/free', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'HTTP-Referer': window.location.origin,
-                        'X-Title': 'Live Code Editor'
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         model,
@@ -462,20 +425,23 @@ Task: Modify the file based on the user's request. Return ONLY the complete upda
                     })
                 });
             } else {
-                // Call OpenRouter directly with user's API key for paid models
-                console.log('💳 Agent using OpenRouter premium tier for model:', model);
+                // Use backend /api/ai/premium endpoint for premium models (requires user key)
+                if (!apiKey) {
+                    addSystemMessage('This model requires an API key. Please add your OpenRouter API key above or select a free model (💰).');
+                    return;
+                }
                 
-                response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                console.log('💳 Agent using premium tier for model:', model);
+                
+                response = await fetch('/api/ai/premium', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`,
-                        'HTTP-Referer': window.location.origin,
-                        'X-Title': 'Live Code Editor'
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         model,
-                        messages
+                        messages,
+                        apiKey
                     })
                 });
             }
