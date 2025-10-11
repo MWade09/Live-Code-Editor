@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ProjectWithDetails } from '@/types'
@@ -21,12 +21,127 @@ import {
   Trash2,
   Send,
   History,
-  GitCommit
+  GitCommit,
+  FileCode,
+  Monitor
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+
+// Types for multi-file projects
+interface ProjectFile {
+  id?: string
+  name: string
+  content: string
+  type: string
+  isMain?: boolean
+}
+
+interface ProjectContent {
+  files?: ProjectFile[]
+  version?: string
+  lastModified?: string
+}
+
+// Component for rendering multi-file project preview
+function ProjectPreview({ files }: { files: ProjectFile[] }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  useEffect(() => {
+    if (!iframeRef.current || files.length === 0) return
+
+    // Find the main HTML file or the first HTML file
+    let htmlFile = files.find(f => f.isMain && (f.type === 'html' || f.type === 'HTML'))
+    if (!htmlFile) {
+      htmlFile = files.find(f => f.type === 'html' || f.type === 'HTML')
+    }
+
+    if (!htmlFile) {
+      // If no HTML file, create a simple wrapper
+      const cssFiles = files.filter(f => f.type === 'css' || f.type === 'CSS')
+      const jsFiles = files.filter(f => f.type === 'javascript' || f.type === 'js' || f.type === 'JS')
+      
+      let htmlContent = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+      
+      // Inject CSS
+      cssFiles.forEach(file => {
+        htmlContent += `<style>${file.content}</style>`
+      })
+      
+      htmlContent += '</head><body>'
+      htmlContent += '<div class="container"><h1>Preview Not Available</h1><p>No HTML file found in this project.</p></div>'
+      
+      // Inject JS
+      jsFiles.forEach(file => {
+        htmlContent += `<script>${file.content}</script>`
+      })
+      
+      htmlContent += '</body></html>'
+      
+      const iframe = iframeRef.current
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
+      if (iframeDoc) {
+        iframeDoc.open()
+        iframeDoc.write(htmlContent)
+        iframeDoc.close()
+      }
+      return
+    }
+
+    // Get all CSS and JS files
+    const cssFiles = files.filter(f => f.type === 'css' || f.type === 'CSS')
+    const jsFiles = files.filter(f => f.type === 'javascript' || f.type === 'js' || f.type === 'JS')
+
+    let htmlContent = htmlFile.content
+
+    // Inject CSS files
+    if (cssFiles.length > 0) {
+      const cssStyles = cssFiles.map(file => `<style>/* ${file.name} */\n${file.content}</style>`).join('\n')
+      
+      // Try to inject before </head>, otherwise before </body>
+      if (htmlContent.includes('</head>')) {
+        htmlContent = htmlContent.replace('</head>', `${cssStyles}\n</head>`)
+      } else if (htmlContent.includes('</body>')) {
+        htmlContent = htmlContent.replace('</body>', `${cssStyles}\n</body>`)
+      } else {
+        htmlContent = cssStyles + htmlContent
+      }
+    }
+
+    // Inject JS files
+    if (jsFiles.length > 0) {
+      const jsScripts = jsFiles.map(file => `<script>/* ${file.name} */\n${file.content}</script>`).join('\n')
+      
+      // Try to inject before </body>, otherwise at the end
+      if (htmlContent.includes('</body>')) {
+        htmlContent = htmlContent.replace('</body>', `${jsScripts}\n</body>`)
+      } else {
+        htmlContent = htmlContent + jsScripts
+      }
+    }
+
+    // Update the iframe
+    const iframe = iframeRef.current
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
+    if (iframeDoc) {
+      iframeDoc.open()
+      iframeDoc.write(htmlContent)
+      iframeDoc.close()
+    }
+  }, [files])
+
+  return (
+    <iframe
+      ref={iframeRef}
+      className="w-full h-full border-0"
+      style={{ minHeight: '500px' }}
+      title="Project Preview"
+      sandbox="allow-scripts allow-same-origin"
+    />
+  )
+}
 
 export default function ProjectDetailPage() {
   const [project, setProject] = useState<ProjectWithDetails | null>(null)
@@ -58,10 +173,36 @@ export default function ProjectDetailPage() {
   const [commitContent, setCommitContent] = useState<string>('')
   const [viewingCommitId, setViewingCommitId] = useState<string | null>(null)
   
+  // Multi-file project state
+  const [selectedFileIndex, setSelectedFileIndex] = useState<number>(0)
+  const [showPreview, setShowPreview] = useState<boolean>(false)
+  
   const params = useParams()
   const router = useRouter()
   const supabase = createClient()
   const searchParams = useSearchParams()
+
+  // Parse project content to extract files
+  const projectFiles = useMemo((): ProjectFile[] => {
+    if (!project?.content) return []
+    
+    // Check if content is multi-file format (JSONB with files array)
+    if (typeof project.content === 'object' && Array.isArray((project.content as ProjectContent).files)) {
+      return (project.content as ProjectContent).files || []
+    }
+    
+    // Legacy single-file format (string)
+    if (typeof project.content === 'string') {
+      return [{
+        name: `${project.title || 'index'}.${project.language?.toLowerCase() || 'html'}`,
+        content: project.content,
+        type: project.language?.toLowerCase() || 'html',
+        isMain: true
+      }]
+    }
+    
+    return []
+  }, [project?.content, project?.title, project?.language])
 
   const fetchProject = async () => {
     try {
@@ -204,11 +345,23 @@ export default function ProjectDetailPage() {
   }
 
   const copyCode = async () => {
-    if (!project?.content) return
+    if (projectFiles.length === 0) return
     
     setCopying(true)
     try {
-      await navigator.clipboard.writeText(project.content as string)
+      let textToCopy: string
+      
+      if (projectFiles.length === 1) {
+        // Single file - just copy its content
+        textToCopy = projectFiles[0].content
+      } else {
+        // Multi-file - copy all files with separators
+        textToCopy = projectFiles.map(file => 
+          `// ===== ${file.name} =====\n${file.content}`
+        ).join('\n\n')
+      }
+      
+      await navigator.clipboard.writeText(textToCopy)
       setTimeout(() => setCopying(false), 2000)
     } catch (error) {
       console.error('Error copying code:', error)
@@ -1107,44 +1260,99 @@ export default function ProjectDetailPage() {
           </div>
         </div>
 
-        {/* Code Display */}
+        {/* Code Display - Multi-File Support */}
         <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
-            <h2 className="text-xl font-semibold text-white">Source Code</h2>
-            <button
-              onClick={copyCode}
-              className="flex items-center space-x-2 px-3 py-1 bg-slate-800/50 border border-slate-600 text-slate-300 rounded hover:text-white hover:border-slate-500 transition-all"
-            >
-              {copying ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-400"></div>
-                  <span>Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  <span>Copy Code</span>
-                </>
+            <div className="flex items-center gap-4">
+              <h2 className="text-xl font-semibold text-white">Source Code</h2>
+              {projectFiles.length > 1 && (
+                <span className="px-2 py-1 bg-cyan-500/20 text-cyan-300 text-sm rounded">
+                  {projectFiles.length} files
+                </span>
               )}
-            </button>
+            </div>
+            <div className="flex items-center gap-2">
+              {projectFiles.length > 0 && projectFiles.some(f => f.type === 'html' || f.type === 'HTML') && (
+                <button
+                  onClick={() => setShowPreview(!showPreview)}
+                  className={`flex items-center space-x-2 px-3 py-1 border rounded transition-all ${
+                    showPreview
+                      ? 'bg-cyan-600/20 border-cyan-500/30 text-cyan-300'
+                      : 'bg-slate-800/50 border-slate-600 text-slate-300 hover:text-white hover:border-slate-500'
+                  }`}
+                >
+                  <Monitor className="w-4 h-4" />
+                  <span>{showPreview ? 'Hide Preview' : 'Show Preview'}</span>
+                </button>
+              )}
+              <button
+                onClick={copyCode}
+                className="flex items-center space-x-2 px-3 py-1 bg-slate-800/50 border border-slate-600 text-slate-300 rounded hover:text-white hover:border-slate-500 transition-all"
+              >
+                {copying ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-400"></div>
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>Copy Code</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
           
-          <div className="relative">
-            <SyntaxHighlighter
-              language={getLanguageForHighlighter(project.language)}
-              style={vscDarkPlus}
-              customStyle={{
-                margin: 0,
-                background: 'transparent',
-                fontSize: '14px',
-                lineHeight: '1.5'
-              }}
-              showLineNumbers
-              wrapLines
-            >
-              {project.content as string}
-            </SyntaxHighlighter>
-          </div>
+          {/* File Tabs - Only show if multiple files */}
+          {projectFiles.length > 1 && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/30 border-b border-slate-700/50 overflow-x-auto">
+              {projectFiles.map((file, index) => (
+                <button
+                  key={index}
+                  onClick={() => setSelectedFileIndex(index)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-t transition-all whitespace-nowrap ${
+                    selectedFileIndex === index
+                      ? 'bg-slate-900/70 text-white border-t border-l border-r border-cyan-500/30'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                  }`}
+                >
+                  <FileCode className="w-4 h-4" />
+                  <span className="text-sm font-medium">{file.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          
+          {/* Preview or Code View */}
+          {showPreview ? (
+            <div className="relative bg-white" style={{ minHeight: '500px' }}>
+              <ProjectPreview files={projectFiles} />
+            </div>
+          ) : (
+            <div className="relative">
+              {projectFiles.length > 0 ? (
+                <SyntaxHighlighter
+                  language={getLanguageForHighlighter(projectFiles[selectedFileIndex]?.type || project.language)}
+                  style={vscDarkPlus}
+                  customStyle={{
+                    margin: 0,
+                    background: 'transparent',
+                    fontSize: '14px',
+                    lineHeight: '1.5'
+                  }}
+                  showLineNumbers
+                  wrapLines
+                >
+                  {projectFiles[selectedFileIndex]?.content || ''}
+                </SyntaxHighlighter>
+              ) : (
+                <div className="p-8 text-center text-slate-400">
+                  No code content available
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Comments Section */}
