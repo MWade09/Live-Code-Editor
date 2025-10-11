@@ -1,33 +1,46 @@
 /**
- * Chat Panel Integration with AIManager
- * Connects the chat panel UI to use AIManager's advanced features
- * Falls back gracefully if AIManager is not available
+ * Chat Panel Integration
+ * Checks for AI systems and provides fallback functionality
+ * UnifiedAI (new system) has built-in file/project context, so no integration needed
+ * AIManager (old system) requires helper functions for context building
  */
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔗 Chat Panel Integration: Starting initialization...');
     
-    // Wait for AIManager to be initialized (with timeout)
+    // Wait for AI systems to be initialized (with timeout)
     let attempts = 0;
     const maxAttempts = 50; // 5 seconds max wait
     
-    const waitForAIManager = setInterval(() => {
+    const waitForAI = setInterval(() => {
         attempts++;
         
+        // NEW SYSTEM - Check for UnifiedAI first (preferred)
+        if (window.unifiedAI && window.app?.fileManager) {
+            clearInterval(waitForAI);
+            console.log('✅ Chat Panel Integration: UnifiedAI found');
+            console.log('ℹ️  File context is handled by UnifiedAI directly');
+            console.log('ℹ️  Project context is handled by UnifiedAI directly');
+            console.log('ℹ️  No additional integration needed');
+            return; // UnifiedAI handles everything internally
+        }
+        
+        // OLD SYSTEM - Fallback to AIManager if UnifiedAI not available
         if (window.aiManager && window.app?.fileManager) {
-            clearInterval(waitForAIManager);
-            console.log('✅ Chat Panel Integration: AIManager found, enabling advanced features');
+            clearInterval(waitForAI);
+            console.log('⚠️  Chat Panel Integration: Using fallback AIManager');
+            console.log('ℹ️  Setting up legacy integration helpers...');
             initializeChatPanelIntegration();
         } else if (attempts >= maxAttempts) {
-            clearInterval(waitForAIManager);
-            console.warn('⚠️ Chat Panel Integration: AIManager not found after timeout, using fallback mode');
+            clearInterval(waitForAI);
+            console.warn('⚠️ Chat Panel Integration: No AI system found after timeout');
             console.log('💬 Chat panel will use built-in functionality without advanced features');
         }
     }, 100);
 });
 
 function initializeChatPanelIntegration() {
-    console.log('✅ AIManager found, setting up chat panel integration');
+    console.log('✅ Legacy AIManager found, setting up chat panel integration');
     
     const aiManager = window.aiManager;
     const fileManager = window.app?.fileManager;
@@ -42,9 +55,10 @@ function initializeChatPanelIntegration() {
         return;
     }
     
-    console.log('✅ AIManager and FileManager ready for integration');
+    console.log('✅ AIManager and FileManager ready for legacy integration');
+    console.log('⚠️  NOTE: Using legacy AIManager. Consider upgrading to UnifiedAI for better features.');
     
-    // Setup file context selector for chat panel
+    // Setup file context selector for chat panel (legacy)
     setupChatFileContextSelector();
     
     // Setup project context toggle

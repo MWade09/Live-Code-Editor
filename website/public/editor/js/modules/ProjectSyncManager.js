@@ -53,17 +53,52 @@ export class ProjectSyncManager {
       }
       project = await res.json()
       
-      const content = typeof project.content === 'string' ? project.content : ''
-      const filename = project.title?.trim() ? `${project.title}.html` : 'index.html'
+      console.log('[ProjectSync] Loaded project:', project.title, 'Content type:', typeof project.content)
       
       // Clear current files and tabs so we don't show local leftovers
       this.fileManager.files = []
       this.fileManager.openTabs = []
       this.fileManager.activeTabIndex = -1
-      const newFile = this.fileManager.createNewFile(filename, content)
-      this.fileManager.openFileInTab(newFile.id)
+      
+      // Handle different content formats:
+      // 1. JSONB object with files array (new multi-file format)
+      // 2. String content (legacy single-file format)
+      
+      if (project.content && typeof project.content === 'object' && Array.isArray(project.content.files)) {
+        // NEW FORMAT: Multi-file project
+        console.log('[ProjectSync] Loading multi-file project with', project.content.files.length, 'files')
+        
+        project.content.files.forEach(fileData => {
+          this.fileManager.addFile(
+            fileData.name || 'untitled.html',
+            fileData.content || ''
+          );
+        });
+        
+        // Open the first file or the one marked as "main"
+        const mainFile = project.content.files.find(f => f.isMain) || project.content.files[0];
+        if (mainFile && this.fileManager.files.length > 0) {
+          const fileToOpen = this.fileManager.files.find(f => f.name === mainFile.name);
+          if (fileToOpen) {
+            this.fileManager.openFileInTab(fileToOpen.id);
+          }
+        }
+      } else {
+        // LEGACY FORMAT: Single file as string
+        console.log('[ProjectSync] Loading legacy single-file project')
+        
+        const content = typeof project.content === 'string' ? project.content : ''
+        const filename = project.title?.trim() ? `${project.title}.html` : 'index.html'
+        
+        const newFile = this.fileManager.createNewFile(filename, content)
+        this.fileManager.openFileInTab(newFile.id)
+      }
+      
+      console.log('[ProjectSync] Project loaded successfully. Total files:', this.fileManager.files.length)
+      
     } catch (e) {
-      console.warn('Failed to import project structure, falling back to single file.', e)
+      console.error('[ProjectSync] Failed to load project:', e)
+      throw e; // Re-throw so caller knows it failed
     }
 
     this.currentProject = project
@@ -73,8 +108,22 @@ export class ProjectSyncManager {
   }
 
   exportProjectContent() {
-    const file = this.fileManager.getCurrentFile()
-    return file?.content || ''
+    // Export ALL files in the new multi-file format
+    const files = this.fileManager.files.map(file => ({
+      id: file.id,
+      name: file.name,
+      content: file.content,
+      type: file.type,
+      isMain: file.id === this.fileManager.openTabs[0] // First open tab is considered "main"
+    }));
+    
+    console.log('[ProjectSync] Exporting', files.length, 'files:', files.map(f => f.name).join(', '))
+    
+    return {
+      files: files,
+      version: '2.0', // Mark as new multi-file format
+      lastModified: new Date().toISOString()
+    };
   }
 
   async saveToWebsite() {
@@ -153,16 +202,51 @@ export class ProjectSyncManager {
   async pullLatest() {
     const latest = await this.fetchLatestMeta(true)
     if (!latest) throw new Error('Failed to fetch latest')
+    
     try {
-      const current = this.fileManager.getCurrentFile()
-      const filename = current?.name || (this.currentProject?.title?.trim() ? `${this.currentProject.title}.html` : 'index.html')
-      // Replace current file content
-      if (current) {
-        current.content = typeof latest.content === 'string' ? latest.content : ''
+      console.log('[ProjectSync] Pulling latest content. Type:', typeof latest.content)
+      
+      // Handle multi-file format
+      if (latest.content && typeof latest.content === 'object' && Array.isArray(latest.content.files)) {
+        console.log('[ProjectSync] Pulling', latest.content.files.length, 'files from server')
+        
+        // Clear all current files
+        this.fileManager.files = []
+        this.fileManager.openTabs = []
+        this.fileManager.activeTabIndex = -1
+        
+        // Load all files from server
+        latest.content.files.forEach(fileData => {
+          this.fileManager.addFile(
+            fileData.name || 'untitled.html',
+            fileData.content || ''
+          );
+        });
+        
+        // Open the first file or main file
+        const mainFile = latest.content.files.find(f => f.isMain) || latest.content.files[0];
+        if (mainFile && this.fileManager.files.length > 0) {
+          const fileToOpen = this.fileManager.files.find(f => f.name === mainFile.name);
+          if (fileToOpen) {
+            this.fileManager.openFileInTab(fileToOpen.id);
+          }
+        }
       } else {
-        const newFile = this.fileManager.createNewFile(filename, typeof latest.content === 'string' ? latest.content : '')
-        this.fileManager.openFileInTab(newFile.id)
+        // Legacy single-file format
+        console.log('[ProjectSync] Pulling single file from server (legacy format)')
+        
+        const current = this.fileManager.getCurrentFile()
+        const filename = current?.name || (this.currentProject?.title?.trim() ? `${this.currentProject.title}.html` : 'index.html')
+        
+        // Replace current file content
+        if (current) {
+          current.content = typeof latest.content === 'string' ? latest.content : ''
+        } else {
+          const newFile = this.fileManager.createNewFile(filename, typeof latest.content === 'string' ? latest.content : '')
+          this.fileManager.openFileInTab(newFile.id)
+        }
       }
+      
       // Clear dirty states across tabs
       if (this.fileManager.clearAllDirty) this.fileManager.clearAllDirty()
       this.currentProject.updated_at = latest.updated_at

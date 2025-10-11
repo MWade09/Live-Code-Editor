@@ -11,6 +11,9 @@ import { DeployManager } from './modules/DeployManager.js';
 import { AIManager } from './modules/AIManager.js';
 import { InlineAIManager } from './modules/InlineAIManager.js';
 import { AICodeActionsManager } from './modules/AICodeActionsManager.js';
+import { UnifiedAIManager } from './modules/UnifiedAIManager.js';
+import { ResponseParser } from './modules/ResponseParser.js';
+import { ActionExecutor } from './modules/ActionExecutor.js';
 import { ProjectSyncManager } from './modules/ProjectSyncManager.js';
 import { AuthManager } from './modules/AuthManager.js';
 import { RealtimeSync } from './modules/RealtimeSync.js';
@@ -78,8 +81,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize ProjectContextManager for AI context awareness
     const projectContextManager = new ProjectContextManager(fileManager);
     
-    // Initialize AI managers (no guest banner - new monetization model)
+    // Initialize AI managers (OLD - keeping for backward compatibility temporarily)
     const aiManager = new AIManager(editor, fileManager, projectContextManager);
+    
+    // Initialize UNIFIED AI SYSTEM (NEW)
+    console.log('🤖 Initializing Unified AI System...');
+    const responseParser = new ResponseParser();
+    const actionExecutor = new ActionExecutor(fileManager, editor.editor);
+    const unifiedAI = new UnifiedAIManager(editor.editor, fileManager, projectContextManager);
+    
+    // Wire up dependencies
+    unifiedAI.responseParser = responseParser;
+    unifiedAI.actionExecutor = actionExecutor;
+    
+    // Expose globally for chat-panel.js
+    window.unifiedAI = unifiedAI;
+    window.aiManager = aiManager; // Keep old one for backward compatibility
+    
+    console.log('✅ Unified AI System ready');
     
     // Initialize MultiFileEditManager for AI multi-file edits
     const multiFileEditManager = new MultiFileEditManager(fileManager, editor, aiManager);

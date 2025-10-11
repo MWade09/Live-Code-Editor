@@ -184,6 +184,28 @@ export class FileManager {
         }
     }
     
+    /**
+     * Create a new file without opening it in a tab
+     * Useful for bulk file loading (e.g., from project sync)
+     */
+    addFile(filename, content = '') {
+        const fileType = this.getFileType(filename);
+        const newFile = {
+            id: this.generateFileId(),
+            name: filename,
+            content: content,
+            type: fileType
+        };
+        
+        this.files.push(newFile);
+        this.currentFileIndex = this.files.length - 1;
+        
+        // Don't save to localStorage when loading from project
+        // ProjectSyncManager will handle saving to database
+        
+        return newFile;
+    }
+    
     createNewFile(filename, content = '') {
         const fileType = this.getFileType(filename);
         const newFile = {
