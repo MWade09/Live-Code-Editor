@@ -19,6 +19,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useUserProfile, useUserProjects, useUserStats, useUserActivity } from '@/hooks/useDatabase'
 import { formatDistanceToNow } from 'date-fns'
+import { VerifyEmailBanner } from '@/components/auth/verify-email-banner'
 
 interface DashboardContentProps {
   user: User
@@ -150,9 +151,27 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const displayName = profile?.full_name || user.user_metadata?.full_name || 'Developer'
   const firstName = displayName.split(' ')[0]
 
+  // Check if email is verified
+  const isEmailVerified = user.email_confirmed_at !== null
+  const [showVerificationBanner, setShowVerificationBanner] = useState(false)
+
+  useEffect(() => {
+    // Check if banner was dismissed this session
+    const dismissed = localStorage.getItem('email_verification_dismissed')
+    setShowVerificationBanner(!isEmailVerified && !dismissed)
+  }, [isEmailVerified])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-900 pt-16 sm:pt-18 lg:pt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Email Verification Banner */}
+        {showVerificationBanner && user.email && (
+          <VerifyEmailBanner 
+            email={user.email} 
+            onDismiss={() => setShowVerificationBanner(false)}
+          />
+        )}
+
         {/* Welcome Section */}
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">

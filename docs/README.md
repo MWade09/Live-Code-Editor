@@ -1,166 +1,225 @@
-# LiveEditor Documentation
+# 📚 Live Code Editor - Documentation Index
 
-**Last Updated**: October 6, 2025
+**Last Updated**: October 14, 2025
 
-This directory contains all project documentation organized by purpose. Use this index to quickly find what you need.
-
----
-
-## 📋 Quick Links
-
-- **[Active Development Plans](./plans/)** - Current roadmaps and implementation plans
-- **[Setup & Usage Guides](./guides/)** - How to set up and use the platform
-- **[Archive](./archive/)** - Completed implementations and historical docs
+This directory contains all project documentation. Follow this guide to find what you need.
 
 ---
 
-## 🎯 Active Development Plans (`/plans`)
+## 🎯 START HERE
 
-Current development roadmaps and implementation strategies:
+### New to the Project?
+1. Read **`PRODUCT_VISION.md`** - Understand the overall product strategy
+2. Read **`PROJECT_STATUS.md`** - See current progress and roadmap
+3. Review **`AI_CHAT_QUICK_START.md`** - Get started with AI features
 
-- **[Production Roadmap](./plans/PRODUCTION_ROADMAP.md)** - High-level production goals
-- **[Website Implementation Plan](./plans/WEBSITE_IMPLEMENTATION_PLAN.md)** - Website development plan
-- **[TODO](./plans/TODO.md)** - Active task list
+### Looking for Implementation Details?
+- See **Active Technical Documentation** section below
 
----
-
-## 📚 Setup & Usage Guides (`/guides`)
-
-Step-by-step guides for developers and users:
-
-### Setup Guides
-- **[Environment Setup](./guides/ENVIRONMENT_SETUP.md)** - Local development environment
-- **[Database Setup](./guides/DATABASE_SETUP.md)** - Database configuration
-- **[Quick Start Guide](./guides/QUICK_START_GUIDE.md)** - Get started quickly
-- **[Quick Deployment Guide](./guides/QUICK_DEPLOYMENT_GUIDE.md)** - Deploy to production
-
-### Development Guides
-- **[Development Rules](./guides/DEVELOPMENT_RULES.md)** - Coding standards and practices
-- **[Code Preview Guide](./guides/CODE_PREVIEW_GUIDE.md)** - Preview functionality guide
-- **[Changelog Format](./guides/CHANGELOG_FORMAT.md)** - How to write changelogs
-
-### AI Assistant
-- **[AI Assistant Rules](./guides/AI_ASSISTANT_RULES.md)** - Guidelines for AI development
+### Need to Reference Old Plans?
+- See `archive/old-plans/` directory
 
 ---
 
-## 📦 Archive (`/archive`)
+## 📖 ACTIVE DOCUMENTATION
 
-Completed implementations and historical documentation:
+### 🌟 Master Documents
 
-### Completed Features
-- **[Backend Monetization](./archive/BACKEND_MONETIZATION_IMPLEMENTATION.md)** - AI monetization system ✅
-- **[Domain Migration](./archive/DOMAIN_MIGRATION.md)** - Single-domain architecture ✅
-- **[Chat Panel API Fix](./archive/CHAT_PANEL_API_FIX.md)** - Free tier AI routing ✅
-- **[Guest Mode Implementation](./archive/GUEST_MODE_IMPLEMENTATION.md)** - Guest user flow ✅
-- **[Signup Flow](./archive/SIGNUP_FLOW_IMPLEMENTATION.md)** - User registration ✅
+| Document | Purpose | Last Updated |
+|----------|---------|--------------|
+| **`PRODUCT_VISION.md`** | Overall product strategy, dual-mode vision, long-term roadmap | Oct 2025 |
+| **`PROJECT_STATUS.md`** | Current progress, completion status, immediate roadmap | Oct 14, 2025 |
 
-### Session Summaries
-- **[Session Sept 30, 2024](./archive/SESSION_SUMMARY_SEPT_30.md)** - Critical bug fixes
-- **[Changelog](./archive/changelog.md)** - Historical changelog
+### 🤖 AI System Documentation
 
-### Deprecated Plans
-- **[New Monetization Model](./archive/NEW_MONETIZATION_MODEL.md)** - Initial monetization ideas
-- **[Guest Mode UX Fix](./archive/GUEST_MODE_UX_FIX.md)** - UX improvements
-- **[Website Editor Integration](./archive/WEBSITE_EDITOR_INTEGRATION_STRATEGY_TODO.md)** - Integration strategy
+| Document | Purpose | Status |
+|----------|---------|--------|
+| **`UNIFIED_AI_IMPLEMENTATION_COMPLETE.md`** | UnifiedAI system architecture and implementation | ✅ Complete |
+| **`AI_CHAT_QUICK_START.md`** | Quick start guide for using AI features | ✅ Active |
+| **`CHAT_PANEL_INTEGRATION_GUIDE.md`** | How to integrate with chat panel | ✅ Active |
+
+### 🔧 Technical Implementation Docs
+
+| Document | Purpose | Status |
+|----------|---------|--------|
+| **`MULTI_FILE_PROJECT_DISPLAY_FIX.md`** | Multi-file project display on website | ✅ Complete (Oct 14, 2025) |
+| **`MULTI_FILE_PROJECT_SYNC_FIX.md`** | Multi-file project sync between editor and DB | ✅ Complete |
+| **`INTEGRATION_FIXES_COMPLETE.md`** | Integration fixes (UnifiedAI + HTML IDs) | ✅ Complete (Oct 11, 2025) |
+| **`MODE_TOGGLE_REMOVAL_SUMMARY.md`** | Chat/Agent mode toggle removal | ✅ Complete (Oct 10, 2025) |
+| **`PLATFORM_KEY_SYSTEM_FIX.md`** | Platform key system fixes | ✅ Complete |
+
+### 📝 Planning Documents (Active)
+
+| Document | Purpose | Status |
+|----------|---------|--------|
+| **`plans/ENHANCED_AI_CHAT_IMPLEMENTATION.md`** | Enhanced AI chat features | 📋 Planning |
+| **`plans/WEBSITE_IMPLEMENTATION_PLAN.md`** | Website development plan | ⏳ In Progress |
 
 ---
 
-## 🏗️ Project Structure
+## �️ ARCHIVED DOCUMENTATION
+
+Located in `archive/old-plans/` and `archive/` directories:
+
+### Recently Archived (October 2025)
+
+| Document | Location | Reason for Archiving |
+|----------|----------|---------------------|
+| `UNIFIED_AI_MODE_PLAN.md` | `archive/old-plans/` | Superseded by implementation complete doc |
+| `UNIFIED_AI_IMPLEMENTATION_ROADMAP.md` | `archive/old-plans/` | Implementation finished |
+| `UNIFIED_AI_MODE_TODO.md` | `archive/old-plans/` | Tasks complete |
+| `PRODUCTION_ROADMAP.md` | `archive/old-plans/` | Too granular, doesn't match current progress |
+| `TODO.md` | `archive/old-plans/` | Outdated (last updated July 2025) |
+
+### Historical Archives (2024-Early 2025)
+
+Located in `archive/`:
+- Backend monetization implementation
+- Domain migration docs
+- Chat panel API fixes
+- Guest mode implementation
+- Signup flow documentation
+- Session summaries and changelogs
+
+---
+
+## 📁 DIRECTORY STRUCTURE
 
 ```
 docs/
-├── README.md                    # This file - documentation index
-├── plans/                       # Active development plans
-│   ├── PRODUCTION_ROADMAP.md
-│   ├── WEBSITE_IMPLEMENTATION_PLAN.md
-│   └── TODO.md
-├── guides/                      # Setup and usage guides
-│   ├── ENVIRONMENT_SETUP.md
-│   ├── DATABASE_SETUP.md
-│   ├── QUICK_START_GUIDE.md
-│   ├── QUICK_DEPLOYMENT_GUIDE.md
-│   ├── DEVELOPMENT_RULES.md
-│   ├── CODE_PREVIEW_GUIDE.md
-│   ├── CHANGELOG_FORMAT.md
-│   └── AI_ASSISTANT_RULES.md
-└── archive/                     # Completed/historical docs
-    ├── BACKEND_MONETIZATION_IMPLEMENTATION.md
-    ├── DOMAIN_MIGRATION.md
-    ├── CHAT_PANEL_API_FIX.md
-    ├── GUEST_MODE_IMPLEMENTATION.md
-    ├── SIGNUP_FLOW_IMPLEMENTATION.md
-    ├── SESSION_SUMMARY_SEPT_30.md
-    ├── changelog.md
-    └── [deprecated plans]
+├── README.md (this file)
+├── PRODUCT_VISION.md ⭐ Master vision document
+├── PROJECT_STATUS.md ⭐ Current status and roadmap
+│
+├── AI_CHAT_QUICK_START.md
+├── CHAT_PANEL_INTEGRATION_GUIDE.md
+├── UNIFIED_AI_IMPLEMENTATION_COMPLETE.md
+│
+├── MULTI_FILE_PROJECT_DISPLAY_FIX.md
+├── MULTI_FILE_PROJECT_SYNC_FIX.md
+├── INTEGRATION_FIXES_COMPLETE.md
+├── MODE_TOGGLE_REMOVAL_SUMMARY.md
+├── PLATFORM_KEY_SYSTEM_FIX.md
+│
+├── plans/
+│   ├── README.md
+│   ├── ENHANCED_AI_CHAT_IMPLEMENTATION.md
+│   └── WEBSITE_IMPLEMENTATION_PLAN.md
+│
+├── features/ (feature-specific docs)
+├── guides/ (how-to guides)
+│
+└── archive/
+    ├── old-plans/ (outdated planning documents from 2025)
+    │   ├── UNIFIED_AI_MODE_PLAN.md
+    │   ├── UNIFIED_AI_IMPLEMENTATION_ROADMAP.md
+    │   ├── UNIFIED_AI_MODE_TODO.md
+    │   ├── PRODUCTION_ROADMAP.md
+    │   └── TODO.md
+    └── [historical docs from 2024-early 2025]
 ```
 
 ---
 
-## 📝 Documentation Guidelines
+## 🔍 FINDING WHAT YOU NEED
 
-### When to Use Each Directory
+### "What's the current status of the project?"
+→ Read **`PROJECT_STATUS.md`**
 
-**`/plans`** - Active Development
-- Current roadmaps
-- Implementation plans in progress
-- Active TODO lists
-- Future feature plans
+### "What's the long-term vision?"
+→ Read **`PRODUCT_VISION.md`**
 
-**`/guides`** - Reference Documentation
-- Setup instructions
-- How-to guides
-- Coding standards
-- Usage documentation
+### "How does the AI system work?"
+→ Read **`UNIFIED_AI_IMPLEMENTATION_COMPLETE.md`**
 
-**`/archive`** - Historical Records
-- Completed implementations
-- Deprecated plans
-- Session summaries
-- Old changelogs
+### "How do I use AI features in the editor?"
+→ Read **`AI_CHAT_QUICK_START.md`**
 
-### Creating New Documentation
+### "What was recently completed?"
+→ See "Recent Wins" section in **`PROJECT_STATUS.md`**
 
-1. **New Feature Plan** → Save to `/plans`
-2. **Setup Guide** → Save to `/guides`
-3. **Completed Feature** → Move from `/plans` to `/archive`
-4. **Update this README** → Keep index current
+### "What's next on the roadmap?"
+→ See "Recommended Focus Areas" in **`PROJECT_STATUS.md`**
+
+### "How do I integrate with the chat panel?"
+→ Read **`CHAT_PANEL_INTEGRATION_GUIDE.md`**
 
 ---
 
-## 🚀 Current Status (October 2025)
+## 📝 DOCUMENTATION STANDARDS
 
-### ✅ Production Features
-- Single-domain architecture (website + editor)
-- Free tier AI (no API key required)
-- Premium tier AI (user API keys)
-- Rate limiting (100 req/hour free tier)
-- User authentication (Supabase)
-- Project management (CRUD)
-- Version control integration
-- Real-time collaboration
+### When to Create New Documentation
 
-### 🔨 In Development
-- Check `/plans` directory for current roadmap
+**DO create a new document when:**
+- Implementing a major feature (e.g., new AI system, terminal integration)
+- Completing a significant refactor
+- Fixing a complex bug that needs explanation
+- Creating a guide or tutorial
 
-### 📊 Platform Stats
-- **Live URL**: https://ailiveeditor.netlify.app
-- **Editor**: https://ailiveeditor.netlify.app/editor/
-- **Architecture**: Next.js 15 + Vanilla JS
-- **Database**: Supabase (PostgreSQL)
-- **Hosting**: Netlify
+**DON'T create a new document for:**
+- Minor bug fixes (use git commit messages)
+- Small tweaks or adjustments
+- Work-in-progress notes (use comments in code)
+
+### Document Naming Conventions
+
+- **Feature implementation**: `FEATURE_NAME_IMPLEMENTATION.md`
+- **Fixes**: `ISSUE_NAME_FIX.md`
+- **Guides**: `TOPIC_GUIDE.md` or `TOPIC_QUICK_START.md`
+- **Plans**: `FEATURE_PLAN.md` or `FEATURE_ROADMAP.md`
+
+### When to Archive
+
+Archive a document when:
+- It's superseded by a newer document
+- The feature is complete and the doc is no longer referenced
+- The plan is outdated or changed significantly
+- It's more than 6 months old and no longer relevant
+
+**ALWAYS** move to `archive/` instead of deleting. Include reason in this README.
+
+### Updating Status Documents
+
+- **`PROJECT_STATUS.md`**: Update weekly with progress
+- **`PRODUCT_VISION.md`**: Update quarterly or when strategy changes
+- **Implementation docs**: Mark as "Complete" with date when done
 
 ---
 
-## 🆘 Need Help?
+## 🎯 QUICK REFERENCE
 
-- **Setup Issues** → Check `/guides/ENVIRONMENT_SETUP.md`
-- **Deployment** → Check `/guides/QUICK_DEPLOYMENT_GUIDE.md`
-- **Development** → Check `/guides/DEVELOPMENT_RULES.md`
-- **Features** → Check `/plans/PRODUCTION_ROADMAP.md`
+### Phase 1 Priorities (Current - October 2025)
+1. Authentication & User System
+2. Terminal Integration
+3. Deployment Integration
+4. Testing Infrastructure
+
+See **`PROJECT_STATUS.md`** for detailed breakdown.
+
+### Phase 1 Completion Status
+**~75% Complete** (as of Oct 14, 2025)
+
+### Estimated Timeline
+**6-8 weeks to Phase 1 completion** (Late November - Early December 2025)
 
 ---
 
-**Contributing**: Follow the guidelines in `/guides/DEVELOPMENT_RULES.md`
+## 📞 CONTRIBUTING TO DOCUMENTATION
 
-**License**: See root `LICENSE` file
+### Before Adding New Docs
+1. Check if existing docs cover the topic
+2. Review naming conventions above
+3. Add entry to this README
+4. Link from relevant documents
+
+### After Implementation
+1. Create implementation complete doc
+2. Update PROJECT_STATUS.md
+3. Archive any superseded planning docs
+4. Update this README
+
+### Keeping Docs Fresh
+- Review and update PROJECT_STATUS.md weekly
+- Archive outdated docs immediately
+- Keep this README current
+- Update "Last Updated" dates
