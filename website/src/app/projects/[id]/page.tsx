@@ -23,7 +23,9 @@ import {
   History,
   GitCommit,
   FileCode,
-  Monitor
+  Monitor,
+  Settings,
+  GitFork
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -149,6 +151,7 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [copying, setCopying] = useState(false)
+  const [forking, setForking] = useState(false)
   const [showReport, setShowReport] = useState(false)
   const [reportReason, setReportReason] = useState('')
   const [saves, setSaves] = useState<Array<{ id: string; created_at: string; change_summary: string | null }>>([])
@@ -341,6 +344,50 @@ export default function ProjectDetailPage() {
       }
     } catch (error) {
       console.error('Error toggling like:', error)
+    }
+  }
+
+  const handleFork = async () => {
+    if (!currentUser) {
+      router.push('/auth/login')
+      return
+    }
+
+    setForking(true)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+
+      const response = await fetch(`/api/projects/${params.id}/fork`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to fork project')
+      }
+
+      const { project: forkedProject } = await response.json()
+
+      // Update forks count in UI
+      if (project) {
+        setProject({
+          ...project,
+          forks_count: (project.forks_count || 0) + 1
+        })
+      }
+
+      // Redirect to the forked project's editor
+      router.push(`/editor?project=${forkedProject.id}`)
+    } catch (error) {
+      console.error('Error forking project:', error)
+      alert('Failed to fork project. Please try again.')
+    } finally {
+      setForking(false)
     }
   }
 
@@ -1087,6 +1134,17 @@ export default function ProjectDetailPage() {
             >
               <Share2 className="w-5 h-5" />
             </button>
+            {!isOwner && (
+              <button
+                onClick={handleFork}
+                disabled={forking}
+                className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-green-600/20 to-emerald-600/20 text-green-400 border border-green-500/30 rounded-lg hover:from-green-600/30 hover:to-emerald-600/30 transition-colors disabled:opacity-50"
+                title="Fork Project"
+              >
+                <GitFork className="w-4 h-4" />
+                {forking ? 'Forking...' : 'Fork'}
+              </button>
+            )}
             {isOwner && (
               <>
                 <button
@@ -1096,6 +1154,13 @@ export default function ProjectDetailPage() {
                 >
                   {project.is_public ? 'Unpublish' : 'Publish'}
                 </button>
+                <Link
+                  href={`/projects/${project.id}/settings${fromParam ? `?from=${fromParam}` : ''}`}
+                  className="p-2 text-slate-400 hover:text-purple-400 transition-colors"
+                  title="Project Settings"
+                >
+                  <Settings className="w-5 h-5" />
+                </Link>
                 <Link
                   href={`/projects/${project.id}/edit${fromParam ? `?from=${fromParam}` : ''}`}
                   className="p-2 text-slate-400 hover:text-yellow-400 transition-colors"
@@ -1138,6 +1203,24 @@ export default function ProjectDetailPage() {
               
               {project.description && (
                 <p className="text-slate-300 text-lg mb-6">{project.description}</p>
+              )}
+
+              {/* Forked From */}
+              {project.forked_from && (
+                <div className="mb-6 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                  <div className="flex items-center gap-2 text-green-400">
+                    <GitFork className="w-4 h-4" />
+                    <span className="text-sm">
+                      Forked from{' '}
+                      <Link 
+                        href={`/projects/${project.forked_from}`}
+                        className="font-medium hover:underline"
+                      >
+                        original project
+                      </Link>
+                    </span>
+                  </div>
+                </div>
               )}
 
               {/* Author */}

@@ -110,6 +110,7 @@ export interface Database {
           thumbnail_url: string | null
           demo_url: string | null
           github_url: string | null
+          forked_from: string | null
           status: 'draft' | 'published' | 'archived'
           featured_at: string | null
           published_at: string | null
@@ -136,6 +137,7 @@ export interface Database {
           thumbnail_url?: string | null
           demo_url?: string | null
           github_url?: string | null
+          forked_from?: string | null
           status?: 'draft' | 'published' | 'archived'
           featured_at?: string | null
           published_at?: string | null
@@ -162,6 +164,7 @@ export interface Database {
           thumbnail_url?: string | null
           demo_url?: string | null
           github_url?: string | null
+          forked_from?: string | null
           status?: 'draft' | 'published' | 'archived'
           featured_at?: string | null
           published_at?: string | null

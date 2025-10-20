@@ -13,7 +13,12 @@ import {
   Play,
   Star,
   Clock,
-  ExternalLink
+  ExternalLink,
+  Search,
+  Package,
+  Server,
+  Layout,
+  Terminal
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -31,6 +36,7 @@ interface Template {
   icon: React.ComponentType<{ className?: string }>
   color: string
   featured: boolean
+  category: 'web' | 'api' | 'mobile' | 'cli' | 'game' | 'data'
 }
 
 const TEMPLATES: Template[] = [
@@ -43,6 +49,7 @@ const TEMPLATES: Template[] = [
     difficulty: 'beginner',
     estimatedTime: 45,
     tags: ['react', 'hooks', 'localStorage', 'css'],
+    category: 'web',
     code: `import React, { useState, useEffect } from 'react';
 import './TodoApp.css';
 
@@ -115,6 +122,7 @@ export default TodoApp;`,
     difficulty: 'beginner',
     estimatedTime: 30,
     tags: ['vue', 'css', 'calculator', 'responsive'],
+    category: 'web',
     code: `<template>
   <div class="calculator">
     <div class="display">{{ display }}</div>
@@ -213,6 +221,7 @@ export default {
     difficulty: 'beginner',
     estimatedTime: 60,
     tags: ['html', 'css', 'responsive', 'landing-page'],
+    category: 'web',
     code: `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -375,6 +384,7 @@ export default {
     difficulty: 'intermediate',
     estimatedTime: 90,
     tags: ['python', 'fastapi', 'rest-api', 'database'],
+    category: 'api',
     code: `from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -523,6 +533,7 @@ if __name__ == "__main__":
     difficulty: 'intermediate',
     estimatedTime: 120,
     tags: ['flutter', 'dart', 'mobile', 'cross-platform'],
+    category: 'mobile',
     code: `import 'package:flutter/material.dart';
 
 void main() {
@@ -661,6 +672,849 @@ class _WeatherScreenState extends State<WeatherScreen> {
     icon: Smartphone,
     color: 'from-teal-500 to-blue-500',
     featured: false
+  },
+  {
+    id: 'vue-todo',
+    title: 'Vue 3 Todo App',
+    description: 'A modern todo application built with Vue 3 Composition API and TypeScript',
+    language: 'TypeScript',
+    framework: 'Vue.js',
+    difficulty: 'beginner',
+    estimatedTime: 50,
+    tags: ['vue3', 'typescript', 'composition-api', 'todo'],
+    category: 'web',
+    code: `<template>
+  <div class="todo-app">
+    <div class="header">
+      <h1>📝 Vue Todo List</h1>
+      <p class="subtitle">Manage your tasks efficiently</p>
+    </div>
+    
+    <div class="input-section">
+      <input
+        v-model="newTodo"
+        @keyup.enter="addTodo"
+        type="text"
+        placeholder="What needs to be done?"
+        class="todo-input"
+      />
+      <button @click="addTodo" class="add-btn">
+        Add Task
+      </button>
+    </div>
+    
+    <div class="filters">
+      <button
+        v-for="filter in filters"
+        :key="filter"
+        @click="currentFilter = filter"
+        :class="{ active: currentFilter === filter }"
+        class="filter-btn"
+      >
+        {{ filter }}
+      </button>
+      <span class="count">{{ filteredTodos.length }} items</span>
+    </div>
+    
+    <ul class="todo-list">
+      <li
+        v-for="todo in filteredTodos"
+        :key="todo.id"
+        :class="{ completed: todo.completed }"
+        class="todo-item"
+      >
+        <input
+          type="checkbox"
+          v-model="todo.completed"
+          class="checkbox"
+        />
+        <span class="todo-text">{{ todo.text }}</span>
+        <button @click="deleteTodo(todo.id)" class="delete-btn">
+          ×
+        </button>
+      </li>
+    </ul>
+    
+    <div v-if="todos.length === 0" class="empty-state">
+      <p>No todos yet. Add one above! 🎯</p>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface Todo {
+  id: number
+  text: string
+  completed: boolean
+}
+
+const todos = ref<Todo[]>([])
+const newTodo = ref('')
+const currentFilter = ref('All')
+const filters = ['All', 'Active', 'Completed']
+
+const addTodo = () => {
+  if (newTodo.value.trim()) {
+    todos.value.push({
+      id: Date.now(),
+      text: newTodo.value,
+      completed: false
+    })
+    newTodo.value = ''
+  }
+}
+
+const deleteTodo = (id: number) => {
+  todos.value = todos.value.filter(todo => todo.id !== id)
+}
+
+const filteredTodos = computed(() => {
+  switch (currentFilter.value) {
+    case 'Active':
+      return todos.value.filter(todo => !todo.completed)
+    case 'Completed':
+      return todos.value.filter(todo => todo.completed)
+    default:
+      return todos.value
+  }
+})
+</script>
+
+<style scoped>
+.todo-app {
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.header {
+  text-align: center;
+  color: white;
+  margin-bottom: 30px;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  opacity: 0.9;
+}
+
+.input-section {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.todo-input {
+  flex: 1;
+  padding: 15px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+}
+
+.add-btn {
+  padding: 15px 30px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: transform 0.2s;
+}
+
+.add-btn:hover {
+  transform: translateY(-2px);
+}
+
+.filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.filter-btn {
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.2);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.filter-btn.active {
+  background: white;
+  color: #667eea;
+}
+
+.count {
+  margin-left: auto;
+  color: white;
+  font-size: 0.9rem;
+}
+
+.todo-list {
+  list-style: none;
+  padding: 0;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  background: white;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  transition: transform 0.2s;
+}
+
+.todo-item:hover {
+  transform: translateX(5px);
+}
+
+.todo-item.completed .todo-text {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.checkbox {
+  width: 20px;
+  height: 20px;
+  margin-right: 15px;
+  cursor: pointer;
+}
+
+.todo-text {
+  flex: 1;
+  font-size: 1rem;
+}
+
+.delete-btn {
+  background: #ff5252;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-center;
+  transition: transform 0.2s;
+}
+
+.delete-btn:hover {
+  transform: scale(1.1);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: white;
+  font-size: 1.2rem;
+}
+</style>`,
+    icon: Zap,
+    color: 'from-green-500 to-teal-500',
+    featured: true
+  },
+  {
+    id: 'node-express',
+    title: 'Node.js Express Server',
+    description: 'A complete Express.js REST API with middleware, routing, and database integration',
+    language: 'JavaScript',
+    framework: 'Express',
+    difficulty: 'intermediate',
+    estimatedTime: 75,
+    tags: ['nodejs', 'express', 'rest-api', 'backend'],
+    category: 'api',
+    code: `const express = require('express');
+const cors = require('cors');
+const morgan = require('morgan');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
+
+// In-memory database (replace with real database)
+let users = [
+  { id: 1, name: 'John Doe', email: 'john@example.com', role: 'admin' },
+  { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'user' }
+];
+
+// Routes
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Welcome to the API',
+    version: '1.0.0',
+    endpoints: {
+      users: '/api/users',
+      health: '/health'
+    }
+  });
+});
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date() });
+});
+
+// Get all users
+app.get('/api/users', (req, res) => {
+  const { role } = req.query;
+  
+  if (role) {
+    const filtered = users.filter(u => u.role === role);
+    return res.json(filtered);
+  }
+  
+  res.json(users);
+});
+
+// Get user by ID
+app.get('/api/users/:id', (req, res) => {
+  const user = users.find(u => u.id === parseInt(req.params.id));
+  
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  res.json(user);
+});
+
+// Create new user
+app.post('/api/users', (req, res) => {
+  const { name, email, role } = req.body;
+  
+  if (!name || !email) {
+    return res.status(400).json({ error: 'Name and email are required' });
+  }
+  
+  const newUser = {
+    id: users.length + 1,
+    name,
+    email,
+    role: role || 'user'
+  };
+  
+  users.push(newUser);
+  res.status(201).json(newUser);
+});
+
+// Update user
+app.put('/api/users/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const userIndex = users.findIndex(u => u.id === id);
+  
+  if (userIndex === -1) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  users[userIndex] = { ...users[userIndex], ...req.body, id };
+  res.json(users[userIndex]);
+});
+
+// Delete user
+app.delete('/api/users/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const userIndex = users.findIndex(u => u.id === id);
+  
+  if (userIndex === -1) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  users.splice(userIndex, 1);
+  res.status(204).send();
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    error: 'Something went wrong!',
+    message: err.message
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(\`🚀 Server running on http://localhost:\${PORT}\`);
+  console.log(\`📚 API Documentation: http://localhost:\${PORT}/\`);
+});
+
+module.exports = app;`,
+    icon: Server,
+    color: 'from-green-600 to-emerald-600',
+    featured: true
+  },
+  {
+    id: 'typescript-react',
+    title: 'TypeScript React App',
+    description: 'A modern React application with TypeScript, hooks, and context API',
+    language: 'TypeScript',
+    framework: 'React',
+    difficulty: 'intermediate',
+    estimatedTime: 60,
+    tags: ['react', 'typescript', 'hooks', 'context-api'],
+    category: 'web',
+    code: `import React, { createContext, useContext, useState, ReactNode } from 'react';
+
+// Types
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
+interface AuthContextType {
+  user: User | null;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+  isAuthenticated: boolean;
+}
+
+// Context
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Provider
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+
+  const login = async (email: string, password: string) => {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    setUser({
+      id: 1,
+      name: 'John Doe',
+      email: email,
+      avatar: 'https://i.pravatar.cc/150?img=12'
+    });
+  };
+
+  const logout = () => {
+    setUser(null);
+  };
+
+  const value: AuthContextType = {
+    user,
+    login,
+    logout,
+    isAuthenticated: !!user
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+// Hook
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+};
+
+// Login Component
+const LoginForm: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await login(email, password);
+    } catch (error) {
+      console.error('Login failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="login-form">
+      <h2>Login</h2>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          required
+        />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
+          required
+        />
+        <button type="submit" disabled={loading}>
+          {loading ? 'Logging in...' : 'Login'}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+// Dashboard Component
+const Dashboard: React.FC = () => {
+  const { user, logout } = useAuth();
+
+  return (
+    <div className="dashboard">
+      <h1>Welcome, {user?.name}!</h1>
+      <div className="user-info">
+        {user?.avatar && <img src={user.avatar} alt="Avatar" />}
+        <p>Email: {user?.email}</p>
+      </div>
+      <button onClick={logout}>Logout</button>
+    </div>
+  );
+};
+
+// Main App
+const App: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <div className="app">
+      {isAuthenticated ? <Dashboard /> : <LoginForm />}
+    </div>
+  );
+};
+
+// Root
+const Root: React.FC = () => {
+  return (
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
+};
+
+export default Root;`,
+    icon: Code,
+    color: 'from-blue-600 to-indigo-600',
+    featured: true
+  },
+  {
+    id: 'nextjs-blog',
+    title: 'Next.js Blog',
+    description: 'A modern blog with Next.js 14, App Router, and Markdown support',
+    language: 'TypeScript',
+    framework: 'Next.js',
+    difficulty: 'advanced',
+    estimatedTime: 120,
+    tags: ['nextjs', 'typescript', 'blog', 'markdown', 'ssg'],
+    category: 'web',
+    code: `// app/page.tsx
+import { getPosts } from '@/lib/posts';
+import Link from 'next/link';
+
+export default async function Home() {
+  const posts = await getPosts();
+
+  return (
+    <main className="max-w-4xl mx-auto px-4 py-12">
+      <h1 className="text-4xl font-bold mb-8">My Blog</h1>
+      
+      <div className="grid gap-6">
+        {posts.map((post) => (
+          <article
+            key={post.slug}
+            className="border rounded-lg p-6 hover:shadow-lg transition"
+          >
+            <Link href={\`/posts/\${post.slug}\`}>
+              <h2 className="text-2xl font-semibold mb-2">{post.title}</h2>
+              <p className="text-gray-600 mb-4">{post.excerpt}</p>
+              <div className="flex items-center gap-4 text-sm text-gray-500">
+                <span>{post.date}</span>
+                <span>•</span>
+                <span>{post.readingTime} min read</span>
+              </div>
+            </Link>
+          </article>
+        ))}
+      </div>
+    </main>
+  );
+}
+
+// app/posts/[slug]/page.tsx
+import { getPost, getPosts } from '@/lib/posts';
+import { notFound } from 'next/navigation';
+import Markdown from 'react-markdown';
+
+interface Props {
+  params: { slug: string };
+}
+
+export async function generateStaticParams() {
+  const posts = await getPosts();
+  return posts.map((post) => ({ slug: post.slug }));
+}
+
+export default async function PostPage({ params }: Props) {
+  const post = await getPost(params.slug);
+
+  if (!post) {
+    notFound();
+  }
+
+  return (
+    <article className="max-w-3xl mx-auto px-4 py-12">
+      <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
+      <div className="text-gray-600 mb-8">
+        {post.date} • {post.readingTime} min read
+      </div>
+      
+      <div className="prose prose-lg">
+        <Markdown>{post.content}</Markdown>
+      </div>
+    </article>
+  );
+}
+
+// lib/posts.ts
+import fs from 'fs/promises';
+import path from 'path';
+import matter from 'gray-matter';
+
+const postsDirectory = path.join(process.cwd(), 'content/posts');
+
+export interface Post {
+  slug: string;
+  title: string;
+  date: string;
+  excerpt: string;
+  content: string;
+  readingTime: number;
+}
+
+export async function getPosts(): Promise<Post[]> {
+  const fileNames = await fs.readdir(postsDirectory);
+  const posts = await Promise.all(
+    fileNames
+      .filter((fileName) => fileName.endsWith('.md'))
+      .map(async (fileName) => {
+        const slug = fileName.replace(/\.md$/, '');
+        const fullPath = path.join(postsDirectory, fileName);
+        const fileContents = await fs.readFile(fullPath, 'utf8');
+        const { data, content } = matter(fileContents);
+
+        return {
+          slug,
+          title: data.title,
+          date: data.date,
+          excerpt: data.excerpt || content.slice(0, 150),
+          content,
+          readingTime: Math.ceil(content.split(' ').length / 200)
+        };
+      })
+  );
+
+  return posts.sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+export async function getPost(slug: string): Promise<Post | null> {
+  try {
+    const fullPath = path.join(postsDirectory, \`\${slug}.md\`);
+    const fileContents = await fs.readFile(fullPath, 'utf8');
+    const { data, content } = matter(fileContents);
+
+    return {
+      slug,
+      title: data.title,
+      date: data.date,
+      excerpt: data.excerpt || content.slice(0, 150),
+      content,
+      readingTime: Math.ceil(content.split(' ').length / 200)
+    };
+  } catch {
+    return null;
+  }
+}`,
+    icon: Layout,
+    color: 'from-slate-600 to-gray-700',
+    featured: false
+  },
+  {
+    id: 'python-cli',
+    title: 'Python CLI Tool',
+    description: 'A command-line interface tool with argparse, rich formatting, and file operations',
+    language: 'Python',
+    framework: 'CLI',
+    difficulty: 'beginner',
+    estimatedTime: 45,
+    tags: ['python', 'cli', 'terminal', 'argparse'],
+    category: 'cli',
+    code: `#!/usr/bin/env python3
+import argparse
+import sys
+import os
+from pathlib import Path
+from datetime import datetime
+
+class TodoCLI:
+    def __init__(self, filename='todos.txt'):
+        self.filename = Path.home() / filename
+        self.todos = self.load_todos()
+    
+    def load_todos(self):
+        """Load todos from file"""
+        if not self.filename.exists():
+            return []
+        
+        with open(self.filename, 'r') as f:
+            return [line.strip() for line in f if line.strip()]
+    
+    def save_todos(self):
+        """Save todos to file"""
+        with open(self.filename, 'w') as f:
+            f.write('\\n'.join(self.todos))
+    
+    def add(self, task):
+        """Add a new task"""
+        self.todos.append(f"[ ] {task}")
+        self.save_todos()
+        print(f"✓ Added: {task}")
+    
+    def list(self):
+        """List all tasks"""
+        if not self.todos:
+            print("No todos yet! Add one with: todo add <task>")
+            return
+        
+        print("\\n📝 Your Todos:\\n")
+        for i, todo in enumerate(self.todos, 1):
+            status = "✓" if todo.startswith("[x]") else " "
+            task = todo[4:]  # Remove checkbox
+            print(f"{i}. [{status}] {task}")
+        print()
+    
+    def complete(self, index):
+        """Mark a task as complete"""
+        try:
+            idx = int(index) - 1
+            if 0 <= idx < len(self.todos):
+                self.todos[idx] = self.todos[idx].replace("[ ]", "[x]")
+                self.save_todos()
+                print(f"✓ Completed: {self.todos[idx][4:]}")
+            else:
+                print("Error: Invalid task number")
+        except ValueError:
+            print("Error: Please provide a valid number")
+    
+    def delete(self, index):
+        """Delete a task"""
+        try:
+            idx = int(index) - 1
+            if 0 <= idx < len(self.todos):
+                task = self.todos.pop(idx)
+                self.save_todos()
+                print(f"✓ Deleted: {task[4:]}")
+            else:
+                print("Error: Invalid task number")
+        except ValueError:
+            print("Error: Please provide a valid number")
+    
+    def clear(self):
+        """Clear all completed tasks"""
+        before = len(self.todos)
+        self.todos = [t for t in self.todos if not t.startswith("[x]")]
+        self.save_todos()
+        deleted = before - len(self.todos)
+        print(f"✓ Cleared {deleted} completed task(s)")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='A simple todo list CLI tool',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  todo add "Buy groceries"
+  todo list
+  todo complete 1
+  todo delete 2
+  todo clear
+        """
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Add command
+    parser_add = subparsers.add_parser('add', help='Add a new task')
+    parser_add.add_argument('task', help='Task description')
+    
+    # List command
+    subparsers.add_parser('list', help='List all tasks')
+    
+    # Complete command
+    parser_complete = subparsers.add_parser('complete', help='Mark a task as complete')
+    parser_complete.add_argument('index', help='Task number to complete')
+    
+    # Delete command
+    parser_delete = subparsers.add_parser('delete', help='Delete a task')
+    parser_delete.add_argument('index', help='Task number to delete')
+    
+    # Clear command
+    subparsers.add_parser('clear', help='Clear all completed tasks')
+    
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        return
+    
+    todo = TodoCLI()
+    
+    if args.command == 'add':
+        todo.add(args.task)
+    elif args.command == 'list':
+        todo.list()
+    elif args.command == 'complete':
+        todo.complete(args.index)
+    elif args.command == 'delete':
+        todo.delete(args.index)
+    elif args.command == 'clear':
+        todo.clear()
+
+if __name__ == '__main__':
+    main()`,
+    icon: Terminal,
+    color: 'from-gray-700 to-slate-800',
+    featured: false
   }
 ]
 
@@ -669,6 +1523,8 @@ export default function TemplatesPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'beginner' | 'intermediate' | 'advanced' | 'expert'>('all')
   const [languageFilter, setLanguageFilter] = useState<string>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const router = useRouter()
   const supabase = createClient()
@@ -685,11 +1541,18 @@ export default function TemplatesPage() {
   const filteredTemplates = TEMPLATES.filter(template => {
     const difficultyMatch = filter === 'all' || template.difficulty === filter
     const languageMatch = languageFilter === 'all' || template.language === languageFilter
-    return difficultyMatch && languageMatch
+    const categoryMatch = categoryFilter === 'all' || template.category === categoryFilter
+    const searchMatch = searchQuery === '' || 
+      template.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      template.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      template.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+    
+    return difficultyMatch && languageMatch && categoryMatch && searchMatch
   })
 
   const featuredTemplates = TEMPLATES.filter(template => template.featured)
   const languages = ['all', ...Array.from(new Set(TEMPLATES.map(t => t.language)))]
+  const categories = ['all', 'web', 'api', 'mobile', 'cli', 'game', 'data']
 
   const handleUseTemplate = async (template: Template) => {
     if (!user) {
@@ -764,45 +1627,121 @@ export default function TemplatesPage() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4 mb-8">
-          <div className="flex items-center space-x-2">
-            <span className="text-slate-300 text-sm">Difficulty:</span>
-            {(['all', 'beginner', 'intermediate', 'advanced', 'expert'] as const).map(level => (
-              <button
-                key={level}
-                onClick={() => setFilter(level)}
-                className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                  filter === level
-                    ? 'bg-cyan-500 text-white'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                {level.charAt(0).toUpperCase() + level.slice(1)}
-              </button>
-            ))}
+        {/* Search & Filters */}
+        <div className="space-y-4 mb-8">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search templates by name, description, or tags..."
+              className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+            />
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <span className="text-slate-300 text-sm">Language:</span>
-            {languages.map(lang => (
-              <button
-                key={lang}
-                onClick={() => setLanguageFilter(lang)}
-                className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                  languageFilter === lang
-                    ? 'bg-purple-500 text-white'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                {lang.charAt(0).toUpperCase() + lang.slice(1)}
-              </button>
-            ))}
+
+          {/* Filter Buttons */}
+          <div className="flex flex-wrap gap-4">
+            {/* Category Filter */}
+            <div className="flex items-center space-x-2">
+              <Package className="w-4 h-4 text-slate-400" />
+              <span className="text-slate-300 text-sm font-medium">Category:</span>
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    categoryFilter === cat
+                      ? 'bg-green-500 text-white'
+                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
+
+          <div className="flex flex-wrap gap-4">
+            {/* Difficulty Filter */}
+            <div className="flex items-center space-x-2">
+              <span className="text-slate-300 text-sm font-medium">Difficulty:</span>
+              {(['all', 'beginner', 'intermediate', 'advanced', 'expert'] as const).map(level => (
+                <button
+                  key={level}
+                  onClick={() => setFilter(level)}
+                  className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    filter === level
+                      ? 'bg-cyan-500 text-white'
+                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  {level.charAt(0).toUpperCase() + level.slice(1)}
+                </button>
+              ))}
+            </div>
+            
+            {/* Language Filter */}
+            <div className="flex items-center space-x-2">
+              <span className="text-slate-300 text-sm font-medium">Language:</span>
+              {languages.map(lang => (
+                <button
+                  key={lang}
+                  onClick={() => setLanguageFilter(lang)}
+                  className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    languageFilter === lang
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Active Filters Summary */}
+          {(searchQuery || filter !== 'all' || languageFilter !== 'all' || categoryFilter !== 'all') && (
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400 text-sm">Active filters:</span>
+              {searchQuery && (
+                <span className="px-2 py-1 bg-cyan-500/20 text-cyan-300 text-xs rounded-full">
+                  Search: &quot;{searchQuery}&quot;
+                </span>
+              )}
+              {filter !== 'all' && (
+                <span className="px-2 py-1 bg-cyan-500/20 text-cyan-300 text-xs rounded-full">
+                  {filter}
+                </span>
+              )}
+              {languageFilter !== 'all' && (
+                <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full">
+                  {languageFilter}
+                </span>
+              )}
+              {categoryFilter !== 'all' && (
+                <span className="px-2 py-1 bg-green-500/20 text-green-300 text-xs rounded-full">
+                  {categoryFilter}
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setFilter('all');
+                  setLanguageFilter('all');
+                  setCategoryFilter('all');
+                }}
+                className="px-2 py-1 bg-red-500/20 text-red-300 text-xs rounded-full hover:bg-red-500/30 transition-colors"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Featured Templates */}
-        {filter === 'all' && languageFilter === 'all' && (
+        {filter === 'all' && languageFilter === 'all' && categoryFilter === 'all' && !searchQuery && (
           <div className="mb-12">
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
               <Star className="w-6 h-6 text-yellow-400 mr-2" />

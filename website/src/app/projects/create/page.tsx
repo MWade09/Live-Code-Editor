@@ -9,7 +9,6 @@ import {
   Upload, 
   Save, 
   X,
-  Plus,
   Hash,
   Globe,
   Lock,
@@ -20,6 +19,7 @@ import {
   ExternalLink
 } from 'lucide-react'
 import Link from 'next/link'
+import TagInput from '@/components/ui/tag-input'
 
 interface ProjectFormData {
   title: string
@@ -51,7 +51,6 @@ export default function CreateProjectPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
-  const [newTag, setNewTag] = useState('')
   
   const [formData, setFormData] = useState<ProjectFormData>({
     title: '',
@@ -124,30 +123,6 @@ export default function CreateProjectPage() {
       setMessage({ type: 'error', text: 'Failed to create project. Please try again.' })
     }
     setSaving(false)
-  }
-
-  const addTag = () => {
-    if (newTag.trim() && !formData.tags.includes(newTag.trim()) && formData.tags.length < 10) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, newTag.trim()]
-      }))
-      setNewTag('')
-    }
-  }
-
-  const removeTag = (tagToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }))
-  }
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      addTag()
-    }
   }
 
   if (loading) {
@@ -306,48 +281,21 @@ export default function CreateProjectPage() {
               Tags
             </h2>
             
-            <div>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {formData.tags.map(tag => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center px-3 py-1 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 rounded-full text-sm text-cyan-300"
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => removeTag(tag)}
-                      className="ml-2 text-cyan-400 hover:text-red-400 transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-              
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="flex-1 px-4 py-2 bg-slate-800/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
-                  placeholder="Add tags (e.g., react, tutorial, beginner)"
-                  maxLength={20}
-                />
-                <button
-                  type="button"
-                  onClick={addTag}
-                  disabled={!newTag.trim() || formData.tags.length >= 10}
-                  className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded-lg hover:from-cyan-500 hover:to-purple-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-              <p className="text-xs text-slate-500 mt-1">
-                {formData.tags.length}/10 tags
-              </p>
-            </div>
+            
+            <TagInput
+              tags={formData.tags}
+              onChange={(tags) => setFormData(prev => ({ ...prev, tags }))}
+              label=""
+              placeholder="Add tags (e.g., react, tutorial, beginner)"
+              suggestions={[
+                'react', 'vue', 'angular', 'svelte', 'typescript', 'javascript',
+                'python', 'django', 'flask', 'node', 'express', 'mongodb',
+                'tutorial', 'beginner', 'intermediate', 'advanced',
+                'frontend', 'backend', 'fullstack', 'api', 'database',
+                'css', 'html', 'tailwind', 'bootstrap', 'sass'
+              ]}
+              maxTags={10}
+            />
           </div>
 
           {/* Project Settings */}

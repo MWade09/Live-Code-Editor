@@ -2,9 +2,10 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { useUserProjects } from '@/hooks/useDatabase'
-import { Code, Filter, SortAsc, SortDesc, Lock, Globe, RefreshCw, Search, Plus, Eye } from 'lucide-react'
+import { Code, Filter, SortAsc, SortDesc, Lock, Globe, RefreshCw, Search, Plus, Eye, Settings, ImageIcon } from 'lucide-react'
 
 type SortKey = 'updated_at' | 'created_at' | 'title'
 type SortOrder = 'asc' | 'desc'
@@ -101,6 +102,7 @@ export default function MyProjectsContent({ userId }: Props) {
           <table className="w-full">
             <thead className="bg-slate-800/50 text-slate-300">
               <tr>
+                <th className="text-left px-4 py-3">Thumbnail</th>
                 <th className="text-left px-4 py-3">Title</th>
                 <th className="text-left px-4 py-3">Visibility</th>
                 <th className="text-left px-4 py-3">Status</th>
@@ -110,11 +112,26 @@ export default function MyProjectsContent({ userId }: Props) {
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
-                <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">Loading projects...</td></tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">Loading projects...</td></tr>
               ) : (filtered.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">No projects found</td></tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">No projects found</td></tr>
               ) : filtered.map(p => (
                 <tr key={p.id} className="hover:bg-slate-800/30">
+                  <td className="px-4 py-3">
+                    {p.thumbnail_url ? (
+                      <Image 
+                        src={p.thumbnail_url} 
+                        alt={p.title} 
+                        width={80}
+                        height={48}
+                        className="rounded border border-slate-600 object-cover"
+                      />
+                    ) : (
+                      <div className="w-20 h-12 rounded border border-slate-600 bg-slate-800/50 flex items-center justify-center">
+                        <ImageIcon className="w-6 h-6 text-slate-600" />
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-white font-medium">{p.title}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${p.is_public ? 'text-green-400 bg-green-500/10 border border-green-500/30' : 'text-yellow-400 bg-yellow-500/10 border border-yellow-500/30'}`}>
@@ -131,8 +148,8 @@ export default function MyProjectsContent({ userId }: Props) {
                       <Link href={`/editor?project=${p.id}`} className="px-3 py-1 bg-cyan-600/20 text-cyan-300 border border-cyan-500/30 rounded hover:bg-cyan-600/30 transition-colors flex items-center gap-1">
                         <Code className="w-4 h-4" /> Open
                       </Link>
-                      <Link href={`/projects/${p.id}/share`} className="px-3 py-1 bg-slate-800/50 text-slate-300 border border-slate-600 rounded hover:bg-slate-700/50 transition-colors">
-                        Share
+                      <Link href={`/projects/${p.id}/settings?from=my-projects`} className="px-3 py-1 bg-slate-800/50 text-slate-300 border border-slate-600 rounded hover:bg-slate-700/50 transition-colors flex items-center gap-1">
+                        <Settings className="w-4 h-4" /> Settings
                       </Link>
                     </div>
                   </td>

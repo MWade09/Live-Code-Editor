@@ -15,10 +15,14 @@ import {
   Github,
   Twitter,
   Globe as WebIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Linkedin
 } from 'lucide-react'
 import Link from 'next/link'
-import Image from 'next/image'
+import AvatarUpload from '@/components/profile/avatar-upload'
+import TagInput from '@/components/ui/tag-input'
+import ChangePasswordModal from '@/components/profile/change-password-modal'
+import DeleteAccountModal from '@/components/profile/delete-account-modal'
 
 interface UserProfile {
   id: string
@@ -50,6 +54,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('profile')
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false)
   
   const supabase = createClient()
 
@@ -208,28 +214,11 @@ export default function SettingsPage() {
                   <h2 className="text-xl font-semibold text-white mb-4">Profile Information</h2>
                   
                   {/* Avatar Section */}
-                  <div className="flex items-center gap-6">
-                    {profile?.avatar_url ? (
-                      <Image 
-                        src={profile.avatar_url} 
-                        alt="Profile" 
-                        width={80}
-                        height={80}
-                        className="w-20 h-20 rounded-full bg-white/10 border border-white/20"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full flex items-center justify-center">
-                        <UserIcon className="w-8 h-8 text-white" />
-                      </div>
-                    )}
-                    <div>
-                      <h3 className="font-medium text-white">Profile Picture</h3>
-                      <p className="text-sm text-slate-400">Update your avatar</p>
-                      <button className="mt-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors">
-                        Change Avatar
-                      </button>
-                    </div>
-                  </div>
+                  <AvatarUpload
+                    currentAvatarUrl={profile?.avatar_url}
+                    userId={user.id}
+                    onUploadComplete={(url) => setProfile(prev => prev ? { ...prev, avatar_url: url } : null)}
+                  />
 
                   {/* Basic Info */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -371,8 +360,88 @@ export default function SettingsPage() {
                           placeholder="https://yourwebsite.com"
                         />
                       </div>
+                      <div className="flex items-center gap-3">
+                        <Linkedin className="w-5 h-5 text-slate-400" />
+                        <input
+                          type="url"
+                          value={profile?.linkedin_url || ''}
+                          onChange={(e) => setProfile(prev => prev ? { ...prev, linkedin_url: e.target.value } : null)}
+                          className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="https://linkedin.com/in/yourprofile"
+                        />
+                      </div>
                     </div>
                   </div>
+
+                  {/* Coding Experience & Preferred Languages */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        Coding Experience
+                      </label>
+                      <select
+                        value={profile?.coding_experience || 'beginner'}
+                        onChange={(e) => setProfile(prev => prev ? { ...prev, coding_experience: e.target.value as 'beginner' | 'intermediate' | 'advanced' | 'expert' } : null)}
+                        className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      >
+                        <option value="beginner">Beginner</option>
+                        <option value="intermediate">Intermediate</option>
+                        <option value="advanced">Advanced</option>
+                        <option value="expert">Expert</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Skills */}
+                  <TagInput
+                    tags={profile?.skills || []}
+                    onChange={(skills) => setProfile(prev => prev ? { ...prev, skills } : null)}
+                    label="Skills"
+                    description="Add your technical skills (e.g., React, Python, Docker)"
+                    placeholder="Add a skill..."
+                    suggestions={[
+                      'JavaScript', 'TypeScript', 'Python', 'React', 'Next.js', 'Node.js',
+                      'Vue.js', 'Angular', 'HTML', 'CSS', 'Tailwind CSS', 'Bootstrap',
+                      'Java', 'C++', 'C#', 'Go', 'Rust', 'PHP', 'Ruby', 'Swift', 'Kotlin',
+                      'SQL', 'MongoDB', 'PostgreSQL', 'MySQL', 'Redis',
+                      'Docker', 'Kubernetes', 'AWS', 'Azure', 'GCP',
+                      'Git', 'CI/CD', 'Testing', 'Agile', 'UI/UX'
+                    ]}
+                    maxTags={15}
+                  />
+
+                  {/* Interests */}
+                  <TagInput
+                    tags={profile?.interests || []}
+                    onChange={(interests) => setProfile(prev => prev ? { ...prev, interests } : null)}
+                    label="Interests"
+                    description="What areas of development interest you?"
+                    placeholder="Add an interest..."
+                    suggestions={[
+                      'Web Development', 'Mobile Development', 'Game Development',
+                      'Machine Learning', 'AI', 'Data Science', 'DevOps',
+                      'Cloud Computing', 'Blockchain', 'Cybersecurity',
+                      'UI/UX Design', 'Full Stack', 'Backend', 'Frontend',
+                      'API Development', 'Microservices', 'System Design',
+                      'Open Source', 'Teaching', 'Writing'
+                    ]}
+                    maxTags={10}
+                  />
+
+                  {/* Preferred Languages */}
+                  <TagInput
+                    tags={profile?.preferred_languages || []}
+                    onChange={(preferred_languages) => setProfile(prev => prev ? { ...prev, preferred_languages } : null)}
+                    label="Preferred Programming Languages"
+                    description="Your favorite languages to code in"
+                    placeholder="Add a language..."
+                    suggestions={[
+                      'JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'C#',
+                      'Go', 'Rust', 'PHP', 'Ruby', 'Swift', 'Kotlin', 'Dart',
+                      'Scala', 'R', 'Perl', 'Haskell', 'Elixir', 'Clojure'
+                    ]}
+                    maxTags={5}
+                  />
                 </div>
               )}
 
@@ -402,11 +471,20 @@ export default function SettingsPage() {
                       Control how your data is used and shared on the platform.
                     </p>
                     <div className="space-y-3">
-                      <button className="flex items-center justify-between w-full p-3 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
+                      <button 
+                        onClick={() => {
+                          // TODO: Implement data export
+                          alert('Data export functionality coming soon!')
+                        }}
+                        className="flex items-center justify-between w-full p-3 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                      >
                         <span className="text-white">Download your data</span>
                         <Download className="w-4 h-4 text-slate-400" />
                       </button>
-                      <button className="flex items-center justify-between w-full p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors">
+                      <button 
+                        onClick={() => setShowDeleteAccountModal(true)}
+                        className="flex items-center justify-between w-full p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+                      >
                         <span>Delete your account</span>
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -507,7 +585,10 @@ export default function SettingsPage() {
                     <div className="p-4 bg-white/5 rounded-xl">
                       <h3 className="font-medium text-white mb-2">Password</h3>
                       <p className="text-sm text-slate-400 mb-3">Last updated: Never</p>
-                      <button className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors">
+                      <button 
+                        onClick={() => setShowChangePasswordModal(true)}
+                        className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors"
+                      >
                         Change Password
                       </button>
                     </div>
@@ -546,6 +627,17 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Modals */}
+        <ChangePasswordModal
+          isOpen={showChangePasswordModal}
+          onClose={() => setShowChangePasswordModal(false)}
+        />
+        <DeleteAccountModal
+          isOpen={showDeleteAccountModal}
+          onClose={() => setShowDeleteAccountModal(false)}
+          userEmail={user?.email || ''}
+        />
       </div>
     </div>
   )
