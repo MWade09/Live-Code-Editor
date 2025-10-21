@@ -25,7 +25,8 @@ import {
   FileCode,
   Monitor,
   Settings,
-  GitFork
+  GitFork,
+  BarChart3
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -1148,6 +1149,13 @@ export default function ProjectDetailPage() {
             )}
             {isOwner && (
               <>
+                <Link
+                  href={`/projects/${project.id}/analytics`}
+                  className="p-2 text-slate-400 hover:text-cyan-400 transition-colors"
+                  title="View Analytics"
+                >
+                  <BarChart3 className="w-5 h-5" />
+                </Link>
                 <button
                   onClick={togglePublish}
                   className={`p-2 transition-colors ${project.is_public ? 'text-green-400 hover:text-yellow-400' : 'text-slate-400 hover:text-green-400'}`}
