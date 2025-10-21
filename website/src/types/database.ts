@@ -334,6 +334,108 @@ export interface Database {
           created_at?: string
         }
       }
+      project_collaborators: {
+        Row: {
+          id: string
+          project_id: string
+          user_id: string
+          invited_by: string
+          role: 'viewer' | 'editor' | 'admin'
+          status: 'pending' | 'accepted' | 'declined'
+          invited_at: string
+          accepted_at: string | null
+          last_active_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          user_id: string
+          invited_by: string
+          role: 'viewer' | 'editor' | 'admin'
+          status?: 'pending' | 'accepted' | 'declined'
+          invited_at?: string
+          accepted_at?: string | null
+          last_active_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          user_id?: string
+          invited_by?: string
+          role?: 'viewer' | 'editor' | 'admin'
+          status?: 'pending' | 'accepted' | 'declined'
+          invited_at?: string
+          accepted_at?: string | null
+          last_active_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      collaboration_invites: {
+        Row: {
+          id: string
+          project_id: string
+          invited_by: string
+          email: string
+          role: 'viewer' | 'editor' | 'admin'
+          token: string
+          expires_at: string
+          status: 'pending' | 'accepted' | 'declined' | 'expired'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          invited_by: string
+          email: string
+          role: 'viewer' | 'editor' | 'admin'
+          token: string
+          expires_at: string
+          status?: 'pending' | 'accepted' | 'declined' | 'expired'
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          invited_by?: string
+          email?: string
+          role?: 'viewer' | 'editor' | 'admin'
+          token?: string
+          expires_at?: string
+          status?: 'pending' | 'accepted' | 'declined' | 'expired'
+          created_at?: string
+        }
+      }
+      collaboration_activity: {
+        Row: {
+          id: string
+          project_id: string
+          user_id: string
+          activity_type: 'join' | 'leave' | 'edit' | 'comment' | 'invite' | 'role_change'
+          activity_data: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          user_id: string
+          activity_type: 'join' | 'leave' | 'edit' | 'comment' | 'invite' | 'role_change'
+          activity_data?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          user_id?: string
+          activity_type?: 'join' | 'leave' | 'edit' | 'comment' | 'invite' | 'role_change'
+          activity_data?: Json | null
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

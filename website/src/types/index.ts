@@ -14,6 +14,9 @@ export type Comment = Tables<'comments'>
 export type UserFollow = Tables<'user_follows'>
 export type UserActivity = Tables<'user_activity'>
 export type Notification = Tables<'notifications'>
+export type ProjectCollaborator = Tables<'project_collaborators'>
+export type CollaborationInvite = Tables<'collaboration_invites'>
+export type CollaborationActivity = Tables<'collaboration_activity'>
 
 // Insert types
 export type InsertUserProfile = InsertTables<'user_profiles'>
@@ -24,11 +27,15 @@ export type InsertComment = InsertTables<'comments'>
 export type InsertUserFollow = InsertTables<'user_follows'>
 export type InsertUserActivity = InsertTables<'user_activity'>
 export type InsertNotification = InsertTables<'notifications'>
+export type InsertProjectCollaborator = InsertTables<'project_collaborators'>
+export type InsertCollaborationInvite = InsertTables<'collaboration_invites'>
+export type InsertCollaborationActivity = InsertTables<'collaboration_activity'>
 
 // Update types
 export type UpdateUserProfile = UpdateTables<'user_profiles'>
 export type UpdateProject = UpdateTables<'projects'>
 export type UpdateComment = UpdateTables<'comments'>
+export type UpdateProjectCollaborator = UpdateTables<'project_collaborators'>
 
 // Enhanced types with relationships
 export type ProjectWithAuthor = Project & {
@@ -61,6 +68,18 @@ export type ActivityWithDetails = UserActivity & {
   user_profiles: Pick<UserProfile, 'id' | 'username' | 'full_name' | 'avatar_url'>
   projects?: Pick<Project, 'id' | 'title'>
 }
+
+export type CollaboratorWithProfile = ProjectCollaborator & {
+  user_profiles: Pick<UserProfile, 'id' | 'username' | 'full_name' | 'avatar_url'>
+}
+
+export type CollaborationActivityWithDetails = CollaborationActivity & {
+  user_profiles: Pick<UserProfile, 'id' | 'username' | 'full_name' | 'avatar_url'>
+}
+
+// Collaboration permission types
+export type CollaboratorRole = 'viewer' | 'editor' | 'admin'
+export type CollaboratorStatus = 'pending' | 'accepted' | 'declined'
 
 // Form types
 export type ProfileFormData = {
