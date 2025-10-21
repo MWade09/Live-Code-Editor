@@ -10,10 +10,12 @@ import {
   AlertTriangle,
   Loader2,
   Settings as SettingsIcon,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Users
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
+import CollaboratorsPanel from '@/components/projects/CollaboratorsPanel'
 
 interface ProjectSettings {
   title: string
@@ -42,6 +44,7 @@ export default function ProjectSettingsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   
   const [settings, setSettings] = useState<ProjectSettings>({
     title: '',
@@ -65,6 +68,8 @@ export default function ProjectSettingsPage() {
           router.push('/auth/login')
           return
         }
+
+        setCurrentUserId(user.id)
 
         const { data, error } = await supabase
           .from('projects')
@@ -535,6 +540,21 @@ export default function ProjectSettingsPage() {
               </div>
             )}
           </div>
+
+          {/* Collaborators */}
+          {currentUserId && (
+            <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <Users className="w-5 h-5 text-cyan-400" />
+                <h2 className="text-lg font-semibold text-white">Collaborators</h2>
+              </div>
+              <CollaboratorsPanel
+                projectId={params.id as string}
+                isOwner={true}
+                currentUserId={currentUserId}
+              />
+            </div>
+          )}
 
           {/* Danger Zone */}
           <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6">
