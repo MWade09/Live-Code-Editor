@@ -79,9 +79,27 @@ export default function CollaboratorsPanel({ projectId, isOwner, currentUserId }
           <h3 className="text-lg font-semibold text-white flex items-center gap-2">
             <Users className="w-5 h-5" />
             Collaborators
+            <span className="text-sm font-normal text-gray-400">(0)</span>
           </h3>
+          {isOwner && (
+            <button
+              onClick={() => setShowInviteModal(true)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 rounded-lg border border-cyan-500/20 transition-colors text-sm"
+            >
+              <UserPlus className="w-4 h-4" />
+              Invite
+            </button>
+          )}
         </div>
-        <div className="text-red-400 text-sm">{error}</div>
+        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+        {showInviteModal && (
+          <InviteCollaboratorModal
+            projectId={projectId}
+            onClose={() => setShowInviteModal(false)}
+          />
+        )}
       </div>
     )
   }

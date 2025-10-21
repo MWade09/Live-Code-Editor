@@ -17,24 +17,15 @@ export function useProjectCollaborators(projectId: string) {
       setLoading(true)
       setError(null)
 
-      const { data, error: fetchError } = await supabase
-        .from('project_collaborators')
-        .select(`
-          *,
-          user_profiles (
-            id,
-            username,
-            full_name,
-            avatar_url
-          )
-        `)
-        .eq('project_id', projectId)
-        .eq('status', 'accepted')
-        .order('created_at', { ascending: false })
+      const response = await fetch(`/api/projects/${projectId}/collaborators`)
+      
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to fetch collaborators')
+      }
 
-      if (fetchError) throw fetchError
-
-      setCollaborators(data as CollaboratorWithProfile[] || [])
+      const data = await response.json()
+      setCollaborators(data.collaborators || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch collaborators')
     } finally {
@@ -64,16 +55,15 @@ export function useCollaborationInvites(projectId: string) {
       setLoading(true)
       setError(null)
 
-      const { data, error: fetchError } = await supabase
-        .from('collaboration_invites')
-        .select('*')
-        .eq('project_id', projectId)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
+      const response = await fetch(`/api/projects/${projectId}/invites`)
+      
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to fetch invites')
+      }
 
-      if (fetchError) throw fetchError
-
-      setInvites(data || [])
+      const data = await response.json()
+      setInvites(data.invites || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch invites')
     } finally {
