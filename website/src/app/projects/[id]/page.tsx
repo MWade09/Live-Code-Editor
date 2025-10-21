@@ -26,7 +26,8 @@ import {
   Monitor,
   Settings,
   GitFork,
-  BarChart3
+  BarChart3,
+  Users
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -1155,6 +1156,13 @@ export default function ProjectDetailPage() {
                   title="View Analytics"
                 >
                   <BarChart3 className="w-5 h-5" />
+                </Link>
+                <Link
+                  href={`/projects/${project.id}/settings${fromParam ? `?from=${fromParam}` : ''}`}
+                  className="p-2 text-slate-400 hover:text-cyan-400 transition-colors"
+                  title="Manage Collaborators"
+                >
+                  <Users className="w-5 h-5" />
                 </Link>
                 <button
                   onClick={togglePublish}
