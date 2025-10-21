@@ -3,9 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = await createClient()
 
     // Get authenticated user
@@ -21,7 +22,7 @@ export async function POST(
     const { data: originalProject, error: fetchError } = await supabase
       .from('projects')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (fetchError || !originalProject) {
@@ -57,7 +58,7 @@ export async function POST(
         github_url: '',
         thumbnail_url: originalProject.thumbnail_url || null, // Copy thumbnail
         status: 'draft',
-        forked_from: params.id, // Track the original project
+        forked_from: id, // Track the original project
         published_at: null
       })
       .select()
@@ -77,7 +78,7 @@ export async function POST(
       .update({
         forks_count: (originalProject.forks_count || 0) + 1
       })
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (updateError) {
       console.error('Failed to update forks_count:', updateError)
