@@ -1087,6 +1087,7 @@ export default function ProjectDetailPage() {
   const totalPages = Math.max(1, Math.ceil((commitTotal || 0) / (commitPageSize || 1)))
   const fromParam = searchParams.get('from')
   const backHref = fromParam === 'my-projects' ? '/my-projects' : '/projects'
+  const backLabel = fromParam === 'my-projects' ? 'Back to My Projects' : 'Back to Projects'
 
   const handleDelete = async () => {
     if (!isOwner) return
@@ -1123,7 +1124,7 @@ export default function ProjectDetailPage() {
             className="flex items-center space-x-2 text-slate-400 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span>Back to Projects</span>
+            <span>{backLabel}</span>
           </Link>
           
           <div className="flex items-center space-x-2">
