@@ -172,7 +172,11 @@ export default function AvatarUpload({ currentAvatarUrl, userId, onUploadComplet
           
           <div className="flex items-center gap-3">
             <button
-              onClick={() => fileInputRef.current?.click()}
+              type="button"
+              onClick={() => {
+                console.log('Avatar button clicked', fileInputRef.current)
+                fileInputRef.current?.click()
+              }}
               disabled={uploading}
               className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -191,6 +195,7 @@ export default function AvatarUpload({ currentAvatarUrl, userId, onUploadComplet
 
             {currentAvatarUrl && !uploading && (
               <button
+                type="button"
                 onClick={removeAvatar}
                 className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm rounded-lg transition-colors"
               >

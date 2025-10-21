@@ -1561,7 +1561,7 @@ export default function TemplatesPage() {
     }
 
     try {
-      const { error } = await supabase
+      const { data: newProject, error } = await supabase
         .from('projects')
         .insert({
           user_id: user.id,
@@ -1576,13 +1576,20 @@ export default function TemplatesPage() {
           is_public: false,
           status: 'published'
         })
+        .select()
+        .single()
 
       if (error) throw error
 
-      // Redirect to editor with the new project
-      router.push('/editor')
+      // Redirect to editor with the specific new project
+      if (newProject && newProject.id) {
+        router.push(`/editor?project=${newProject.id}`)
+      } else {
+        router.push('/editor')
+      }
     } catch (error) {
       console.error('Error creating project from template:', error)
+      alert('Failed to create project from template. Please try again.')
     }
   }
 
