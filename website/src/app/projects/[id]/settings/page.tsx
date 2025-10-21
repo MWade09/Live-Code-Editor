@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { 
   ArrowLeft, 
@@ -32,6 +32,7 @@ interface ProjectSettings {
 export default function ProjectSettingsPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   
   const [loading, setLoading] = useState(true)
@@ -287,7 +288,7 @@ export default function ProjectSettingsPage() {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-3">
             <Link
-              href={`/projects/${params.id}`}
+              href={`/projects/${params.id}${searchParams.get('from') ? `?from=${searchParams.get('from')}` : ''}`}
               className="text-slate-400 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
