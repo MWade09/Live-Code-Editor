@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Users, UserPlus, Trash2, Shield, Eye, Edit } from 'lucide-react'
 import { useProjectCollaborators, useRemoveCollaborator, useUpdateCollaboratorRole } from '@/hooks/useCollaboration'
 import type { CollaboratorRole } from '@/types'
-import InviteCollaboratorModal from './InviteCollaboratorModal'
+import InviteCollaboratorModal from '@/components/projects/InviteCollaboratorModal'
 
 interface CollaboratorsPanelProps {
   projectId: string
