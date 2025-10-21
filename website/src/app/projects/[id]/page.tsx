@@ -1179,9 +1179,9 @@ export default function ProjectDetailPage() {
                   <Settings className="w-5 h-5" />
                 </Link>
                 <Link
-                  href={`/projects/${project.id}/edit${fromParam ? `?from=${fromParam}` : ''}`}
+                  href={`/editor?project=${project.id}`}
                   className="p-2 text-slate-400 hover:text-yellow-400 transition-colors"
-                  title="Edit Project"
+                  title="Edit in Live Editor"
                 >
                   <Edit className="w-5 h-5" />
                 </Link>

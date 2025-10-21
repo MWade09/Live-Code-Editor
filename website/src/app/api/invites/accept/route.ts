@@ -74,19 +74,23 @@ export async function POST(request: NextRequest) {
         status: 'accepted',
         accepted_at: new Date().toISOString()
       })
-      .select(`
-        *,
-        user_profiles (
-          id,
-          username,
-          full_name,
-          avatar_url
-        )
-      `)
+      .select()
       .single()
 
     if (collaboratorError) {
       return NextResponse.json({ error: collaboratorError.message }, { status: 500 })
+    }
+
+    // Fetch user profile separately
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('id, username, full_name, avatar_url')
+      .eq('id', user.id)
+      .single()
+
+    const collaboratorWithProfile = {
+      ...collaborator,
+      user_profiles: profile || null
     }
 
     // Update invite status
@@ -110,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true,
-      collaborator,
+      collaborator: collaboratorWithProfile,
       project_id: invite.project_id
     })
   } catch (error) {

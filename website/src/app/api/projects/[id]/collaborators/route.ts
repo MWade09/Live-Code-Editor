@@ -47,15 +47,7 @@ export async function GET(
     // Fetch collaborators with user profiles
     const { data: collaborators, error } = await supabase
       .from('project_collaborators')
-      .select(`
-        *,
-        user_profiles (
-          id,
-          username,
-          full_name,
-          avatar_url
-        )
-      `)
+      .select('*')
       .eq('project_id', id)
       .eq('status', 'accepted')
       .order('created_at', { ascending: false })
@@ -64,7 +56,24 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ collaborators })
+    // Fetch user profiles separately
+    if (collaborators && collaborators.length > 0) {
+      const userIds = collaborators.map(c => c.user_id)
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('id, username, full_name, avatar_url')
+        .in('id', userIds)
+
+      // Merge profiles with collaborators
+      const collaboratorsWithProfiles = collaborators.map(collab => ({
+        ...collab,
+        user_profiles: profiles?.find(p => p.id === collab.user_id) || null
+      }))
+
+      return NextResponse.json({ collaborators: collaboratorsWithProfiles })
+    }
+
+    return NextResponse.json({ collaborators: [] })
   } catch (error) {
     console.error('Error fetching collaborators:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -136,22 +145,26 @@ export async function POST(
         role,
         status: 'accepted' // Direct add, no invitation needed
       })
-      .select(`
-        *,
-        user_profiles (
-          id,
-          username,
-          full_name,
-          avatar_url
-        )
-      `)
+      .select()
       .single()
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ collaborator }, { status: 201 })
+    // Fetch user profile separately
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('id, username, full_name, avatar_url')
+      .eq('id', userId)
+      .single()
+
+    const collaboratorWithProfile = {
+      ...collaborator,
+      user_profiles: profile || null
+    }
+
+    return NextResponse.json({ collaborator: collaboratorWithProfile }, { status: 201 })
   } catch (error) {
     console.error('Error adding collaborator:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

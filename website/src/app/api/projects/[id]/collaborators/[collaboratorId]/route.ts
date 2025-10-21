@@ -62,19 +62,23 @@ export async function PATCH(
       })
       .eq('id', collaboratorId)
       .eq('project_id', id)
-      .select(`
-        *,
-        user_profiles (
-          id,
-          username,
-          full_name,
-          avatar_url
-        )
-      `)
+      .select()
       .single()
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    // Fetch user profile separately
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('id, username, full_name, avatar_url')
+      .eq('id', collaborator.user_id)
+      .single()
+
+    const collaboratorWithProfile = {
+      ...collaborator,
+      user_profiles: profile || null
     }
 
     // Log activity
@@ -90,7 +94,7 @@ export async function PATCH(
         }
       })
 
-    return NextResponse.json({ collaborator })
+    return NextResponse.json({ collaborator: collaboratorWithProfile })
   } catch (error) {
     console.error('Error updating collaborator:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
