@@ -645,17 +645,22 @@ test('should show deployment history', async ({ page }) => {
 
 ### Week 1: Terminal (Days 1-5)
 
-**Day 1 (Oct 28)**: xterm.js Setup
+**Day 1 (Oct 22, 2025)**: ✅ **COMPLETED** - xterm.js Setup
 - ✅ Install: xterm, @xterm/addon-fit, @xterm/addon-web-links, socket.io-client
-- ✅ Create: Terminal.tsx component
-- ✅ Basic rendering in editor
-- ✅ Input/output display working
+- ✅ Create: Terminal.tsx component (React for future)
+- ✅ Enhanced TerminalManager.js with xterm.js integration
+- ✅ Terminal panel with VS Code layout (resizable, flex-based)
+- ✅ Mock command execution (help, clear, echo, ls, pwd, date, whoami)
+- ✅ Tab support (multiple terminals)
+- ✅ Keyboard shortcuts (Ctrl+\`)
+- ✅ Resize handle with drag support
+- ✅ Full ANSI color support
 
-**Day 2 (Oct 29)**: WebSocket Layer
-- ✅ Install: socket.io, node-pty (backend)
-- ✅ Create: /api/terminal route
-- ✅ WebSocket connection working
-- ✅ Bidirectional communication
+**Day 2 (Oct 22, 2025)**: ⏳ **IN PROGRESS** - WebSocket Layer
+- ⏳ Install: socket.io, node-pty (backend)
+- ⏳ Create: /api/terminal/route.ts (WebSocket handler)
+- ⏳ WebSocket connection working
+- ⏳ Bidirectional communication (input/output)
 
 **Day 3 (Oct 30)**: TerminalManager Integration
 - ✅ Modify TerminalManager.js
