@@ -1,0 +1,232 @@
+/* Terminal Panel Styles */
+.terminal-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 300px;
+  background-color: #1e1e1e;
+  border-top: 1px solid #3e3e3e;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.terminal-tab-bar {
+  display: flex;
+  align-items: center;
+  background-color: #2d2d2d;
+  border-bottom: 1px solid #3e3e3e;
+  height: 35px;
+  flex-shrink: 0;
+}
+
+.terminal-tabs {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.terminal-tabs::-webkit-scrollbar {
+  height: 3px;
+}
+
+.terminal-tabs::-webkit-scrollbar-track {
+  background: #2d2d2d;
+}
+
+.terminal-tabs::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 3px;
+}
+
+.terminal-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+  color: #888;
+  background-color: #2d2d2d;
+  border-right: 1px solid #3e3e3e;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.terminal-tab:hover {
+  background-color: #252525;
+  color: #ccc;
+}
+
+.terminal-tab.active {
+  background-color: #1e1e1e;
+  color: #fff;
+  border-bottom: 2px solid #007acc;
+}
+
+.terminal-tab-close {
+  color: #888;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.terminal-tab-close:hover {
+  color: #fff;
+  background-color: #444;
+}
+
+.terminal-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-left: 1px solid #3e3e3e;
+}
+
+.terminal-action-btn {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 14px;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.terminal-action-btn:hover {
+  color: #fff;
+  background-color: #444;
+}
+
+.terminal-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.terminal-instance {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: none;
+  padding: 8px;
+}
+
+.terminal-instance.active {
+  display: block;
+}
+
+.terminal-instance .xterm {
+  height: 100%;
+  width: 100%;
+}
+
+/* Override xterm.js default styles */
+.terminal-instance .xterm-viewport {
+  background-color: #1e1e1e !important;
+}
+
+.terminal-instance .xterm-screen {
+  background-color: #1e1e1e !important;
+}
+
+/* Adjust editor and preview when terminal is open */
+body.terminal-open .editor-container {
+  height: calc(100vh - 300px - 80px);
+  /* 100vh - terminal height - header height */
+}
+
+body.terminal-open .left-pane,
+body.terminal-open .chat-pane {
+  height: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .terminal-panel {
+    height: 250px;
+  }
+  
+  body.terminal-open .editor-container {
+    height: calc(100vh - 250px - 80px);
+  }
+}
+
+/* Dark theme adjustments */
+.dark-theme .terminal-panel {
+  background-color: #1e1e1e;
+  border-top-color: #3e3e3e;
+}
+
+.dark-theme .terminal-tab-bar {
+  background-color: #2d2d2d;
+  border-bottom-color: #3e3e3e;
+}
+
+.dark-theme .terminal-tab {
+  background-color: #2d2d2d;
+  color: #888;
+  border-right-color: #3e3e3e;
+}
+
+.dark-theme .terminal-tab:hover {
+  background-color: #252525;
+  color: #ccc;
+}
+
+.dark-theme .terminal-tab.active {
+  background-color: #1e1e1e;
+  color: #fff;
+}
+
+/* Light theme adjustments */
+.light-theme .terminal-panel {
+  background-color: #ffffff;
+  border-top-color: #e0e0e0;
+}
+
+.light-theme .terminal-tab-bar {
+  background-color: #f5f5f5;
+  border-bottom-color: #e0e0e0;
+}
+
+.light-theme .terminal-tab {
+  background-color: #f5f5f5;
+  color: #666;
+  border-right-color: #e0e0e0;
+}
+
+.light-theme .terminal-tab:hover {
+  background-color: #e8e8e8;
+  color: #333;
+}
+
+.light-theme .terminal-tab.active {
+  background-color: #ffffff;
+  color: #000;
+  border-bottom: 2px solid #007acc;
+}
+
+.light-theme .terminal-action-btn {
+  color: #666;
+}
+
+.light-theme .terminal-action-btn:hover {
+  color: #000;
+  background-color: #e0e0e0;
+}
+
+.light-theme .terminal-instance .xterm-viewport,
+.light-theme .terminal-instance .xterm-screen {
+  background-color: #ffffff !important;
+}
