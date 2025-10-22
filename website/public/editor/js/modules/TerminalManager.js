@@ -26,18 +26,32 @@ export class TerminalManager {
   }
 
   initializeUI() {
+    console.log('🔧 TerminalManager: Initializing UI...')
     this.terminalPanel = document.getElementById('terminal-panel')
     this.terminalContent = document.getElementById('terminal-content')
     this.terminalTabs = document.getElementById('terminal-tabs')
     this.toggleButton = document.getElementById('terminal-toggle-btn')
     this.newTerminalButton = document.getElementById('new-terminal-btn')
     this.closeButton = document.getElementById('close-terminal-panel-btn')
+    
+    console.log('📍 Terminal Panel:', this.terminalPanel ? '✅ Found' : '❌ Not found')
+    console.log('📍 Toggle Button:', this.toggleButton ? '✅ Found' : '❌ Not found')
+    console.log('📍 Terminal Content:', this.terminalContent ? '✅ Found' : '❌ Not found')
+    console.log('📍 Terminal Tabs:', this.terminalTabs ? '✅ Found' : '❌ Not found')
   }
 
   attachEventListeners() {
+    console.log('🎯 TerminalManager: Attaching event listeners...')
+    
     // Toggle terminal panel
     if (this.toggleButton) {
-      this.toggleButton.addEventListener('click', () => this.togglePanel())
+      console.log('✅ Adding click listener to toggle button')
+      this.toggleButton.addEventListener('click', () => {
+        console.log('🖱️ Terminal toggle button clicked!')
+        this.togglePanel()
+      })
+    } else {
+      console.warn('⚠️ Toggle button not found - cannot attach listener')
     }
 
     // New terminal
@@ -54,26 +68,40 @@ export class TerminalManager {
     document.addEventListener('keydown', (e) => {
       if (e.ctrlKey && e.key === '`') {
         e.preventDefault()
+        console.log('⌨️ Ctrl+` pressed - toggling terminal')
         this.togglePanel()
       }
     })
+    
+    console.log('✅ TerminalManager: Event listeners attached')
   }
 
   togglePanel() {
+    console.log('🔄 togglePanel() called')
+    
+    if (!this.terminalPanel) {
+      console.error('❌ Terminal panel element not found!')
+      return
+    }
+    
     const isHidden = this.terminalPanel.style.display === 'none'
+    console.log('📊 Current state - Hidden:', isHidden)
     
     if (isHidden) {
+      console.log('👁️ Opening terminal panel...')
       this.terminalPanel.style.display = 'flex'
       document.body.classList.add('terminal-open')
       
       // Create first terminal if none exist
       if (this.terminals.size === 0) {
+        console.log('➕ Creating first terminal...')
         this.createTerminal()
       } else {
         // Resize active terminal to fit
         this.fitActiveTerminal()
       }
     } else {
+      console.log('👁️‍🗨️ Closing terminal panel...')
       this.terminalPanel.style.display = 'none'
       document.body.classList.remove('terminal-open')
     }
