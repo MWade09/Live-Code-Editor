@@ -172,13 +172,23 @@ export class TerminalManager {
       convertEol: true
     })
 
-    // Add fit addon
-    const fitAddon = new window.FitAddon()
-    term.loadAddon(fitAddon)
+    console.log('✅ Terminal instance created')
 
-    // Add web links addon
-    const webLinksAddon = new window.WebLinksAddon()
-    term.loadAddon(webLinksAddon)
+    // Add fit addon
+    let fitAddon = null
+    try {
+      fitAddon = new window.FitAddon.FitAddon()
+      term.loadAddon(fitAddon)
+      console.log('✅ FitAddon loaded')
+      
+      // Add web links addon
+      const webLinksAddon = new window.WebLinksAddon.WebLinksAddon()
+      term.loadAddon(webLinksAddon)
+      console.log('✅ WebLinksAddon loaded')
+    } catch (error) {
+      console.error('❌ Error loading addons:', error)
+      console.log('Addon objects:', { fitAddon: window.FitAddon, webLinks: window.WebLinksAddon })
+    }
 
     // Create container for this terminal
     const container = document.createElement('div')
@@ -188,7 +198,9 @@ export class TerminalManager {
 
     // Open terminal in container
     term.open(container)
-    fitAddon.fit()
+    if (fitAddon) {
+      fitAddon.fit()
+    }
 
     // Store references
     this.xtermInstances.set(id, { term, fitAddon, container })
