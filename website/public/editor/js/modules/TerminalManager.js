@@ -214,16 +214,22 @@ export class TerminalManager {
     console.log('✅ Terminal instance stored')
 
     console.log('💬 Writing welcome message...')
-    // Welcome message
-    term.writeln('\x1b[1;32m╔══════════════════════════════════════════╗\x1b[0m')
-    term.writeln('\x1b[1;32m║   Live Code Editor - Terminal v1.0      ║\x1b[0m')
-    term.writeln('\x1b[1;32m╚══════════════════════════════════════════╝\x1b[0m')
-    term.writeln('')
-    term.writeln('\x1b[1;33mDay 1: Mock Terminal (WebSocket coming Day 2)\x1b[0m')
-    term.writeln('Type \x1b[1;36mhelp\x1b[0m for available commands')
-    term.writeln('')
-    term.write('$ ')
+    try {
+      // Welcome message
+      term.writeln('\x1b[1;32m╔══════════════════════════════════════════╗\x1b[0m')
+      term.writeln('\x1b[1;32m║   Live Code Editor - Terminal v1.0      ║\x1b[0m')
+      term.writeln('\x1b[1;32m╚══════════════════════════════════════════╝\x1b[0m')
+      term.writeln('')
+      term.writeln('\x1b[1;33mDay 1: Mock Terminal (WebSocket coming Day 2)\x1b[0m')
+      term.writeln('Type \x1b[1;36mhelp\x1b[0m for available commands')
+      term.writeln('')
+      term.write('$ ')
+      console.log('✅ Welcome message written')
+    } catch (error) {
+      console.error('❌ Error writing welcome message:', error)
+    }
 
+    console.log('🎧 Setting up input handler...')
     // Handle user input (Day 1 - Mock implementation)
     let currentLine = ''
     term.onData((data) => {
@@ -262,13 +268,19 @@ export class TerminalManager {
         term.write(data)
       }
     })
+    console.log('✅ Input handler set up')
 
+    console.log('📑 Creating tab...')
     // Create tab
     this.createTab(id, title)
+    console.log('✅ Tab created')
     
+    console.log('🎯 Setting as active terminal...')
     // Set as active
     this.setActiveTerminal(id)
+    console.log('✅ Terminal set as active')
     
+    console.log('🎉 Terminal creation complete!')
     return terminalData
   }
 
