@@ -190,21 +190,30 @@ export class TerminalManager {
       console.log('Addon objects:', { fitAddon: window.FitAddon, webLinks: window.WebLinksAddon })
     }
 
+    console.log('📦 Creating terminal container...')
     // Create container for this terminal
     const container = document.createElement('div')
     container.id = `terminal-${id}`
     container.className = 'terminal-instance'
     this.terminalContent.appendChild(container)
+    console.log('✅ Container created and added to DOM')
 
+    console.log('🖥️ Opening terminal in container...')
     // Open terminal in container
     term.open(container)
+    console.log('✅ Terminal opened')
+    
     if (fitAddon) {
+      console.log('📐 Fitting terminal to container...')
       fitAddon.fit()
+      console.log('✅ Terminal fitted')
     }
 
     // Store references
     this.xtermInstances.set(id, { term, fitAddon, container })
+    console.log('✅ Terminal instance stored')
 
+    console.log('💬 Writing welcome message...')
     // Welcome message
     term.writeln('\x1b[1;32m╔══════════════════════════════════════════╗\x1b[0m')
     term.writeln('\x1b[1;32m║   Live Code Editor - Terminal v1.0      ║\x1b[0m')
