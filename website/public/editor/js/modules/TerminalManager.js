@@ -91,6 +91,11 @@ export class TerminalManager {
       console.log('👁️ Opening terminal panel...')
       this.terminalPanel.style.display = 'flex'
       document.body.classList.add('terminal-open')
+      console.log('📐 Panel display:', this.terminalPanel.style.display)
+      console.log('📐 Panel computed display:', window.getComputedStyle(this.terminalPanel).display)
+      console.log('📐 Panel visibility:', window.getComputedStyle(this.terminalPanel).visibility)
+      console.log('📐 Panel height:', window.getComputedStyle(this.terminalPanel).height)
+      console.log('📐 Panel z-index:', window.getComputedStyle(this.terminalPanel).zIndex)
       
       // Create first terminal if none exist
       if (this.terminals.size === 0) {
@@ -313,6 +318,8 @@ export class TerminalManager {
   }
 
   setActiveTerminal(id) {
+    console.log('🎯 setActiveTerminal called with id:', id)
+    
     // Update active terminal ID
     this.activeTerminalId = id
     
@@ -324,19 +331,30 @@ export class TerminalManager {
         tab.classList.remove('active')
       }
     })
+    console.log('✅ Tab styles updated')
     
     // Update terminal visibility
     document.querySelectorAll('.terminal-instance').forEach(instance => {
       instance.classList.remove('active')
     })
+    console.log('✅ Removed active class from all instances')
     
     const xtermData = this.xtermInstances.get(id)
+    console.log('📦 Found xterm data:', xtermData ? 'YES' : 'NO')
+    
     if (xtermData) {
       xtermData.container.classList.add('active')
+      console.log('✅ Added active class to container')
+      console.log('📐 Container display:', window.getComputedStyle(xtermData.container).display)
+      console.log('📐 Container visibility:', window.getComputedStyle(xtermData.container).visibility)
+      console.log('📐 Container classes:', xtermData.container.className)
       
       // Fit terminal to container
       setTimeout(() => {
-        xtermData.fitAddon.fit()
+        if (xtermData.fitAddon) {
+          xtermData.fitAddon.fit()
+          console.log('✅ Terminal fitted to container')
+        }
       }, 0)
     }
   }
