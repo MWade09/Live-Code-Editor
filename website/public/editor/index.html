@@ -161,6 +161,27 @@
                     <div id="editor" class="hidden-view"></div>
                     <iframe id="preview-frame" title="Preview" class="hidden-view"></iframe>
                 </div>
+                
+                <!-- Terminal Panel (integrated into left-pane like VS Code) -->
+                <div class="terminal-panel" id="terminal-panel" style="display: none;">
+                    <div class="terminal-resizer" id="terminal-resizer"></div>
+                    <div class="terminal-tab-bar">
+                        <div class="terminal-tabs" id="terminal-tabs">
+                            <!-- Terminal tabs will be added here dynamically -->
+                        </div>
+                        <div class="terminal-actions">
+                            <button id="new-terminal-btn" class="terminal-action-btn" title="New Terminal">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button id="close-terminal-panel-btn" class="terminal-action-btn" title="Close Terminal Panel">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="terminal-content" id="terminal-content">
+                        <!-- Terminal instances will be rendered here -->
+                    </div>
+                </div>
             </div>
             <div class="resizer" id="dragMe"></div>
             <div class="chat-pane">
@@ -274,26 +295,6 @@
                     <textarea id="chat-input" placeholder="Type your message here..."></textarea>
                     <button id="chat-send-btn" title="Send Message"><i class="fas fa-paper-plane"></i></button>
                 </div>
-            </div>
-        </div>
-
-        <!-- Terminal Panel -->
-        <div class="terminal-panel" id="terminal-panel" style="display: none;">
-            <div class="terminal-tab-bar">
-                <div class="terminal-tabs" id="terminal-tabs">
-                    <!-- Terminal tabs will be added here dynamically -->
-                </div>
-                <div class="terminal-actions">
-                    <button id="new-terminal-btn" class="terminal-action-btn" title="New Terminal">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                    <button id="close-terminal-panel-btn" class="terminal-action-btn" title="Close Terminal Panel">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="terminal-content" id="terminal-content">
-                <!-- Terminal instances will be rendered here -->
             </div>
         </div>
 

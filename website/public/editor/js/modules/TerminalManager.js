@@ -73,6 +73,49 @@ export class TerminalManager {
       }
     })
     
+    // Terminal resize handle
+    const resizer = document.getElementById('terminal-resizer')
+    if (resizer) {
+      let isResizing = false
+      let startY = 0
+      let startHeight = 0
+      
+      resizer.addEventListener('mousedown', (e) => {
+        isResizing = true
+        startY = e.clientY
+        startHeight = this.terminalPanel.offsetHeight
+        document.body.style.cursor = 'ns-resize'
+        document.body.style.userSelect = 'none'
+        e.preventDefault()
+      })
+      
+      document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return
+        
+        const deltaY = startY - e.clientY // Inverted because we're resizing from top
+        const newHeight = Math.max(100, Math.min(startHeight + deltaY, window.innerHeight * 0.8))
+        
+        this.terminalPanel.style.flex = `0 0 ${newHeight}px`
+        
+        // Fit all terminal instances
+        this.xtermInstances.forEach(({ fitAddon }) => {
+          if (fitAddon) {
+            setTimeout(() => fitAddon.fit(), 0)
+          }
+        })
+      })
+      
+      document.addEventListener('mouseup', () => {
+        if (isResizing) {
+          isResizing = false
+          document.body.style.cursor = ''
+          document.body.style.userSelect = ''
+        }
+      })
+      
+      console.log('✅ Terminal resizer initialized')
+    }
+    
     console.log('✅ TerminalManager: Event listeners attached')
   }
 
