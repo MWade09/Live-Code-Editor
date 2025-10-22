@@ -128,10 +128,18 @@ export class TerminalManager {
     this.terminals.set(id, terminalData)
     
     // Check if xterm.js is available
+    console.log('🔍 Checking for xterm.js...')
+    console.log('window.Terminal:', typeof window.Terminal)
+    console.log('window.FitAddon:', typeof window.FitAddon)
+    console.log('window.WebLinksAddon:', typeof window.WebLinksAddon)
+    
     if (typeof window.Terminal === 'undefined') {
-      console.error('xterm.js not loaded!')
+      console.error('❌ xterm.js not loaded!')
+      console.error('Available window properties:', Object.keys(window).filter(k => k.includes('term') || k.includes('xterm')))
       return terminalData
     }
+    
+    console.log('✅ xterm.js is available, creating terminal instance...')
     
     // Create xterm.js instance
     const term = new window.Terminal({
@@ -165,11 +173,11 @@ export class TerminalManager {
     })
 
     // Add fit addon
-    const fitAddon = new window.FitAddon.FitAddon()
+    const fitAddon = new window.FitAddon()
     term.loadAddon(fitAddon)
 
     // Add web links addon
-    const webLinksAddon = new window.WebLinksAddon.WebLinksAddon()
+    const webLinksAddon = new window.WebLinksAddon()
     term.loadAddon(webLinksAddon)
 
     // Create container for this terminal
