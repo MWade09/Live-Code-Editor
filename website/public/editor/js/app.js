@@ -321,19 +321,20 @@ document.addEventListener('DOMContentLoaded', () => {
         
         console.log('Application initialized successfully');
 
+        // OLD Terminal initialization - DISABLED (now using TerminalManager with xterm.js)
         // Initialize terminal dock and restore visibility
-        try {
-            initTerminalPanel();
-            const toggle = document.getElementById('terminal-toggle-btn');
-            if (toggle) toggle.addEventListener('click', toggleTerminalPanel);
-            const wasVisible = localStorage.getItem('terminalVisible') === '1';
-            if (wasVisible) {
-                const panel = document.getElementById('terminal-panel');
-                if (panel) panel.style.display = 'block';
-                const btn = document.getElementById('terminal-toggle-btn');
-                if (btn) btn.classList.add('active');
-            }
-        } catch {}
+        // try {
+        //     initTerminalPanel();
+        //     const toggle = document.getElementById('terminal-toggle-btn');
+        //     if (toggle) toggle.addEventListener('click', toggleTerminalPanel);
+        //     const wasVisible = localStorage.getItem('terminalVisible') === '1';
+        //     if (wasVisible) {
+        //         const panel = document.getElementById('terminal-panel');
+        //         if (panel) panel.style.display = 'block';
+        //         const btn = document.getElementById('terminal-toggle-btn');
+        //         if (btn) btn.classList.add('active');
+        //     }
+        // } catch {}
 
         // If URL contains ?project=, load from website and enable auto-save
         try {
