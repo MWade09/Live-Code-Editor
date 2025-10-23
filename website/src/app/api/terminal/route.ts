@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server'
 import { Server as SocketIOServer } from 'socket.io'
 import { spawn, ChildProcess } from 'child_process'
 
@@ -8,7 +7,7 @@ const terminals = new Map<string, ChildProcess>()
 // Socket.io server singleton
 let io: SocketIOServer | null = null
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   // Initialize Socket.io server if not already done
   if (!io) {
     // Get the HTTP server from Next.js
@@ -139,6 +138,6 @@ export async function GET(_request: NextRequest) {
 }
 
 // Export POST handler for Socket.io handshake
-export async function POST(request: NextRequest) {
-  return GET(request)
+export async function POST() {
+  return GET()
 }
