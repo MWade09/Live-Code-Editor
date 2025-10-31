@@ -160,6 +160,7 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
             // CODE QUALITY & FORMATTING
             // =====================================================
             "F1": cm => this.showCommandPalette(),
+            "Ctrl-Shift-P": cm => this.showCommandPalette(), // Command Palette (primary shortcut)
             "Alt-Shift-F": cm => this.formattingManager.formatCode(),
             "Ctrl-K Ctrl-F": cm => this.formattingManager.formatSelection(),
             "F8": cm => this.lintManager.jumpToNextError(),
@@ -200,7 +201,7 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
             // WORD WRAP & WHITESPACE
             // =====================================================
             "Alt-Z": cm => this.toggleWordWrap(cm),
-            "Ctrl-Shift-P": cm => this.showWhitespace(cm),
+            "Ctrl-Shift-W": cm => this.showWhitespace(cm), // Changed from Ctrl-Shift-P to avoid printer conflict
             
             // =====================================================
             // EMMET SHORTCUTS
