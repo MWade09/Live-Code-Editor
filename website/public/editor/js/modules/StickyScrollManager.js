@@ -93,10 +93,10 @@ export class StickyScrollManager {
 
         const context = [];
         const mode = this.codeMirror.getMode().name;
-        const indentStack = []; // Track indentation for nesting
+        let currentIndent = Infinity; // Track the indent level we're looking for
         
         // Scan backwards from current line to find context
-        for (let i = lineNum - 1; i >= 0 && context.length < this.maxContextLines; i--) {
+        for (let i = lineNum - 1; i >= 0; i--) {
             const line = this.codeMirror.getLine(i);
             
             if (!line || line.trim() === '') continue;
@@ -104,23 +104,22 @@ export class StickyScrollManager {
             const indent = this.getIndentLevel(line);
             const contextInfo = this.getContextInfo(line, mode, i);
             
-            if (contextInfo) {
-                // Remove items from stack with greater or equal indent
-                while (indentStack.length > 0 && indentStack[indentStack.length - 1].indent >= indent) {
-                    indentStack.pop();
-                }
+            // Only add context if it's at a shallower indent level than what we've seen
+            if (contextInfo && indent < currentIndent) {
+                context.unshift(contextInfo); // Add to beginning
+                currentIndent = indent;
                 
-                indentStack.push({ indent, line: i, info: contextInfo });
+                // Stop if we have enough context
+                if (context.length >= this.maxContextLines) {
+                    break;
+                }
             }
         }
         
-        // Build context from stack (innermost first, so reverse)
-        const result = indentStack.map(item => item.info).reverse();
-        
         // Cache the result
-        this.contextCache.set(cacheKey, result);
+        this.contextCache.set(cacheKey, context);
         
-        return result;
+        return context;
     }
 
     /**
@@ -204,6 +203,11 @@ export class StickyScrollManager {
      * Render the context in the sticky header
      */
     renderContext(context) {
+        if (context.length === 0) {
+            this.headerEl.classList.add('hidden');
+            return;
+        }
+        
         this.headerEl.innerHTML = context.map((ctx, index) => {
             const indent = index * 20; // Visual indent for nesting
             return `
