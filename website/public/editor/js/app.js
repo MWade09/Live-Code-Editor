@@ -69,6 +69,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize all managers
     const fileManager = new FileManager();
     const editor = new Editor(document.getElementById('editor'), fileManager);
+    
+    // Make editor globally accessible for keyboard shortcuts
+    window.editorInstance = editor;
+    
     const preview = new Preview(document.getElementById('preview-frame'), fileManager);
     const resizer = new Resizer(
         document.getElementById('dragMe'),
@@ -1423,7 +1427,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // Ctrl+Shift+P - Command Palette (prevent browser print dialog)
         if (e.ctrlKey && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
             e.preventDefault();
-            // Handled by CommandPaletteManager via KeyboardManager
+            console.log('🔍 app.js: Ctrl+Shift+P detected, triggering command palette');
+            // Trigger command palette directly if available
+            if (window.editorInstance && window.editorInstance.commandPaletteManager) {
+                console.log('✅ Calling command palette from app.js');
+                window.editorInstance.commandPaletteManager.show();
+            } else if (window.commandPaletteInstance) {
+                console.log('✅ Calling global command palette instance');
+                window.commandPaletteInstance.show();
+            } else {
+                console.warn('❌ No command palette instance available');
+            }
             return;
         }
         

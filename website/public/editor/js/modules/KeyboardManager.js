@@ -159,8 +159,17 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
             // =====================================================
             // CODE QUALITY & FORMATTING
             // =====================================================
-            "F1": cm => this.showCommandPalette(),
-            "Ctrl-Shift-P": cm => this.showCommandPalette(), // Command Palette (primary shortcut)
+            "F1": cm => {
+                console.log('⌨️ F1 pressed - opening command palette');
+                this.showCommandPalette();
+                return CodeMirror.Pass; // Let other handlers run if needed
+            },
+            "Ctrl-Shift-P": cm => {
+                console.log('⌨️ Ctrl+Shift+P pressed - opening command palette');
+                this.showCommandPalette();
+                // Return false to prevent default browser behavior (print dialog)
+                return false;
+            }, // Command Palette (primary shortcut)
             "Alt-Shift-F": cm => this.formattingManager.formatCode(),
             "Ctrl-K Ctrl-F": cm => this.formattingManager.formatSelection(),
             "F8": cm => this.lintManager.jumpToNextError(),
@@ -224,7 +233,6 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
             // =====================================================
             // HELP & SHORTCUTS
             // =====================================================
-            "F1": cm => this.showKeyboardShortcuts(),
             "Ctrl-?": cm => this.showKeyboardShortcuts(),
             "Ctrl-K Ctrl-H": cm => this.showKeyboardShortcuts()
         };
@@ -1146,10 +1154,13 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
     // =====================================================
 
     showCommandPalette() {
+        console.log('🎯 KeyboardManager.showCommandPalette called', { hasManager: !!this.commandPaletteManager });
         // Use CommandPaletteManager if available
         if (this.commandPaletteManager) {
+            console.log('✅ Calling commandPaletteManager.show()');
             this.commandPaletteManager.show();
         } else {
+            console.warn('❌ No commandPaletteManager available');
             this.showNotification('Command Palette loading...');
         }
     }
