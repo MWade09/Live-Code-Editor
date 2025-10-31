@@ -177,6 +177,11 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
             "Ctrl-Shift-M": cm => this.lintManager.showLintStats(),
             
             // =====================================================
+            // SNIPPETS
+            // =====================================================
+            "Alt-S": cm => this.showSnippetBrowser(),
+            
+            // =====================================================
             // VIEW CONTROLS
             // =====================================================
             "Ctrl-=": cm => this.zoomIn(),
@@ -1162,6 +1167,15 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
         } else {
             console.warn('❌ No commandPaletteManager available');
             this.showNotification('Command Palette loading...');
+        }
+    }
+
+    showSnippetBrowser() {
+        console.log('📚 Opening snippet browser');
+        if (this.snippetManager) {
+            this.snippetManager.showSnippetPalette();
+        } else {
+            this.showNotification('Snippets loading...');
         }
     }
 

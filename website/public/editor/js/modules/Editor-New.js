@@ -8,6 +8,7 @@ import { KeyboardManager } from './KeyboardManager.js';
 import { MinimapManager } from './MinimapManager.js';
 import { LineHighlightManager } from './LineHighlightManager.js';
 import { CommandPaletteManager } from './CommandPaletteManager.js';
+import { SnippetManager } from './SnippetManager.js';
 
 export class Editor {
     constructor(editorElement, fileManager) {
@@ -94,6 +95,9 @@ export class Editor {
         this.minimapManager = new MinimapManager(this, this.codeMirror);
         this.lineHighlightManager = new LineHighlightManager(this, this.codeMirror);
         
+        // Initialize snippet manager
+        this.snippetManager = new SnippetManager(this, this.codeMirror);
+        
         // Initialize command palette with all managers
         this.commandPaletteManager = new CommandPaletteManager(this, this.codeMirror, {
             searchManager: this.searchManager,
@@ -101,7 +105,8 @@ export class Editor {
             formattingManager: this.formattingManager,
             keyboardManager: this.keyboardManager,
             minimapManager: this.minimapManager,
-            lineHighlightManager: this.lineHighlightManager
+            lineHighlightManager: this.lineHighlightManager,
+            snippetManager: this.snippetManager
         });
         
         // Make command palette globally accessible for onclick handlers
@@ -112,6 +117,7 @@ export class Editor {
             this.keyboardManager.minimapManager = this.minimapManager;
             this.keyboardManager.lineHighlightManager = this.lineHighlightManager;
             this.keyboardManager.commandPaletteManager = this.commandPaletteManager;
+            this.keyboardManager.snippetManager = this.snippetManager;
         }
     }
 

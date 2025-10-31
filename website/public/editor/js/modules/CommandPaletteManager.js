@@ -313,6 +313,16 @@ export class CommandPaletteManager {
                 action: () => this.setTheme('light')
             },
 
+            // Snippets
+            {
+                id: 'snippets.browse',
+                label: 'Snippets: Browse Snippets',
+                description: 'Browse and insert code snippets',
+                shortcut: 'Alt+S',
+                category: 'Snippets',
+                action: () => this.managers.snippetManager?.showSnippetPalette()
+            },
+
             // Help
             {
                 id: 'help.shortcuts',
