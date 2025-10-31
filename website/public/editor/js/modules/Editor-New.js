@@ -9,7 +9,7 @@ import { MinimapManager } from './MinimapManager.js';
 import { LineHighlightManager } from './LineHighlightManager.js';
 import { CommandPaletteManager } from './CommandPaletteManager.js';
 import { SnippetManager } from './SnippetManager.js';
-import BracketColorizerManager from './BracketColorizerManager.js';
+import { BracketColorizerManager } from './BracketColorizerManager.js';
 
 export class Editor {
     constructor(editorElement, fileManager) {
