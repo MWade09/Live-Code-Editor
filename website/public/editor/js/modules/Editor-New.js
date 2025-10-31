@@ -10,6 +10,7 @@ import { LineHighlightManager } from './LineHighlightManager.js';
 import { CommandPaletteManager } from './CommandPaletteManager.js';
 import { SnippetManager } from './SnippetManager.js';
 import { BracketColorizerManager } from './BracketColorizerManager.js';
+import { StickyScrollManager } from './StickyScrollManager.js';
 
 export class Editor {
     constructor(editorElement, fileManager) {
@@ -101,6 +102,9 @@ export class Editor {
         // Initialize bracket colorizer
         this.bracketColorizerManager = new BracketColorizerManager(this, this.codeMirror);
         
+        // Initialize sticky scroll
+        this.stickyScrollManager = new StickyScrollManager(this, this.codeMirror);
+        
         // Initialize command palette with all managers
         this.commandPaletteManager = new CommandPaletteManager(this, this.codeMirror, {
             searchManager: this.searchManager,
@@ -110,7 +114,8 @@ export class Editor {
             minimapManager: this.minimapManager,
             lineHighlightManager: this.lineHighlightManager,
             snippetManager: this.snippetManager,
-            bracketColorizerManager: this.bracketColorizerManager
+            bracketColorizerManager: this.bracketColorizerManager,
+            stickyScrollManager: this.stickyScrollManager
         });
         
         // Make command palette globally accessible for onclick handlers
@@ -123,6 +128,7 @@ export class Editor {
             this.keyboardManager.commandPaletteManager = this.commandPaletteManager;
             this.keyboardManager.snippetManager = this.snippetManager;
             this.keyboardManager.bracketColorizerManager = this.bracketColorizerManager;
+            this.keyboardManager.stickyScrollManager = this.stickyScrollManager;
         }
     }
 

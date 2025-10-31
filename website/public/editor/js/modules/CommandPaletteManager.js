@@ -190,6 +190,17 @@ export class CommandPaletteManager {
                 }
             },
             {
+                id: 'view.toggleStickyScroll',
+                label: 'View: Toggle Sticky Scroll',
+                description: 'Show or hide context at the top while scrolling',
+                shortcut: 'Ctrl+K S',
+                category: 'View',
+                action: () => {
+                    const enabled = this.managers.stickyScrollManager?.toggle();
+                    this.showNotification(enabled ? 'Sticky scroll enabled' : 'Sticky scroll disabled');
+                }
+            },
+            {
                 id: 'view.toggleTerminal',
                 label: 'View: Toggle Terminal',
                 description: 'Show or hide the integrated terminal',

@@ -204,6 +204,8 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
             "F7": () => this.managers.lineHighlightManager?.toggleRelativeLineNumbers(),
             "Ctrl-K B": () => this.bracketColorizerManager?.toggle(),
             "Ctrl-K Ctrl-B": () => this.bracketColorizerManager?.toggle(),
+            "Ctrl-K S": () => this.stickyScrollManager?.toggle(),
+            "Ctrl-K Ctrl-S": () => this.stickyScrollManager?.toggle(),
             
             // =====================================================
             // BOOKMARKS & NAVIGATION

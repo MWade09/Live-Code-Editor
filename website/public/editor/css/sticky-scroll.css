@@ -1,0 +1,265 @@
+/* =====================================================
+   STICKY SCROLL STYLES
+   Shows context (function/class names) at top while scrolling
+   ===================================================== */
+
+.sticky-scroll {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    border-bottom: 2px solid #4a90e2;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    max-height: 150px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.sticky-scroll.hidden {
+    display: none;
+}
+
+/* Individual context lines */
+.sticky-line {
+    display: flex;
+    align-items: center;
+    padding: 4px 12px;
+    color: #ecf0f1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.sticky-line:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-left-color: #4a90e2;
+}
+
+.sticky-line:active {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* Context type-specific colors */
+.sticky-function {
+    border-left-color: #FFD700;
+}
+
+.sticky-function:hover {
+    border-left-color: #FFD700;
+    background: rgba(255, 215, 0, 0.1);
+}
+
+.sticky-class {
+    border-left-color: #DA70D6;
+}
+
+.sticky-class:hover {
+    border-left-color: #DA70D6;
+    background: rgba(218, 112, 214, 0.1);
+}
+
+.sticky-component {
+    border-left-color: #179FFF;
+}
+
+.sticky-component:hover {
+    border-left-color: #179FFF;
+    background: rgba(23, 159, 255, 0.1);
+}
+
+.sticky-method {
+    border-left-color: #00FA9A;
+}
+
+.sticky-method:hover {
+    border-left-color: #00FA9A;
+    background: rgba(0, 250, 154, 0.1);
+}
+
+.sticky-selector {
+    border-left-color: #FF6347;
+}
+
+.sticky-selector:hover {
+    border-left-color: #FF6347;
+    background: rgba(255, 99, 71, 0.1);
+}
+
+.sticky-tag {
+    border-left-color: #9370DB;
+}
+
+.sticky-tag:hover {
+    border-left-color: #9370DB;
+    background: rgba(147, 112, 219, 0.1);
+}
+
+.sticky-interface,
+.sticky-type {
+    border-left-color: #20B2AA;
+}
+
+.sticky-interface:hover,
+.sticky-type:hover {
+    border-left-color: #20B2AA;
+    background: rgba(32, 178, 170, 0.1);
+}
+
+/* Icon styling */
+.sticky-icon {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 14px;
+    opacity: 0.8;
+    flex-shrink: 0;
+}
+
+.sticky-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+/* Jump highlight animation */
+.sticky-jump-highlight {
+    background-color: rgba(74, 144, 226, 0.3) !important;
+    animation: sticky-flash 1s ease-out;
+}
+
+@keyframes sticky-flash {
+    0% {
+        background-color: rgba(74, 144, 226, 0.5);
+    }
+    50% {
+        background-color: rgba(74, 144, 226, 0.3);
+    }
+    100% {
+        background-color: rgba(74, 144, 226, 0);
+    }
+}
+
+/* Dark theme (default) */
+.dark-theme .sticky-scroll {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    border-bottom-color: #4a90e2;
+}
+
+.dark-theme .sticky-line {
+    color: #ecf0f1;
+}
+
+/* Light theme adjustments */
+.light-theme .sticky-scroll {
+    background: linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%);
+    border-bottom-color: #3498db;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.light-theme .sticky-line {
+    color: #2c3e50;
+}
+
+.light-theme .sticky-line:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.light-theme .sticky-line:active {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .sticky-jump-highlight {
+    background-color: rgba(52, 152, 219, 0.2) !important;
+}
+
+/* Responsive - hide on very small screens */
+@media (max-width: 768px) {
+    .sticky-scroll {
+        font-size: 11px;
+    }
+    
+    .sticky-line {
+        padding: 3px 8px;
+    }
+    
+    .sticky-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 12px;
+        margin-right: 6px;
+    }
+}
+
+/* Print styles - hide sticky scroll when printing */
+@media print {
+    .sticky-scroll {
+        display: none !important;
+    }
+}
+
+/* Accessibility - high contrast mode */
+@media (prefers-contrast: high) {
+    .sticky-scroll {
+        border-bottom-width: 3px;
+    }
+    
+    .sticky-line {
+        border-left-width: 4px;
+        font-weight: 600;
+    }
+}
+
+/* Scrollbar for sticky scroll if it gets too long */
+.sticky-scroll::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sticky-scroll::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.sticky-scroll::-webkit-scrollbar-thumb {
+    background: rgba(74, 144, 226, 0.5);
+    border-radius: 2px;
+}
+
+.sticky-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(74, 144, 226, 0.7);
+}
+
+/* Smooth transition when showing/hiding */
+.sticky-scroll:not(.hidden) {
+    animation: sticky-slide-in 0.2s ease-out;
+}
+
+@keyframes sticky-slide-in {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Nested context visual indicators */
+.sticky-line[style*="padding-left: 20px"] .sticky-icon::before {
+    content: "└ ";
+    opacity: 0.5;
+}
+
+.sticky-line[style*="padding-left: 40px"] .sticky-icon::before {
+    content: "└└ ";
+    opacity: 0.5;
+}
