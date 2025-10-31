@@ -128,6 +128,17 @@ export class TerminalManager {
   }
 
   connectWebSocket() {
+    // Only enable WebSocket in development (localhost)
+    const isLocalhost = window.location.hostname === 'localhost' || 
+                       window.location.hostname === '127.0.0.1' ||
+                       window.location.hostname === ''
+    
+    if (!isLocalhost) {
+      console.log('ℹ️ Terminal WebSocket disabled in production')
+      this.isConnected = false
+      return
+    }
+    
     console.log('🔌 Connecting to terminal WebSocket server...')
     
     // Check if socket.io-client is loaded
@@ -358,7 +369,15 @@ export class TerminalManager {
       term.writeln('\x1b[1;32m╚══════════════════════════════════════════╝\x1b[0m')
       term.writeln('')
       
-      if (this.isConnected) {
+      // Check if we're in production
+      const isProduction = window.location.hostname !== 'localhost' && 
+                          window.location.hostname !== '127.0.0.1' &&
+                          window.location.hostname !== ''
+      
+      if (isProduction) {
+        term.writeln('\x1b[1;33m⚠️  Terminal is only available in local development\x1b[0m')
+        term.writeln('Clone the project and run locally to use terminal features.')
+      } else if (this.isConnected) {
         term.writeln('\x1b[1;32m✅ Connected to WebSocket server\x1b[0m')
         term.writeln('Real shell commands enabled!')
       } else {
