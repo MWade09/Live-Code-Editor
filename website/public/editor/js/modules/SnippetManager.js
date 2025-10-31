@@ -470,26 +470,14 @@ export default {
      * Setup event listeners
      */
     setupEventListeners() {
-        // Listen for Tab key to expand snippets or navigate placeholders
-        this.cm.on('keydown', (cm, event) => {
-            if (event.key === 'Tab' && !event.shiftKey) {
-                // If we have placeholders, navigate to next
-                if (this.currentPlaceholders.length > 0) {
-                    event.preventDefault();
-                    this.navigateToNextPlaceholder();
-                    return;
-                }
-                
-                // Otherwise try to expand snippet
-                if (this.tryExpandSnippet()) {
-                    event.preventDefault();
-                }
-            }
-        });
+        // Don't intercept Tab - let KeyboardManager handle it
+        // KeyboardManager will call tryExpandSnippet() when appropriate
+        console.log('✅ SnippetManager event listeners setup (Tab handled by KeyboardManager)');
     }
 
     /**
      * Try to expand snippet at cursor
+     * Called by KeyboardManager when Tab is pressed
      */
     tryExpandSnippet() {
         const cursor = this.cm.getCursor();
@@ -679,12 +667,235 @@ export default {
      * Show snippet browser palette
      */
     showSnippetPalette() {
-        // This will be called by the command palette
-        // For now, just log available snippets
         const snippets = this.getSnippetsForCurrentLanguage();
-        console.log('📚 Available snippets:', Object.keys(snippets));
         
-        // TODO: Create a UI modal to browse and insert snippets
-        alert(`Available snippets:\n\n${Object.entries(snippets).map(([key, s]) => `${key} - ${s.description}`).join('\n')}`);
+        console.log('📚 Opening snippet browser with', Object.keys(snippets).length, 'snippets');
+        
+        // Create snippet browser UI
+        this.createSnippetBrowserUI(snippets);
+    }
+
+    /**
+     * Create styled snippet browser UI
+     */
+    createSnippetBrowserUI(snippets) {
+        // Remove existing browser if any
+        const existing = document.getElementById('snippet-browser');
+        if (existing) {
+            existing.remove();
+        }
+
+        // Create browser container
+        const browser = document.createElement('div');
+        browser.id = 'snippet-browser';
+        browser.className = 'snippet-browser';
+        
+        // Group snippets by category/language
+        const grouped = {};
+        Object.entries(snippets).forEach(([key, snippet]) => {
+            const category = snippet.language || 'Other';
+            if (!grouped[category]) grouped[category] = [];
+            grouped[category].push({ key, ...snippet });
+        });
+
+        // Build HTML
+        let snippetListHTML = '';
+        if (Object.keys(snippets).length === 0) {
+            snippetListHTML = `
+                <div class="snippet-empty">
+                    <div class="snippet-empty-icon">📝</div>
+                    <p>No snippets available for current language</p>
+                </div>
+            `;
+        } else {
+            Object.entries(grouped).forEach(([category, items]) => {
+                snippetListHTML += `<div class="snippet-category">${category.toUpperCase()}</div>`;
+                items.forEach((snippet, index) => {
+                    const globalIndex = Object.keys(snippets).indexOf(snippet.key);
+                    snippetListHTML += `
+                        <div class="snippet-item ${index === 0 && category === Object.keys(grouped)[0] ? 'selected' : ''}" 
+                             data-key="${snippet.key}"
+                             data-index="${globalIndex}">
+                            <div class="snippet-item-main">
+                                <div class="snippet-prefix">${snippet.prefix}</div>
+                                <div class="snippet-description">${snippet.description}</div>
+                            </div>
+                            <div class="snippet-language">${snippet.language || 'any'}</div>
+                        </div>
+                    `;
+                });
+            });
+        }
+
+        browser.innerHTML = `
+            <div class="snippet-browser-container">
+                <div class="snippet-browser-header">
+                    <h2>📚 Code Snippets</h2>
+                    <button class="snippet-browser-close" title="Close (Esc)">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="snippet-search">
+                    <input type="text" 
+                           id="snippet-search-input" 
+                           placeholder="Search snippets..." 
+                           autocomplete="off"
+                           spellcheck="false">
+                </div>
+                <div class="snippet-list" id="snippet-list">
+                    ${snippetListHTML}
+                </div>
+                <div class="snippet-footer">
+                    <span class="snippet-hint">
+                        <kbd>↑</kbd><kbd>↓</kbd> Navigate
+                        <kbd>Enter</kbd> Insert
+                        <kbd>Esc</kbd> Close
+                    </span>
+                    <span class="snippet-hint">Type prefix + Tab in editor</span>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(browser);
+
+        // Attach event listeners
+        this.attachBrowserListeners(browser, snippets);
+
+        // Show browser with animation
+        setTimeout(() => browser.classList.add('active'), 10);
+
+        // Focus search input
+        const searchInput = browser.querySelector('#snippet-search-input');
+        searchInput.focus();
+    }
+
+    /**
+     * Attach event listeners to snippet browser
+     */
+    attachBrowserListeners(browser, snippets) {
+        const searchInput = browser.querySelector('#snippet-search-input');
+        const snippetList = browser.querySelector('#snippet-list');
+        const closeBtn = browser.querySelector('.snippet-browser-close');
+        
+        let selectedIndex = 0;
+
+        // Close button
+        closeBtn.addEventListener('click', () => this.closeSnippetBrowser());
+
+        // Click outside to close
+        browser.addEventListener('click', (e) => {
+            if (e.target === browser) {
+                this.closeSnippetBrowser();
+            }
+        });
+
+        // Search functionality
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const items = snippetList.querySelectorAll('.snippet-item');
+            let visibleCount = 0;
+
+            items.forEach((item, index) => {
+                const key = item.dataset.key;
+                const snippet = snippets[key];
+                const matches = 
+                    snippet.prefix.toLowerCase().includes(query) ||
+                    snippet.description.toLowerCase().includes(query);
+                
+                item.style.display = matches ? 'flex' : 'none';
+                if (matches) {
+                    if (visibleCount === 0) {
+                        item.classList.add('selected');
+                        selectedIndex = index;
+                    } else {
+                        item.classList.remove('selected');
+                    }
+                    visibleCount++;
+                }
+            });
+
+            // Show empty state if no matches
+            if (visibleCount === 0) {
+                snippetList.innerHTML = `
+                    <div class="snippet-empty">
+                        <div class="snippet-empty-icon">🔍</div>
+                        <p>No snippets found matching "${query}"</p>
+                    </div>
+                `;
+            }
+        });
+
+        // Click on snippet to insert
+        snippetList.addEventListener('click', (e) => {
+            const item = e.target.closest('.snippet-item');
+            if (item) {
+                const key = item.dataset.key;
+                this.insertSnippet(snippets[key]);
+                this.closeSnippetBrowser();
+            }
+        });
+
+        // Keyboard navigation
+        browser.addEventListener('keydown', (e) => {
+            const items = Array.from(snippetList.querySelectorAll('.snippet-item'))
+                .filter(item => item.style.display !== 'none');
+
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                this.closeSnippetBrowser();
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                this.updateSelection(items, selectedIndex);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, 0);
+                this.updateSelection(items, selectedIndex);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (items[selectedIndex]) {
+                    const key = items[selectedIndex].dataset.key;
+                    this.insertSnippet(snippets[key]);
+                    this.closeSnippetBrowser();
+                }
+            }
+        });
+    }
+
+    /**
+     * Update selected snippet in browser
+     */
+    updateSelection(items, index) {
+        items.forEach((item, i) => {
+            item.classList.toggle('selected', i === index);
+        });
+        
+        // Scroll selected item into view
+        if (items[index]) {
+            items[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    }
+
+    /**
+     * Close snippet browser
+     */
+    closeSnippetBrowser() {
+        const browser = document.getElementById('snippet-browser');
+        if (browser) {
+            browser.classList.remove('active');
+            setTimeout(() => browser.remove(), 200);
+        }
+        
+        // Return focus to editor
+        this.cm.focus();
+    }
+
+    /**
+     * Insert snippet from browser
+     */
+    insertSnippet(snippet) {
+        const cursor = this.cm.getCursor();
+        this.expandSnippet(snippet, cursor, cursor);
+        console.log('✨ Inserted snippet:', snippet.prefix);
     }
 }

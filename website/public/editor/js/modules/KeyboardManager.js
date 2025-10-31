@@ -365,9 +365,22 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
     }
     
     smartTab(cm) {
+        // Priority 1: If navigating snippet placeholders
+        if (this.snippetManager && this.snippetManager.currentPlaceholders.length > 0) {
+            this.snippetManager.navigateToNextPlaceholder();
+            return;
+        }
+
+        // Priority 2: Try to expand code snippet
+        if (this.snippetManager && this.snippetManager.tryExpandSnippet()) {
+            return;
+        }
+
+        // Priority 3: Handle selection indentation
         if (cm.somethingSelected()) {
             this.indentMore(cm);
         } else {
+            // Priority 4: Default tab behavior
             cm.replaceSelection('    '); // Insert 4 spaces
         }
     }
