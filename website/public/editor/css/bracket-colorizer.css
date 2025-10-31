@@ -1,0 +1,146 @@
+/* =====================================================
+   BRACKET COLORIZATION STYLES
+   Rainbow bracket pairs for better code readability
+   ===================================================== */
+
+/* Bracket colorization - 5 color levels */
+.bracket {
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+/* Level 0: Gold */
+.bracket-level-0 {
+    color: #FFD700 !important;
+}
+
+/* Level 1: Orchid */
+.bracket-level-1 {
+    color: #DA70D6 !important;
+}
+
+/* Level 2: Dodger Blue */
+.bracket-level-2 {
+    color: #179FFF !important;
+}
+
+/* Level 3: Medium Spring Green */
+.bracket-level-3 {
+    color: #00FA9A !important;
+}
+
+/* Level 4: Tomato */
+.bracket-level-4 {
+    color: #FF6347 !important;
+}
+
+/* Hover effect on brackets */
+.bracket:hover {
+    font-weight: 700;
+    text-shadow: 0 0 8px currentColor;
+    cursor: pointer;
+}
+
+/* CodeMirror matching brackets (on cursor hover) */
+.CodeMirror-matchingbracket {
+    color: inherit !important;
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    font-weight: 700 !important;
+    border: 1px solid currentColor !important;
+    border-radius: 3px !important;
+    padding: 0 1px !important;
+    box-shadow: 0 0 10px currentColor !important;
+}
+
+/* Non-matching brackets (error state) */
+.CodeMirror-nonmatchingbracket {
+    color: #FF4444 !important;
+    background-color: rgba(255, 68, 68, 0.2) !important;
+    font-weight: 700 !important;
+    border: 1px solid #FF4444 !important;
+    border-radius: 3px !important;
+    text-decoration: wavy underline !important;
+}
+
+/* Dark theme adjustments */
+.dark-theme .CodeMirror-matchingbracket {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 0 12px currentColor !important;
+}
+
+.dark-theme .CodeMirror-nonmatchingbracket {
+    background-color: rgba(255, 68, 68, 0.25) !important;
+}
+
+/* Light theme adjustments */
+.light-theme .bracket-level-0 {
+    color: #B8860B !important; /* Darker gold for better visibility */
+}
+
+.light-theme .bracket-level-1 {
+    color: #9932CC !important; /* Darker orchid */
+}
+
+.light-theme .bracket-level-2 {
+    color: #1E90FF !important; /* Darker blue */
+}
+
+.light-theme .bracket-level-3 {
+    color: #00C878 !important; /* Darker green */
+}
+
+.light-theme .bracket-level-4 {
+    color: #DC143C !important; /* Darker red */
+}
+
+.light-theme .CodeMirror-matchingbracket {
+    background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.light-theme .CodeMirror-nonmatchingbracket {
+    background-color: rgba(255, 68, 68, 0.15) !important;
+}
+
+/* Animation for matching brackets */
+@keyframes bracket-pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.CodeMirror-matchingbracket {
+    animation: bracket-pulse 0.3s ease-in-out;
+}
+
+/* Bracket error indicator (unmatched) */
+.bracket-error {
+    color: #FF4444 !important;
+    background-color: rgba(255, 68, 68, 0.2) !important;
+    border-bottom: 2px wavy #FF4444 !important;
+}
+
+/* Accessibility - high contrast mode */
+@media (prefers-contrast: high) {
+    .bracket {
+        font-weight: 700;
+    }
+    
+    .bracket-level-0 { color: #FFFF00 !important; }
+    .bracket-level-1 { color: #FF00FF !important; }
+    .bracket-level-2 { color: #00FFFF !important; }
+    .bracket-level-3 { color: #00FF00 !important; }
+    .bracket-level-4 { color: #FF0000 !important; }
+}
+
+/* Print styles - remove colors for printing */
+@media print {
+    .bracket {
+        color: black !important;
+        text-shadow: none !important;
+        background: none !important;
+        border: none !important;
+    }
+}

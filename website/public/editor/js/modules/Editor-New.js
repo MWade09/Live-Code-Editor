@@ -9,6 +9,7 @@ import { MinimapManager } from './MinimapManager.js';
 import { LineHighlightManager } from './LineHighlightManager.js';
 import { CommandPaletteManager } from './CommandPaletteManager.js';
 import { SnippetManager } from './SnippetManager.js';
+import BracketColorizerManager from './BracketColorizerManager.js';
 
 export class Editor {
     constructor(editorElement, fileManager) {
@@ -97,6 +98,9 @@ export class Editor {
         // Initialize snippet manager
         this.snippetManager = new SnippetManager(this, this.codeMirror);
         
+        // Initialize bracket colorizer
+        this.bracketColorizerManager = new BracketColorizerManager(this, this.codeMirror);
+        
         // Initialize command palette with all managers
         this.commandPaletteManager = new CommandPaletteManager(this, this.codeMirror, {
             searchManager: this.searchManager,
@@ -105,7 +109,8 @@ export class Editor {
             keyboardManager: this.keyboardManager,
             minimapManager: this.minimapManager,
             lineHighlightManager: this.lineHighlightManager,
-            snippetManager: this.snippetManager
+            snippetManager: this.snippetManager,
+            bracketColorizerManager: this.bracketColorizerManager
         });
         
         // Make command palette globally accessible for onclick handlers
@@ -117,6 +122,7 @@ export class Editor {
             this.keyboardManager.lineHighlightManager = this.lineHighlightManager;
             this.keyboardManager.commandPaletteManager = this.commandPaletteManager;
             this.keyboardManager.snippetManager = this.snippetManager;
+            this.keyboardManager.bracketColorizerManager = this.bracketColorizerManager;
         }
     }
 

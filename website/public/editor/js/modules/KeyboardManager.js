@@ -202,6 +202,8 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
             "Ctrl-Alt-I": () => this.managers.lineHighlightManager?.toggleIndentGuides(),
             "Ctrl-Alt-C": () => this.managers.lineHighlightManager?.toggleCursorAnimation(),
             "F7": () => this.managers.lineHighlightManager?.toggleRelativeLineNumbers(),
+            "Ctrl-K B": () => this.bracketColorizerManager?.toggle(),
+            "Ctrl-K Ctrl-B": () => this.bracketColorizerManager?.toggle(),
             
             // =====================================================
             // BOOKMARKS & NAVIGATION

@@ -179,6 +179,17 @@ export class CommandPaletteManager {
                 action: () => this.managers.lineHighlightManager?.toggleLineHighlight()
             },
             {
+                id: 'view.toggleBracketColorization',
+                label: 'View: Toggle Bracket Colorization',
+                description: 'Enable or disable rainbow bracket colors',
+                shortcut: 'Ctrl+K B',
+                category: 'View',
+                action: () => {
+                    const enabled = this.managers.bracketColorizerManager?.toggle();
+                    this.showNotification(enabled ? 'Bracket colorization enabled' : 'Bracket colorization disabled');
+                }
+            },
+            {
                 id: 'view.toggleTerminal',
                 label: 'View: Toggle Terminal',
                 description: 'Show or hide the integrated terminal',
