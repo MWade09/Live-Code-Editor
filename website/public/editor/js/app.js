@@ -623,6 +623,18 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('download-file-btn').addEventListener('click', downloadCurrentFile);
         document.getElementById('download-all-btn').addEventListener('click', downloadAllFiles);
         
+        // Command Palette button
+        document.getElementById('command-palette-btn').addEventListener('click', () => {
+            console.log('🔍 Command palette button clicked');
+            if (window.editorInstance && window.editorInstance.commandPaletteManager) {
+                window.editorInstance.commandPaletteManager.show();
+            } else if (window.commandPaletteInstance) {
+                window.commandPaletteInstance.show();
+            } else {
+                console.warn('❌ Command palette not available');
+            }
+        });
+        
         // File input handlers
         document.getElementById('upload-file-input').addEventListener('change', handleFileUpload);
         document.getElementById('upload-folder-input').addEventListener('change', handleFolderUpload);
