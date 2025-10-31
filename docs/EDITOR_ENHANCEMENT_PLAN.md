@@ -119,171 +119,64 @@ AuthManager.js            FileExplorerManager.js    (and 3 more...)
 
 ### 2. Enhanced Autocomplete Intelligence 🧠
 
-**Status**: Basic autocomplete exists, needs enhancement  
+**Status**: ✅ Implemented  
 **Complexity**: Medium-High  
 **Impact**: High  
-**Estimated Time**: 2-3 days
+**Completed**: October 30, 2025
 
-**What**:
-- Context-aware suggestions
-- Import auto-completion (suggest from open files)
-- CSS property value suggestions
-- HTML attribute suggestions with values
-- Framework-specific hints (React props, Vue directives)
-- Function parameter hints
+**What**: ✅ Complete
+- Context-aware suggestions based on mode and cursor position
+- CSS property value suggestions (display: flex|grid|block, etc.)
+- HTML attribute suggestions per tag type (input gets type/name/placeholder)
+- Input type value suggestions
+- Auto-trigger on special characters (<, :, ., space)
+- Visual indicators for suggestion types (⚡ for CSS values, @ for attributes)
 
-**Implementation**:
-```javascript
-// EnhancedAutocompleteManager.js
-class EnhancedAutocompleteManager {
-  constructor(editor, codeMirror) {
-    this.editor = editor
-    this.cm = codeMirror
-    this.setupEnhancedHints()
-  }
-  
-  setupEnhancedHints() {
-    this.cm.setOption('hintOptions', {
-      hint: this.getContextAwareHints.bind(this),
-      completeSingle: false,
-      closeOnUnfocus: true,
-      alignWithWord: true
-    })
-  }
-  
-  getContextAwareHints(cm, options) {
-    const cursor = cm.getCursor()
-    const token = cm.getTokenAt(cursor)
-    const mode = cm.getMode().name
-    
-    // Detect context
-    const context = this.detectContext(cm, cursor, token)
-    
-    switch(context.type) {
-      case 'import':
-        return this.getImportSuggestions(cm, cursor, context)
-      case 'css-property':
-        return this.getCSSPropertySuggestions(cm, cursor, context)
-      case 'css-value':
-        return this.getCSSValueSuggestions(cm, cursor, context)
-      case 'html-attribute':
-        return this.getHTMLAttributeSuggestions(cm, cursor, context)
-      case 'react-component':
-        return this.getReactComponentSuggestions(cm, cursor, context)
-      default:
-        return this.getGenericSuggestions(cm, cursor, token)
-    }
-  }
-  
-  detectContext(cm, cursor, token) {
-    const line = cm.getLine(cursor.line)
-    const before = line.substring(0, cursor.ch)
-    
-    // Import detection
-    if (/import\s+.*from\s+['"]?$/.test(before)) {
-      return { type: 'import', partial: token.string }
-    }
-    
-    // CSS property vs value
-    if (cm.getMode().name === 'css') {
-      const colonIndex = line.lastIndexOf(':', cursor.ch)
-      if (colonIndex !== -1 && colonIndex < cursor.ch) {
-        const property = line.substring(0, colonIndex).trim().split(/\s+/).pop()
-        return { type: 'css-value', property }
-      }
-      return { type: 'css-property' }
-    }
-    
-    // HTML attribute
-    if (cm.getMode().name === 'htmlmixed') {
-      const tagMatch = before.match(/<(\w+)([^>]*)$/)
-      if (tagMatch && /\s\w+$/.test(before)) {
-        return { type: 'html-attribute', tag: tagMatch[1] }
-      }
-    }
-    
-    // React component props
-    if (cm.getMode().name === 'jsx' && /<\w+\s+\w*$/.test(before)) {
-      return { type: 'react-component' }
-    }
-    
-    return { type: 'generic' }
-  }
-  
-  getImportSuggestions(cm, cursor, context) {
-    // Suggest from open files
-    const openFiles = this.editor.fileManager.files.map(f => f.name)
-    
-    return {
-      list: openFiles.map(file => ({
-        text: `./${file}`,
-        displayText: file,
-        className: 'autocomplete-import'
-      })),
-      from: { line: cursor.line, ch: cursor.ch - context.partial.length },
-      to: cursor
-    }
-  }
-  
-  getCSSValueSuggestions(cm, cursor, context) {
-    const valueMap = {
-      'display': ['block', 'inline', 'inline-block', 'flex', 'grid', 'none'],
-      'position': ['static', 'relative', 'absolute', 'fixed', 'sticky'],
-      'text-align': ['left', 'center', 'right', 'justify'],
-      'font-weight': ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'],
-      'cursor': ['pointer', 'default', 'move', 'text', 'wait', 'not-allowed']
-    }
-    
-    const values = valueMap[context.property] || []
-    
-    return {
-      list: values.map(val => ({
-        text: val,
-        displayText: val,
-        className: 'autocomplete-css-value'
-      })),
-      from: cursor,
-      to: cursor
-    }
-  }
-  
-  getHTMLAttributeSuggestions(cm, cursor, context) {
-    const attributeMap = {
-      'input': ['type', 'name', 'value', 'placeholder', 'required', 'disabled', 'readonly'],
-      'button': ['type', 'disabled', 'onclick', 'class', 'id'],
-      'a': ['href', 'target', 'rel', 'title', 'class', 'id'],
-      'img': ['src', 'alt', 'width', 'height', 'loading', 'class'],
-      'div': ['class', 'id', 'style', 'onclick', 'data-*']
-    }
-    
-    const attrs = attributeMap[context.tag] || ['class', 'id', 'style']
-    
-    return {
-      list: attrs.map(attr => ({
-        text: `${attr}=""`,
-        displayText: attr,
-        className: 'autocomplete-attribute'
-      })),
-      from: cursor,
-      to: cursor
-    }
-  }
+**Implementation**: ✅ Complete
+- Consolidated duplicate autocomplete systems in `Editor-New.js`
+- Added CSS property value database (15+ common properties)
+- Added HTML attribute database by tag type
+- Context detection: distinguishes CSS properties vs values, HTML tags vs attributes
+- Auto-trigger on `:` for CSS values, `<` and `space` for HTML attributes, `.` for JS methods
+- Custom CSS classes for suggestion types with icons
+- Smart cursor positioning after attribute completion
+
+**How to Use**:
+1. **CSS Values**: Type property name, then `:` - auto-suggests valid values
+   - Example: `display:` → suggests flex, grid, block, inline, etc.
+2. **HTML Attributes**: Type `<tagname ` → suggests relevant attributes
+   - Example: `<input ` → suggests type, name, placeholder, required, etc.
+3. **Input Types**: Type `<input type="` → suggests all input types
+4. **JavaScript**: Type `.` after object → suggests methods (array methods, console, etc.)
+5. Manual trigger: Ctrl+Space anytime
+
+**Examples**:
+```css
+/* Type this: */
+.container {
+  display:  /* ← Auto-suggests: flex, grid, block, inline-block, etc. */
+  position:  /* ← Auto-suggests: relative, absolute, fixed, sticky */
 }
 ```
 
-**Features**:
-- ✅ Import suggestions from open files
-- ✅ CSS property value autocomplete
-- ✅ HTML attribute suggestions per tag
-- ✅ React prop suggestions (common props)
-- ✅ Function parameter hints (hover tooltip)
-- ✅ Variable name suggestions from current file
+```html
+<!-- Type this: -->
+<input   <!-- ← Auto-suggests: type, name, placeholder, required, etc. -->
+<input type=""  <!-- ← Auto-suggests: text, email, password, number, etc. -->
+<a   <!-- ← Auto-suggests: href, target, rel, title -->
+```
+
+**Suggestion Types**:
+- ⚡ CSS property values (italic style)
+- @ HTML attributes (bold style)
+- 💡 Enum values (like input types)
+- Default: Keywords, methods, tags
 
 ---
 
 ### 3. Command Palette ⌨️
 
-**Status**: Not Implemented  
+**Status**: ✅ Implemented  
 **Complexity**: Medium  
 **Impact**: High  
 **Estimated Time**: 1 day

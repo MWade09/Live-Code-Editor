@@ -88,7 +88,6 @@ export class Editor {
     initializeEditor() {
         this.setupAutocomplete();
         this.setupFoldingControls();
-        this.initializeLanguageSupport();
         
         // Now create managers that need to add UI elements
         // The controls container now exists, so they can add their buttons
@@ -122,9 +121,49 @@ export class Editor {
     }
 
     /**
-     * Setup language-specific autocomplete
+     * Setup language-specific autocomplete with enhanced intelligence
      */
     setupAutocomplete() {
+        // CSS property values database
+        const cssPropertyValues = {
+            'display': ['block', 'inline', 'inline-block', 'flex', 'inline-flex', 'grid', 'inline-grid', 'none', 'contents', 'flow-root'],
+            'position': ['static', 'relative', 'absolute', 'fixed', 'sticky'],
+            'flex-direction': ['row', 'row-reverse', 'column', 'column-reverse'],
+            'justify-content': ['flex-start', 'flex-end', 'center', 'space-between', 'space-around', 'space-evenly'],
+            'align-items': ['stretch', 'flex-start', 'flex-end', 'center', 'baseline'],
+            'text-align': ['left', 'right', 'center', 'justify'],
+            'font-weight': ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'],
+            'cursor': ['default', 'pointer', 'move', 'text', 'wait', 'help', 'not-allowed', 'grab', 'grabbing'],
+            'overflow': ['visible', 'hidden', 'scroll', 'auto'],
+            'float': ['left', 'right', 'none'],
+            'text-transform': ['none', 'capitalize', 'uppercase', 'lowercase'],
+            'text-decoration': ['none', 'underline', 'overline', 'line-through'],
+            'font-style': ['normal', 'italic', 'oblique'],
+            'visibility': ['visible', 'hidden', 'collapse'],
+            'box-sizing': ['content-box', 'border-box']
+        };
+
+        // HTML attributes by tag
+        const htmlAttributes = {
+            'input': ['type', 'name', 'value', 'placeholder', 'required', 'disabled', 'readonly', 'min', 'max', 'step', 'pattern', 'autocomplete'],
+            'button': ['type', 'disabled', 'onclick', 'name', 'value'],
+            'a': ['href', 'target', 'rel', 'title', 'download'],
+            'img': ['src', 'alt', 'width', 'height', 'loading', 'srcset'],
+            'form': ['action', 'method', 'enctype', 'target', 'novalidate'],
+            'select': ['name', 'multiple', 'size', 'required', 'disabled'],
+            'textarea': ['name', 'rows', 'cols', 'placeholder', 'required', 'disabled', 'readonly'],
+            'meta': ['charset', 'name', 'content', 'http-equiv'],
+            'link': ['rel', 'href', 'type', 'media'],
+            'script': ['src', 'type', 'async', 'defer'],
+            'div': ['class', 'id', 'style', 'data-*'],
+            'span': ['class', 'id', 'style'],
+            'global': ['class', 'id', 'style', 'title', 'lang', 'dir', 'tabindex', 'onclick', 'onload']
+        };
+
+        // Input types
+        const inputTypes = ['text', 'password', 'email', 'number', 'tel', 'url', 'date', 'time', 'datetime-local', 
+                           'month', 'week', 'color', 'file', 'checkbox', 'radio', 'submit', 'reset', 'button', 'hidden'];
+
         // Language-specific keyword dictionaries
         const languageKeywords = {
             javascript: [
@@ -132,7 +171,9 @@ export class Editor {
                 'try', 'catch', 'finally', 'throw', 'return', 'break', 'continue', 'class', 'extends', 'import',
                 'export', 'from', 'async', 'await', 'Promise', 'console', 'document', 'window', 'Array', 'Object',
                 'String', 'Number', 'Boolean', 'Date', 'Math', 'JSON', 'parseInt', 'parseFloat', 'isNaN', 'undefined',
-                'null', 'true', 'false', 'typeof', 'instanceof', 'new', 'this', 'super', 'static', 'get', 'set'
+                'null', 'true', 'false', 'typeof', 'instanceof', 'new', 'this', 'super', 'static', 'get', 'set',
+                // React hooks
+                'useState', 'useEffect', 'useContext', 'useReducer', 'useCallback', 'useMemo', 'useRef', 'useImperativeHandle'
             ],
             html: [
                 'div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'img', 'ul', 'ol', 'li', 'table',
@@ -147,7 +188,8 @@ export class Editor {
                 'clear', 'overflow', 'text-align', 'font-family', 'font-size', 'font-weight', 'line-height',
                 'text-decoration', 'text-transform', 'letter-spacing', 'word-spacing', 'white-space', 'vertical-align',
                 'list-style', 'cursor', 'transition', 'transform', 'animation', 'box-shadow', 'text-shadow',
-                'opacity', 'visibility', 'z-index', 'flex', 'grid', 'justify-content', 'align-items', 'flex-direction'
+                'opacity', 'visibility', 'z-index', 'flex', 'grid', 'justify-content', 'align-items', 'flex-direction',
+                'gap', 'grid-template-columns', 'grid-template-rows', 'flex-wrap', 'align-content', 'box-sizing'
             ],
             python: [
                 'def', 'class', 'if', 'elif', 'else', 'for', 'while', 'try', 'except', 'finally', 'with', 'as',
@@ -157,7 +199,7 @@ export class Editor {
             ]
         };
 
-        // Enhanced autocomplete function with Emmet support
+        // Enhanced autocomplete function with context-awareness
         const customHint = (cm, option) => {
             const cursor = cm.getCursor();
             const token = cm.getTokenAt(cursor);
@@ -180,27 +222,129 @@ export class Editor {
                 };
             }
 
-            // Get language-specific suggestions
-            if (mode === 'javascript' || mode === 'jsx') {
+            // ENHANCED: CSS property value suggestions
+            if (mode === 'css') {
+                // Check if we're after a colon (suggesting property values)
+                const colonMatch = beforeCursor.match(/([a-z-]+)\s*:\s*([a-z-]*)$/i);
+                if (colonMatch) {
+                    const property = colonMatch[1];
+                    const partial = colonMatch[2];
+                    
+                    if (cssPropertyValues[property]) {
+                        suggestions = cssPropertyValues[property]
+                            .filter(val => val.toLowerCase().startsWith(partial.toLowerCase()))
+                            .map(val => ({
+                                text: val,
+                                displayText: val,
+                                className: 'autocomplete-css-value'
+                            }));
+                        
+                        if (suggestions.length > 0) {
+                            return {
+                                list: suggestions,
+                                from: CodeMirror.Pos(cursor.line, cursor.ch - partial.length),
+                                to: cursor
+                            };
+                        }
+                    }
+                }
+                
+                // Otherwise suggest CSS properties
+                suggestions = languageKeywords.css.filter(keyword => 
+                    keyword.toLowerCase().startsWith(word.toLowerCase())
+                );
+            }
+            
+            // ENHANCED: HTML attribute suggestions
+            else if (mode === 'xml' || mode === 'htmlmixed') {
+                // Check if we're inside a tag (suggesting attributes)
+                const tagMatch = beforeCursor.match(/<(\w+)([^>]*)$/);
+                if (tagMatch) {
+                    const tagName = tagMatch[1].toLowerCase();
+                    const insideTag = tagMatch[2];
+                    
+                    // Check if cursor is after tag name (suggesting attributes)
+                    if (insideTag && /\s\w*$/.test(beforeCursor)) {
+                        const attrs = htmlAttributes[tagName] || htmlAttributes['global'];
+                        const attrMatch = beforeCursor.match(/\s(\w*)$/);
+                        const partial = attrMatch ? attrMatch[1] : '';
+                        
+                        suggestions = attrs
+                            .filter(attr => attr.toLowerCase().startsWith(partial.toLowerCase()))
+                            .map(attr => ({
+                                text: `${attr}=""`,
+                                displayText: attr,
+                                className: 'autocomplete-attribute',
+                                hint: (cm, data, completion) => {
+                                    cm.replaceRange(completion.text, data.from, data.to);
+                                    // Move cursor inside quotes
+                                    const newCursor = cm.getCursor();
+                                    cm.setCursor({ line: newCursor.line, ch: newCursor.ch - 1 });
+                                }
+                            }));
+                        
+                        if (suggestions.length > 0) {
+                            return {
+                                list: suggestions,
+                                from: CodeMirror.Pos(cursor.line, cursor.ch - partial.length),
+                                to: cursor
+                            };
+                        }
+                    }
+                    
+                    // Check for type attribute values in input tags
+                    if (tagName === 'input' && /type\s*=\s*["'](\w*)$/.test(beforeCursor)) {
+                        const typeMatch = beforeCursor.match(/type\s*=\s*["'](\w*)$/);
+                        const partial = typeMatch ? typeMatch[1] : '';
+                        
+                        suggestions = inputTypes
+                            .filter(type => type.startsWith(partial.toLowerCase()))
+                            .map(type => ({
+                                text: type,
+                                displayText: type,
+                                className: 'autocomplete-value'
+                            }));
+                        
+                        if (suggestions.length > 0) {
+                            return {
+                                list: suggestions,
+                                from: CodeMirror.Pos(cursor.line, cursor.ch - partial.length),
+                                to: cursor
+                            };
+                        }
+                    }
+                }
+                
+                // Default HTML tag suggestions
+                suggestions = languageKeywords.html.filter(keyword => 
+                    keyword.toLowerCase().startsWith(word.toLowerCase())
+                );
+            }
+            
+            // ENHANCED: JavaScript/JSX suggestions
+            else if (mode === 'javascript' || mode === 'jsx') {
                 suggestions = languageKeywords.javascript.filter(keyword => 
                     keyword.toLowerCase().startsWith(word.toLowerCase())
                 );
                 
                 // Add console methods
                 if (word.startsWith('console.')) {
-                    suggestions = ['log', 'error', 'warn', 'info', 'debug', 'trace'].map(method => 'console.' + method);
+                    suggestions = ['log', 'error', 'warn', 'info', 'debug', 'trace', 'table', 'group', 'groupEnd', 'time', 'timeEnd']
+                        .map(method => 'console.' + method);
                     start = cursor.ch - word.length;
                     end = cursor.ch;
                 }
-            } else if (mode === 'css') {
-                suggestions = languageKeywords.css.filter(keyword => 
-                    keyword.toLowerCase().startsWith(word.toLowerCase())
-                );
-            } else if (mode === 'xml' || mode === 'htmlmixed') {
-                suggestions = languageKeywords.html.filter(keyword => 
-                    keyword.toLowerCase().startsWith(word.toLowerCase())
-                );
-            } else if (mode === 'python') {
+                
+                // Add Array methods
+                if (beforeCursor.match(/\.\s*\w*$/)) {
+                    const arrayMethods = ['map', 'filter', 'reduce', 'forEach', 'find', 'findIndex', 'some', 'every', 
+                                         'push', 'pop', 'shift', 'unshift', 'slice', 'splice', 'concat', 'join', 'sort', 'reverse'];
+                    suggestions = arrayMethods.filter(method => method.startsWith(word.toLowerCase()));
+                }
+            }
+            
+            // Python suggestions
+            else if (mode === 'python') {
                 suggestions = languageKeywords.python.filter(keyword => 
                     keyword.toLowerCase().startsWith(word.toLowerCase())
                 );
@@ -221,7 +365,7 @@ export class Editor {
         // Register the custom hint
         CodeMirror.registerHelper('hint', 'custom', customHint);
 
-        // Override default autocomplete to use our custom hint
+        // Set hint options
         this.codeMirror.setOption('hintOptions', {
             hint: customHint,
             completeSingle: false,
@@ -229,7 +373,41 @@ export class Editor {
             alignWithWord: true,
             closeCharacters: /[\s()\[\]{};:>,]/
         });
+
+        // Auto-trigger autocomplete on certain characters
+        this.codeMirror.on('inputRead', (cm, change) => {
+            // Don't trigger if we're in the middle of a completion
+            if (cm.state.completionActive) return;
+            
+            // Auto-trigger completion for certain characters
+            if (change.text[0] && this.shouldTriggerAutocomplete(change.text[0], cm.getMode().name)) {
+                setTimeout(() => {
+                    if (!cm.state.completionActive) {
+                        CodeMirror.commands.autocomplete(cm);
+                    }
+                }, 100);
+            }
+        });
     }
+
+    /**
+     * Check if character should trigger autocomplete
+     */
+    shouldTriggerAutocomplete(char, mode) {
+        switch (mode) {
+            case 'htmlmixed':
+            case 'xml':
+                return char === '<' || char === ' ' || char === '=';
+            case 'css':
+                return char === ':' || char === ' ';
+            case 'javascript':
+            case 'jsx':
+                return char === '.';
+            default:
+                return false;
+        }
+    }
+
 
     /**
      * Try to expand Emmet abbreviation
@@ -745,62 +923,6 @@ export class Editor {
         document.getElementById('select-next-btn').addEventListener('click', () => this.selectNextOccurrence(this.codeMirror));
         document.getElementById('select-all-btn').addEventListener('click', () => this.selectAllOccurrences(this.codeMirror));
         document.getElementById('clear-selections-btn').addEventListener('click', () => this.clearMultipleSelections(this.codeMirror));
-    }
-
-    /**
-     * Initialize language support and autocomplete
-     */
-    initializeLanguageSupport() {
-        // Setup autocomplete
-        this.setupAutocomplete();
-    }
-
-    /**
-     * Setup autocomplete functionality
-     */
-    setupAutocomplete() {
-        // Enhanced autocomplete with smart completion
-        this.codeMirror.on('inputRead', (cm, change) => {
-            // Auto-close completion if only one item and it's what the user typed
-            if (cm.state.completionActive && cm.state.completionActive.data) {
-                const handle = cm.state.completionActive;
-                if (handle.data && handle.data.list && handle.data.list.length === 1) {
-                    const completion = handle.data.list[0];
-                    if (typeof completion === 'string' && completion === change.text[0]) {
-                        CodeMirror.commands.autocomplete(cm);
-                    }
-                }
-            }
-            
-            // Auto-trigger completion for certain characters
-            if (change.text[0] && this.shouldTriggerAutocomplete(change.text[0])) {
-                setTimeout(() => {
-                    if (!cm.state.completionActive) {
-                        CodeMirror.commands.autocomplete(cm);
-                    }
-                }, 100);
-            }
-        });
-    }
-
-    /**
-     * Check if character should trigger autocomplete
-     */
-    shouldTriggerAutocomplete(char) {
-        const mode = this.codeMirror.getOption('mode');
-        
-        switch (mode) {
-            case 'htmlmixed':
-                return char === '<' || char === ' ' || char === '"' || char === "'";
-            case 'css':
-                return char === ':' || char === ';' || char === '{' || char === ' ';
-            case 'javascript':
-                return char === '.' || char === '(' || char === ' ';
-            case 'xml':
-                return char === '<' || char === ' ' || char === '"' || char === "'";
-            default:
-                return char === '.' || char === ' ';
-        }
     }
 
     /**

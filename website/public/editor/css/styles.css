@@ -1808,6 +1808,34 @@ button i {
     border-left-color: #ffffff !important;
 }
 
+/* Enhanced autocomplete suggestion types */
+.CodeMirror-hint.autocomplete-css-value {
+    font-style: italic !important;
+    opacity: 0.95 !important;
+}
+
+.CodeMirror-hint.autocomplete-css-value::before {
+    content: "⚡ " !important;
+    opacity: 0.7 !important;
+    margin-right: 4px !important;
+}
+
+.CodeMirror-hint.autocomplete-attribute {
+    font-weight: 600 !important;
+}
+
+.CodeMirror-hint.autocomplete-attribute::before {
+    content: "@ " !important;
+    opacity: 0.7 !important;
+    margin-right: 4px !important;
+}
+
+.CodeMirror-hint.autocomplete-value::before {
+    content: "💡 " !important;
+    opacity: 0.7 !important;
+    margin-right: 4px !important;
+}
+
 /* =====================================================
    WELCOME SCREEN STYLES
    ===================================================== */
