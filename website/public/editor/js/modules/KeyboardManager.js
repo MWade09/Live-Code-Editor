@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * KeyboardManager - Handles keyboard shortcuts and bindings
  */
@@ -1144,8 +1145,12 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
     // =====================================================
 
     showCommandPalette() {
-        this.showNotification('Command Palette (Ctrl+Shift+P)');
-        // Could implement a command palette here
+        // Use CommandPaletteManager if available
+        if (this.commandPaletteManager) {
+            this.commandPaletteManager.show();
+        } else {
+            this.showNotification('Command Palette loading...');
+        }
     }
 
     zoomIn() {

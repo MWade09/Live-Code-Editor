@@ -7,6 +7,7 @@ import { FormattingManager } from './FormattingManager.js';
 import { KeyboardManager } from './KeyboardManager.js';
 import { MinimapManager } from './MinimapManager.js';
 import { LineHighlightManager } from './LineHighlightManager.js';
+import { CommandPaletteManager } from './CommandPaletteManager.js';
 
 export class Editor {
     constructor(editorElement, fileManager) {
@@ -93,10 +94,24 @@ export class Editor {
         this.minimapManager = new MinimapManager(this, this.codeMirror);
         this.lineHighlightManager = new LineHighlightManager(this, this.codeMirror);
         
+        // Initialize command palette with all managers
+        this.commandPaletteManager = new CommandPaletteManager(this, this.codeMirror, {
+            searchManager: this.searchManager,
+            lintManager: this.lintManager,
+            formattingManager: this.formattingManager,
+            keyboardManager: this.keyboardManager,
+            minimapManager: this.minimapManager,
+            lineHighlightManager: this.lineHighlightManager
+        });
+        
+        // Make command palette globally accessible for onclick handlers
+        window.commandPaletteInstance = this.commandPaletteManager;
+        
         // Update keyboard manager with the new managers
         if (this.keyboardManager) {
             this.keyboardManager.minimapManager = this.minimapManager;
             this.keyboardManager.lineHighlightManager = this.lineHighlightManager;
+            this.keyboardManager.commandPaletteManager = this.commandPaletteManager;
         }
     }
 
@@ -331,7 +346,7 @@ export class Editor {
             let result = '';
             let closeTags = [];
             
-            parts.forEach((part, index) => {
+            parts.forEach((part) => {
                 const tag = part.trim();
                 if (tag) {
                     result += `<${tag}>`;
