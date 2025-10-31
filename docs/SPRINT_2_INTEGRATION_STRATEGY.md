@@ -656,29 +656,79 @@ test('should show deployment history', async ({ page }) => {
 - ✅ Resize handle with drag support
 - ✅ Full ANSI color support
 
-**Day 2 (Oct 22, 2025)**: ⏳ **IN PROGRESS** - WebSocket Layer
-- ⏳ Install: socket.io, node-pty (backend)
-- ⏳ Create: /api/terminal/route.ts (WebSocket handler)
-- ⏳ WebSocket connection working
-- ⏳ Bidirectional communication (input/output)
+**Day 2 (Oct 22-30, 2025)**: ✅ **COMPLETED (LOCAL ONLY)** - WebSocket Layer
+- ✅ Installed: socket.io, socket.io-client
+- ✅ Created: server/terminal-server.ts (standalone WebSocket server)
+- ✅ WebSocket connection working (localhost only)
+- ✅ Bidirectional communication (input/output)
+- ✅ Enhanced TerminalManager.js with WebSocket support
+- ✅ Added environment detection (production vs development)
+- ✅ Production: Shows "Terminal only available in local development"
+- ✅ Development: Full WebSocket terminal with real shell commands
 
-**Day 3 (Oct 30)**: TerminalManager Integration
-- ✅ Modify TerminalManager.js
-- ✅ Connect sessions to xterm.js
-- ✅ Keep logToWebsite() working
-- ✅ Test command history
+**Day 3-5**: ⏸️ **PAUSED** - Terminal Advanced Features
+- ⏸️ node-pty shell spawning (requires C++ build tools - using child_process instead)
+- ⏸️ Package manager detection (npm/yarn/pip)
+- ⏸️ Terminal resize events
+- ⏸️ Command timeout handling
+- ⏸️ Advanced error handling
 
-**Day 4 (Oct 31)**: Command Execution
-- ✅ node-pty shell spawning
-- ✅ Package manager detection
-- ✅ Test: npm install, yarn add, pip install
-- ✅ Command history (up/down arrows)
+**🚨 IMPORTANT: Terminal Implementation Status**
 
-**Day 5 (Nov 1)**: Multi-Session
-- ✅ TerminalPanel.tsx with tabs
-- ✅ Multiple terminal instances
-- ✅ Keyboard shortcuts
-- ✅ Session persistence
+**What Works (Local Development Only)**:
+- ✅ xterm.js terminal UI with VS Code layout
+- ✅ WebSocket connection to standalone server (port 3001)
+- ✅ Real shell command execution (PowerShell on Windows, Bash on Linux/Mac)
+- ✅ Real-time output display
+- ✅ Multiple terminal tabs
+- ✅ Keyboard shortcuts (Ctrl+\`)
+- ✅ Resize handle
+
+**What Doesn't Work (Production)**:
+- ❌ Terminal is completely disabled on production site
+- ❌ No WebSocket server for production (Netlify doesn't support long-running servers)
+- ❌ Users see: "Terminal only available in local development"
+
+**Architectural Decisions**:
+1. **Local Development**: Full WebSocket terminal with real shell access
+2. **Production**: Terminal UI hidden or shows educational message
+3. **Future Options**:
+   - Deploy separate WebSocket server (Railway, Render, etc.) - requires security measures
+   - Implement mock/simulated terminal for demo purposes
+   - Keep terminal as local-only development feature
+
+**Files Modified**:
+- `website/public/editor/js/modules/TerminalManager.js` - WebSocket integration, environment detection
+- `website/public/editor/index.html` - Added socket.io-client CDN
+- `website/server/terminal-server.ts` - Standalone WebSocket server (local only)
+- `website/package.json` - Added npm scripts: dev:terminal, dev:all
+
+**Testing Instructions (Local)**:
+```bash
+# Terminal 1: Start WebSocket server
+cd website
+npm run dev:terminal
+
+# Terminal 2: Start Next.js
+cd website
+npm run dev
+
+# OR run both together:
+npm run dev:all
+
+# Then test in browser:
+# - Open http://localhost:3000/editor
+# - Click terminal button or press Ctrl+`
+# - Run commands: Get-Date, Get-Location, npm --version
+```
+
+**Known Limitations**:
+- No terminal resize support (would require node-pty with C++ build tools)
+- No Ctrl+C signal handling (commands can't be interrupted)
+- No command timeout (hanging commands will block terminal)
+- Production users cannot use terminal features
+
+**Decision**: Pausing terminal development to focus on features that work in production deployment.
 
 ### Week 2: Deployment (Days 6-10)
 
