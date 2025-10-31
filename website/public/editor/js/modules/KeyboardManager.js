@@ -159,7 +159,7 @@ export class KeyboardManager {    constructor(editor, codeMirror, managers) {
             // =====================================================
             // CODE QUALITY & FORMATTING
             // =====================================================
-            "Ctrl-Shift-P": cm => this.showCommandPalette(),
+            "F1": cm => this.showCommandPalette(),
             "Alt-Shift-F": cm => this.formattingManager.formatCode(),
             "Ctrl-K Ctrl-F": cm => this.formattingManager.formatSelection(),
             "F8": cm => this.lintManager.jumpToNextError(),

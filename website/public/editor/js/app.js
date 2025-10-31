@@ -1420,11 +1420,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('upload-file-input').click();
         }
         
-        // Ctrl+Shift+P - Show AI Assistant
-        if (e.ctrlKey && e.shiftKey && e.key === 'P') {
-            e.preventDefault();
-            aiManager.showAIModal();
-        }
+        // Ctrl+Shift+P is now handled by CommandPaletteManager (via KeyboardManager)
+        // Removed AI modal - use chat panel instead
         
         // Ctrl+Shift+I - Toggle Inline AI
         if (e.ctrlKey && e.shiftKey && e.key === 'I') {
