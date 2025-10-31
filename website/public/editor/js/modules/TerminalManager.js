@@ -1,3 +1,6 @@
+// Import socket.io-client from CDN (will be loaded in index.html)
+// Using global io from socket.io-client CDN
+
 export class TerminalManager {
   constructor(projectSyncManager) {
     this.projectSync = projectSyncManager
@@ -11,8 +14,13 @@ export class TerminalManager {
     this.xtermInstances = new Map()
     this.terminalCounter = 1
     
+    // WebSocket connection
+    this.socket = null
+    this.isConnected = false
+    
     this.initializeUI()
     this.attachEventListeners()
+    this.connectWebSocket()
   }
 
   get websiteAPI() {
@@ -117,6 +125,87 @@ export class TerminalManager {
     }
     
     console.log('✅ TerminalManager: Event listeners attached')
+  }
+
+  connectWebSocket() {
+    console.log('🔌 Connecting to terminal WebSocket server...')
+    
+    // Check if socket.io-client is loaded
+    if (typeof io === 'undefined') {
+      console.error('❌ Socket.io-client not loaded! Add CDN script to index.html')
+      return
+    }
+    
+    try {
+      // Connect to terminal WebSocket server on port 3001
+      this.socket = io('http://localhost:3001', {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5
+      })
+      
+      // Connection successful
+      this.socket.on('connect', () => {
+        console.log('✅ Connected to terminal WebSocket server')
+        this.isConnected = true
+      })
+      
+      // Handle disconnection
+      this.socket.on('disconnect', () => {
+        console.log('🔌 Disconnected from terminal WebSocket server')
+        this.isConnected = false
+      })
+      
+      // Handle connection errors
+      this.socket.on('connect_error', (error) => {
+        console.error('❌ WebSocket connection error:', error.message)
+        console.warn('⚠️ Make sure to run: npm run dev:terminal')
+        this.isConnected = false
+      })
+      
+      // Handle terminal output from server
+      this.socket.on('output', (data) => {
+        const { id, data: output } = data
+        const xtermData = this.xtermInstances.get(id)
+        
+        if (xtermData && xtermData.term) {
+          xtermData.term.write(output)
+        }
+      })
+      
+      // Handle terminal creation confirmation
+      this.socket.on('created', (data) => {
+        const { id, shell } = data
+        console.log(`✅ Terminal ${id} created on server (shell: ${shell})`)
+      })
+      
+      // Handle terminal exit
+      this.socket.on('exit', (data) => {
+        const { id, code } = data
+        console.log(`🛑 Terminal ${id} exited with code: ${code}`)
+        const xtermData = this.xtermInstances.get(id)
+        
+        if (xtermData && xtermData.term) {
+          xtermData.term.writeln(`\r\n\x1b[31mProcess exited with code ${code}\x1b[0m`)
+        }
+      })
+      
+      // Handle terminal errors
+      this.socket.on('error', (data) => {
+        const { id, error } = data
+        console.error(`❌ Terminal ${id} error:`, error)
+        const xtermData = this.xtermInstances.get(id)
+        
+        if (xtermData && xtermData.term) {
+          xtermData.term.writeln(`\r\n\x1b[31mError: ${error}\x1b[0m`)
+        }
+      })
+      
+      console.log('✅ WebSocket event listeners attached')
+    } catch (error) {
+      console.error('❌ Failed to initialize WebSocket:', error)
+    }
   }
 
   togglePanel() {
@@ -265,54 +354,44 @@ export class TerminalManager {
     try {
       // Welcome message
       term.writeln('\x1b[1;32m╔══════════════════════════════════════════╗\x1b[0m')
-      term.writeln('\x1b[1;32m║   Live Code Editor - Terminal v1.0      ║\x1b[0m')
+      term.writeln('\x1b[1;32m║   Live Code Editor - Terminal v2.0      ║\x1b[0m')
       term.writeln('\x1b[1;32m╚══════════════════════════════════════════╝\x1b[0m')
       term.writeln('')
-      term.writeln('\x1b[1;33mDay 1: Mock Terminal (WebSocket coming Day 2)\x1b[0m')
-      term.writeln('Type \x1b[1;36mhelp\x1b[0m for available commands')
+      
+      if (this.isConnected) {
+        term.writeln('\x1b[1;32m✅ Connected to WebSocket server\x1b[0m')
+        term.writeln('Real shell commands enabled!')
+      } else {
+        term.writeln('\x1b[1;33m⚠️  WebSocket not connected\x1b[0m')
+        term.writeln('Run: \x1b[1;36mnpm run dev:terminal\x1b[0m to enable real commands')
+      }
+      
       term.writeln('')
-      term.write('$ ')
       console.log('✅ Welcome message written')
     } catch (error) {
       console.error('❌ Error writing welcome message:', error)
     }
 
-    console.log('🎧 Setting up input handler...')
-    // Handle user input (Day 1 - Mock implementation)
-    let currentLine = ''
-    term.onData((data) => {
-      const code = data.charCodeAt(0)
+    // Request terminal creation from WebSocket server
+    if (this.socket && this.isConnected) {
+      console.log('📡 Requesting terminal creation from server...')
+      this.socket.emit('create-terminal', {
+        id,
+        cwd: this.cwd || process.cwd?.() || '/'
+      })
+    } else {
+      term.writeln('\x1b[31mWebSocket not connected. Terminal will be local only.\x1b[0m')
+      term.writeln('')
+    }
 
-      // Handle Enter key
-      if (code === 13) {
-        term.write('\r\n')
-        if (currentLine.trim()) {
-          this.handleMockCommand(id, currentLine.trim(), term)
-        }
-        currentLine = ''
-        term.write('$ ')
-      }
-      // Handle Backspace
-      else if (code === 127) {
-        if (currentLine.length > 0) {
-          currentLine = currentLine.slice(0, -1)
-          term.write('\b \b')
-        }
-      }
-      // Handle Ctrl+C
-      else if (code === 3) {
-        term.write('^C\r\n$ ')
-        currentLine = ''
-      }
-      // Handle Ctrl+L (clear screen)
-      else if (code === 12) {
-        term.clear()
-        term.write('$ ')
-        currentLine = ''
-      }
-      // Regular characters
-      else {
-        currentLine += data
+    console.log('🎧 Setting up input handler...')
+    // Handle user input - Send to WebSocket server
+    term.onData((data) => {
+      // Send all input directly to the server
+      if (this.socket && this.isConnected) {
+        this.socket.emit('input', { id, input: data })
+      } else {
+        // Fallback: echo locally if not connected
         term.write(data)
       }
     })

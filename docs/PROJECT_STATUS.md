@@ -349,8 +349,8 @@ Feature parity with Cursor for core workflows - developers can build complete mu
 **Estimated Time**: 1-2 weeks
 
 **Tasks**:
-- [ ] Embedded terminal panel (toggleable)
-- [ ] Multiple terminal instances
+- ✅ Embedded terminal panel (toggleable)
+- ✅ Multiple terminal instances
 - [ ] Package installation via terminal (npm, pip)
 - [ ] Build script detection and execution
 - [ ] Terminal command history
