@@ -72,7 +72,7 @@ export class NetlifyClient {
    * Deploy files to Netlify
    */
   async deployFiles(options: NetlifyDeployOptions): Promise<NetlifyDeployResponse> {
-    const { siteId, files, envVars } = options
+    const { siteId, files } = options
 
     if (!siteId) {
       throw new Error('Site ID is required for deployment')
@@ -88,20 +88,10 @@ export class NetlifyClient {
         throw new Error('index.html is required for deployment')
       }
 
-      // Create file map in Netlify format
-      const fileMap: { [key: string]: { content: string } } = {}
-      for (const [path, content] of Object.entries(files)) {
-        fileMap[path] = { content }
-      }
-
-      // Deploy using Netlify's deploy API
-      const response = await axios.post(
+      // Step 1: Create a new deploy
+      const createDeployResponse = await axios.post(
         `${this.apiUrl}/sites/${siteId}/deploys`,
-        {
-          files: fileMap,
-          functions: {},
-          environment: envVars || {},
-        },
+        {},
         {
           headers: {
             Authorization: `Bearer ${this.accessToken}`,
@@ -110,12 +100,49 @@ export class NetlifyClient {
         }
       )
 
+      const deployId = createDeployResponse.data.id
+
+      // Step 2: Upload files
+      const fileUploads = Object.entries(files).map(async ([path, content]) => {
+        // Netlify expects files to be uploaded to a specific path
+        const uploadPath = `/${path.startsWith('/') ? path.slice(1) : path}`
+        
+        try {
+          await axios.put(
+            `${this.apiUrl}/deploys/${deployId}/files${uploadPath}`,
+            content,
+            {
+              headers: {
+                Authorization: `Bearer ${this.accessToken}`,
+                'Content-Type': 'application/octet-stream',
+              },
+            }
+          )
+        } catch (uploadError) {
+          console.error(`Failed to upload file ${path}:`, uploadError)
+          throw uploadError
+        }
+      })
+
+      // Wait for all files to upload
+      await Promise.all(fileUploads)
+
+      // Step 3: Get the deploy status
+      const deployStatusResponse = await axios.get(
+        `${this.apiUrl}/sites/${siteId}/deploys/${deployId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+          },
+        }
+      )
+
       return {
-        id: response.data.id,
-        site_id: response.data.site_id,
-        deploy_url: response.data.deploy_ssl_url || response.data.ssl_url,
-        admin_url: response.data.admin_url,
-        state: response.data.state,
+        id: deployStatusResponse.data.id,
+        site_id: deployStatusResponse.data.site_id,
+        deploy_url: deployStatusResponse.data.deploy_ssl_url || deployStatusResponse.data.ssl_url,
+        admin_url: deployStatusResponse.data.admin_url,
+        state: deployStatusResponse.data.state,
       }
     } catch (error) {
       this.handleError(error, 'Failed to deploy to Netlify')
