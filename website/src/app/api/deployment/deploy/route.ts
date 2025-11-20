@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { NetlifyClient } from '@/lib/deployment/netlify-client'
 import { VercelClient } from '@/lib/deployment/vercel-client'
+import { decryptToken } from '@/lib/deployment/encryption'
+import {
+  checkRateLimit,
+  getRateLimitHeaders,
+  createRateLimitError,
+} from '@/lib/deployment/rate-limit'
 import {
   parseProjectContent,
   prepareFilesForDeployment,
@@ -20,7 +26,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { projectId, platform, envVars } = await req.json()
+    // Check rate limit
+    const rateLimit = checkRateLimit(user.id, 'deploy')
+    if (!rateLimit.allowed) {
+      const error = createRateLimitError({
+        limit: rateLimit.limit,
+        resetTime: rateLimit.resetTime,
+      })
+      return NextResponse.json(
+        { error: error.error },
+        {
+          status: 429,
+          headers: {
+            ...getRateLimitHeaders(rateLimit),
+            'Retry-After': error.retryAfter.toString(),
+          },
+        }
+      )
+    }
+
+    const { projectId, platform, envVars, siteName } = await req.json()
 
     // Validate input
     if (!projectId || !platform) {
@@ -63,6 +88,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Decrypt the token
+    let accessToken: string
+    try {
+      accessToken = decryptToken(tokenData.access_token)
+    } catch (error) {
+      console.error('Failed to decrypt token:', error)
+      return NextResponse.json(
+        { error: 'Failed to decrypt authentication token' },
+        { status: 500 }
+      )
+    }
+
     // Parse and prepare project files
     const rawFiles = parseProjectContent(project.content)
     const files = prepareFilesForDeployment(rawFiles)
@@ -100,13 +137,14 @@ export async function POST(req: NextRequest) {
     // Deploy based on platform
     try {
       if (platform === 'netlify') {
-        const client = new NetlifyClient(tokenData.access_token)
+        const client = new NetlifyClient(accessToken)
 
         // Get or create site
         let siteId = project.netlify_site_id
         if (!siteId) {
-          const siteName = sanitizeProjectName(project.title)
-          const site = await client.createSite(siteName)
+          // Use provided siteName or fallback to sanitized project title
+          const name = siteName || sanitizeProjectName(project.title)
+          const site = await client.createSite(name)
           siteId = site.site_id
 
           // Save site ID
@@ -141,7 +179,7 @@ export async function POST(req: NextRequest) {
           platform: 'netlify',
         })
       } else if (platform === 'vercel') {
-        const client = new VercelClient(tokenData.access_token)
+        const client = new VercelClient(accessToken)
 
         const projectName = sanitizeProjectName(project.title)
         const deployResult = await client.deployProject({

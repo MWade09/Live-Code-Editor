@@ -324,6 +324,24 @@ export class ModernDeployManager {
                     </div>
                 </div>
                 
+                <div class="deploy-section" id="deploy-name-section" style="display: none;">
+                    <label class="deploy-label">Site Name</label>
+                    <p class="deploy-help-text">Choose a unique name for your site URL</p>
+                    <div class="deploy-name-input-group">
+                        <input 
+                            type="text" 
+                            id="deploy-site-name" 
+                            class="deploy-name-input" 
+                            placeholder="my-awesome-site"
+                        />
+                        <button class="deploy-check-btn" id="deploy-check-name">
+                            <i class="fas fa-search"></i> Check
+                        </button>
+                    </div>
+                    <div id="deploy-name-status" class="deploy-name-status"></div>
+                    <div class="deploy-name-preview" id="deploy-name-preview" style="display: none;"></div>
+                </div>
+                
                 <div class="deploy-section" id="deploy-env-section" style="display: none;">
                     <label class="deploy-label">Environment Variables (Optional)</label>
                     <div id="deploy-env-vars"></div>
@@ -366,6 +384,10 @@ export class ModernDeployManager {
         let selectedPlatform = null;
         const envVars = {};
         
+        // Generate default site name from project title
+        const defaultSiteName = this.sanitizeSiteName(project.title || 'my-project');
+        document.getElementById('deploy-site-name').value = defaultSiteName;
+        
         // Platform selection
         document.querySelectorAll('.deploy-platform-btn:not(.disabled)').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -373,9 +395,41 @@ export class ModernDeployManager {
                 btn.classList.add('selected');
                 selectedPlatform = btn.dataset.platform;
                 
-                document.getElementById('deploy-submit').disabled = false;
+                // Show site name section
+                document.getElementById('deploy-name-section').style.display = 'block';
                 document.getElementById('deploy-env-section').style.display = 'block';
+                
+                // Reset name availability check
+                siteNameAvailable = false;
+                document.getElementById('deploy-name-status').innerHTML = '';
+                document.getElementById('deploy-name-preview').style.display = 'none';
+                document.getElementById('deploy-submit').disabled = true;
             });
+        });
+        
+        // Check name availability
+        document.getElementById('deploy-check-name').addEventListener('click', async () => {
+            const siteNameInput = document.getElementById('deploy-site-name');
+            const siteName = siteNameInput.value.trim();
+            
+            if (!siteName) {
+                this.showNameStatus('error', 'Please enter a site name');
+                return;
+            }
+            
+            if (!selectedPlatform) {
+                this.showNameStatus('error', 'Please select a platform first');
+                return;
+            }
+            
+            await this.checkSiteNameAvailability(siteName, selectedPlatform);
+        });
+        
+        // Also check on Enter key
+        document.getElementById('deploy-site-name').addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('deploy-check-name').click();
+            }
         });
         
         // Cancel button
@@ -387,7 +441,8 @@ export class ModernDeployManager {
         document.getElementById('deploy-submit').addEventListener('click', async () => {
             if (!selectedPlatform) return;
             
-            await this.executeDeploy(project, selectedPlatform, envVars);
+            const siteName = document.getElementById('deploy-site-name').value.trim();
+            await this.executeDeploy(project, selectedPlatform, envVars, siteName);
         });
         
         // Add environment variable
@@ -440,9 +495,105 @@ export class ModernDeployManager {
     }
     
     /**
+     * Sanitize site name
+     */
+    sanitizeSiteName(name) {
+        return name
+            .toLowerCase()
+            .replace(/[^a-z0-9-]/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '')
+            .substring(0, 63)
+            || 'my-project';
+    }
+    
+    /**
+     * Check site name availability
+     */
+    async checkSiteNameAvailability(siteName, platform) {
+        const checkBtn = document.getElementById('deploy-check-name');
+        const statusDiv = document.getElementById('deploy-name-status');
+        const previewDiv = document.getElementById('deploy-name-preview');
+        const submitBtn = document.getElementById('deploy-submit');
+        
+        checkBtn.disabled = true;
+        checkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+        statusDiv.innerHTML = '';
+        previewDiv.style.display = 'none';
+        submitBtn.disabled = true;
+        
+        try {
+            const response = await fetch('/api/deployment/check-name', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    siteName,
+                    platform
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                this.showNameStatus('error', data.error || 'Failed to check availability');
+                return;
+            }
+            
+            if (data.available) {
+                this.showNameStatus('success', `✓ "${data.sanitizedName}" is available!`);
+                previewDiv.style.display = 'block';
+                previewDiv.innerHTML = `
+                    <div class="deploy-preview-url">
+                        <i class="fas fa-globe"></i>
+                        <span>Your site will be: <strong>https://${data.sanitizedName}.netlify.app</strong></span>
+                    </div>
+                `;
+                submitBtn.disabled = false;
+                
+                // Update input with sanitized name
+                document.getElementById('deploy-site-name').value = data.sanitizedName;
+            } else {
+                this.showNameStatus('error', `✗ "${data.sanitizedName}" is already taken`);
+                if (data.suggestion) {
+                    statusDiv.innerHTML += `
+                        <div class="deploy-name-suggestion">
+                            Try: <button class="deploy-suggestion-btn" onclick="document.getElementById('deploy-site-name').value='${data.suggestion}'; document.getElementById('deploy-check-name').click();">
+                                ${data.suggestion}
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        } catch (error) {
+            console.error('Name check error:', error);
+            this.showNameStatus('error', 'Failed to check name availability');
+        } finally {
+            checkBtn.disabled = false;
+            checkBtn.innerHTML = '<i class="fas fa-search"></i> Check';
+        }
+    }
+    
+    /**
+     * Show name availability status
+     */
+    showNameStatus(type, message) {
+        const statusDiv = document.getElementById('deploy-name-status');
+        const iconClass = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+        const colorClass = type === 'success' ? 'success' : 'error';
+        
+        statusDiv.className = `deploy-name-status ${colorClass}`;
+        statusDiv.innerHTML = `
+            <i class="fas ${iconClass}"></i>
+            <span>${message}</span>
+        `;
+    }
+    
+    /**
      * Execute deployment
      */
-    async executeDeploy(project, platform, envVars) {
+    async executeDeploy(project, platform, envVars, siteName) {
         const submitBtn = document.getElementById('deploy-submit');
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deploying...';
@@ -456,7 +607,8 @@ export class ModernDeployManager {
                 body: JSON.stringify({
                     projectId: project.id,
                     platform,
-                    envVars
+                    envVars,
+                    siteName
                 })
             });
             
@@ -1003,6 +1155,129 @@ export class ModernDeployManager {
                 
                 .deploy-error-btn:hover {
                     background: #475569;
+                }
+                
+                .deploy-help-text {
+                    font-size: 13px;
+                    color: #94a3b8;
+                    margin: -8px 0 12px 0;
+                }
+                
+                .deploy-name-input-group {
+                    display: flex;
+                    gap: 8px;
+                }
+                
+                .deploy-name-input {
+                    flex: 1;
+                    padding: 10px 12px;
+                    background: #0f172a;
+                    border: 1px solid #334155;
+                    border-radius: 6px;
+                    color: #e2e8f0;
+                    font-size: 14px;
+                    font-family: 'Courier New', monospace;
+                }
+                
+                .deploy-name-input:focus {
+                    outline: none;
+                    border-color: #3b82f6;
+                }
+                
+                .deploy-check-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 10px 20px;
+                    background: #3b82f6;
+                    border: none;
+                    border-radius: 6px;
+                    color: white;
+                    font-size: 14px;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    white-space: nowrap;
+                }
+                
+                .deploy-check-btn:hover:not(:disabled) {
+                    background: #2563eb;
+                }
+                
+                .deploy-check-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+                
+                .deploy-name-status {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 10px 12px;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    margin-top: 8px;
+                }
+                
+                .deploy-name-status.success {
+                    background: rgba(16, 185, 129, 0.1);
+                    border: 1px solid rgba(16, 185, 129, 0.3);
+                    color: #10b981;
+                }
+                
+                .deploy-name-status.error {
+                    background: rgba(239, 68, 68, 0.1);
+                    border: 1px solid rgba(239, 68, 68, 0.3);
+                    color: #ef4444;
+                }
+                
+                .deploy-name-suggestion {
+                    margin-top: 8px;
+                    font-size: 13px;
+                    color: #94a3b8;
+                }
+                
+                .deploy-suggestion-btn {
+                    background: #334155;
+                    border: none;
+                    padding: 4px 10px;
+                    border-radius: 4px;
+                    color: #60a5fa;
+                    cursor: pointer;
+                    font-family: 'Courier New', monospace;
+                    font-size: 13px;
+                    margin-left: 4px;
+                    transition: all 0.2s;
+                }
+                
+                .deploy-suggestion-btn:hover {
+                    background: #475569;
+                }
+                
+                .deploy-name-preview {
+                    margin-top: 12px;
+                    padding: 12px;
+                    background: rgba(59, 130, 246, 0.1);
+                    border: 1px solid rgba(59, 130, 246, 0.2);
+                    border-radius: 6px;
+                }
+                
+                .deploy-preview-url {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    font-size: 14px;
+                    color: #e2e8f0;
+                }
+                
+                .deploy-preview-url i {
+                    color: #3b82f6;
+                    font-size: 16px;
+                }
+                
+                .deploy-preview-url strong {
+                    color: #60a5fa;
+                    font-family: 'Courier New', monospace;
                 }
             </style>
         `;

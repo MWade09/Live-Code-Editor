@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { encryptToken, validateEncryptionSetup } from '@/lib/deployment/encryption'
+import {
+  checkRateLimit,
+  getRateLimitHeaders,
+  createRateLimitError,
+} from '@/lib/deployment/rate-limit'
 
 /**
  * GET /api/deployment/tokens
@@ -14,6 +20,25 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check rate limit
+    const rateLimit = checkRateLimit(user.id, 'token')
+    if (!rateLimit.allowed) {
+      const error = createRateLimitError({
+        limit: rateLimit.limit,
+        resetTime: rateLimit.resetTime,
+      })
+      return NextResponse.json(
+        { error: error.error },
+        {
+          status: 429,
+          headers: {
+            ...getRateLimitHeaders(rateLimit),
+            'Retry-After': error.retryAfter.toString(),
+          },
+        }
+      )
     }
 
     // Get tokens (without exposing actual token values)
@@ -59,6 +84,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Check rate limit
+    const rateLimit = checkRateLimit(user.id, 'token')
+    if (!rateLimit.allowed) {
+      const error = createRateLimitError({
+        limit: rateLimit.limit,
+        resetTime: rateLimit.resetTime,
+      })
+      return NextResponse.json(
+        { error: error.error },
+        {
+          status: 429,
+          headers: {
+            ...getRateLimitHeaders(rateLimit),
+            'Retry-After': error.retryAfter.toString(),
+          },
+        }
+      )
+    }
+
+    // Validate encryption is properly set up
+    if (!validateEncryptionSetup()) {
+      console.error('Encryption key not configured')
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      )
+    }
+
     const { platform, accessToken } = await req.json()
 
     // Validate input
@@ -73,15 +126,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid platform' }, { status: 400 })
     }
 
-    // In production, you would want to encrypt the token before storing
-    // For now, we'll store it as-is (NOT RECOMMENDED FOR PRODUCTION)
+    // Encrypt the token before storing
+    const encryptedToken = encryptToken(accessToken)
+
     const { error } = await supabase
       .from('deployment_tokens')
       .upsert(
         {
           user_id: user.id,
           platform,
-          access_token: accessToken,
+          access_token: encryptedToken,
           updated_at: new Date().toISOString(),
         },
         {
@@ -126,6 +180,25 @@ export async function DELETE(req: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check rate limit
+    const rateLimit = checkRateLimit(user.id, 'token')
+    if (!rateLimit.allowed) {
+      const error = createRateLimitError({
+        limit: rateLimit.limit,
+        resetTime: rateLimit.resetTime,
+      })
+      return NextResponse.json(
+        { error: error.error },
+        {
+          status: 429,
+          headers: {
+            ...getRateLimitHeaders(rateLimit),
+            'Retry-After': error.retryAfter.toString(),
+          },
+        }
+      )
     }
 
     const { searchParams } = new URL(req.url)

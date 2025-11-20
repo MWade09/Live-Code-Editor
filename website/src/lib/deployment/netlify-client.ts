@@ -46,7 +46,6 @@ export class NetlifyClient {
         `${this.apiUrl}/sites`,
         {
           name: siteName,
-          custom_domain: null,
         },
         {
           headers: {
@@ -65,6 +64,46 @@ export class NetlifyClient {
     } catch (error) {
       this.handleError(error, 'Failed to create Netlify site')
       throw error
+    }
+  }
+
+  /**
+   * Check if a site name is available
+   */
+  async checkSiteNameAvailability(siteName: string): Promise<{ available: boolean; suggestion?: string }> {
+    try {
+      // Try to create a site with this name (without actually creating it by checking if it exists)
+      const response = await axios.get(
+        `${this.apiUrl}/sites`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+          },
+        }
+      )
+
+      // Check if any site has this name
+      const sites = response.data || []
+      const nameExists = sites.some((site: { name: string }) => site.name === siteName)
+
+      if (nameExists) {
+        // Generate a suggestion with random suffix
+        const suffix = Math.random().toString(36).substring(2, 8)
+        return {
+          available: false,
+          suggestion: `${siteName}-${suffix}`,
+        }
+      }
+
+      return { available: true }
+    } catch (error) {
+      console.error('Error checking site name availability:', error)
+      // If we can't check, assume it might be taken and suggest alternative
+      const suffix = Math.random().toString(36).substring(2, 8)
+      return {
+        available: false,
+        suggestion: `${siteName}-${suffix}`,
+      }
     }
   }
 
@@ -255,9 +294,17 @@ export class NetlifyClient {
    */
   private handleError(error: unknown, message: string): void {
     if (axios.isAxiosError(error)) {
-      const axiosError = error as AxiosError<{ message?: string }>
+      const axiosError = error as AxiosError<{ message?: string; errors?: unknown }>
       const errorMessage = axiosError.response?.data?.message || axiosError.message
-      console.error(`${message}:`, errorMessage)
+      const errorDetails = axiosError.response?.data
+      
+      console.error(`${message}:`, {
+        status: axiosError.response?.status,
+        statusText: axiosError.response?.statusText,
+        message: errorMessage,
+        details: errorDetails,
+        url: axiosError.config?.url,
+      })
       
       if (axiosError.response?.status === 401) {
         throw new Error('Invalid or expired Netlify access token')
