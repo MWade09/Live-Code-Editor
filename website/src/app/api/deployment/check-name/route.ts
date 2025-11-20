@@ -83,8 +83,11 @@ export async function POST(req: NextRequest) {
       } catch (error) {
         console.error('Failed to decrypt token:', error)
         return NextResponse.json(
-          { error: 'Failed to decrypt authentication token' },
-          { status: 500 }
+          { 
+            error: 'Authentication token needs to be re-saved. Please go to Settings → Deployment and re-enter your token.',
+            requiresReauth: true 
+          },
+          { status: 400 }
         )
       }
 

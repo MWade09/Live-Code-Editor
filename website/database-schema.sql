@@ -867,4 +867,8 @@ BEGIN
   RAISE NOTICE 'Indexes created for optimal performance';
   RAISE NOTICE 'Triggers and functions implemented';
   RAISE NOTICE 'Views created for common queries';
+  RAISE NOTICE '';
+  RAISE NOTICE 'NOTE: For community features (discussions, badges, collections, integrations),';
+  RAISE NOTICE 'run: database-migrations/community-features-schema.sql';
+  RAISE NOTICE 'This adds 19 additional tables for the community platform.';
 END $$;

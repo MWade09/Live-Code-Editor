@@ -400,7 +400,6 @@ export class ModernDeployManager {
                 document.getElementById('deploy-env-section').style.display = 'block';
                 
                 // Reset name availability check
-                siteNameAvailable = false;
                 document.getElementById('deploy-name-status').innerHTML = '';
                 document.getElementById('deploy-name-preview').style.display = 'none';
                 document.getElementById('deploy-submit').disabled = true;
@@ -537,7 +536,11 @@ export class ModernDeployManager {
             const data = await response.json();
             
             if (!response.ok) {
-                this.showNameStatus('error', data.error || 'Failed to check availability');
+                let errorMsg = data.error || 'Failed to check availability';
+                if (data.requiresReauth) {
+                    errorMsg += '<br><br><a href="/settings#deployment" target="_blank" style="color: #60a5fa; text-decoration: underline;">Go to Settings →</a>';
+                }
+                this.showNameStatus('error', errorMsg);
                 return;
             }
             

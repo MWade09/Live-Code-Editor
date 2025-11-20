@@ -95,8 +95,11 @@ export async function POST(req: NextRequest) {
     } catch (error) {
       console.error('Failed to decrypt token:', error)
       return NextResponse.json(
-        { error: 'Failed to decrypt authentication token' },
-        { status: 500 }
+        { 
+          error: 'Your authentication token needs to be re-saved. Please go to Settings → Deployment, remove your current token, and add it again. This is a one-time setup after the security upgrade.',
+          requiresReauth: true 
+        },
+        { status: 400 }
       )
     }
 
