@@ -278,7 +278,7 @@ export class ModernDeployManager {
                         <div>
                             <strong>No deployment platforms connected</strong>
                             <p>Please connect your Netlify or Vercel account to deploy projects.</p>
-                            <a href="/settings" class="deploy-settings-link" target="_blank">
+                            <a href="/settings#deployment" class="deploy-settings-link" target="_blank">
                                 Go to Settings <i class="fas fa-external-link-alt"></i>
                             </a>
                         </div>
