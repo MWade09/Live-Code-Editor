@@ -18,6 +18,7 @@ import {
   Shield,
   Globe
 } from "lucide-react"
+import Link from "next/link"
 
 export default function CommunityPage() {
   const stats = [
@@ -208,18 +209,18 @@ export default function CommunityPage() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-              <a href="/community/discussions" className="group bg-gradient-to-r from-blue-600 to-cyan-400 px-8 py-4 rounded-xl text-lg font-semibold hover:shadow-xl hover:shadow-cyan-500/25 transition-all duration-300 hover:-translate-y-1">
+              <Link href="/community/discussions" className="group bg-gradient-to-r from-blue-600 to-cyan-400 px-8 py-4 rounded-xl text-lg font-semibold hover:shadow-xl hover:shadow-cyan-500/25 transition-all duration-300 hover:-translate-y-1">
                 <span className="flex items-center gap-2">
                   <Rocket className="h-5 w-5 group-hover:rotate-12 transition-transform" />
                   Join Discussions
                 </span>
-              </a>
-              <a href="/projects" className="group border border-gray-600 hover:border-cyan-400 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-cyan-400/10 transition-all duration-300">
+              </Link>
+              <Link href="/projects" className="group border border-gray-600 hover:border-cyan-400 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-cyan-400/10 transition-all duration-300">
                 <span className="flex items-center gap-2">
                   <Eye className="h-5 w-5" />
                   Explore Projects
                 </span>
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -473,12 +474,12 @@ export default function CommunityPage() {
             </div>
             
             <div className="text-center mt-12">
-              <a href="/community/discussions" className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-4 rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/25 transition-all duration-300 hover:-translate-y-1">
+              <Link href="/community/discussions" className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-4 rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/25 transition-all duration-300 hover:-translate-y-1">
                 <span className="flex items-center gap-2">
                   <Zap className="h-5 w-5" />
                   View All Activity
                 </span>
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -502,12 +503,12 @@ export default function CommunityPage() {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-                <a href="/community/discussions" className="group bg-gradient-to-r from-blue-600 to-cyan-400 px-10 py-5 rounded-xl text-xl font-bold hover:shadow-2xl hover:shadow-cyan-500/25 transition-all duration-300 hover:-translate-y-2">
+                <Link href="/community/discussions" className="group bg-gradient-to-r from-blue-600 to-cyan-400 px-10 py-5 rounded-xl text-xl font-bold hover:shadow-2xl hover:shadow-cyan-500/25 transition-all duration-300 hover:-translate-y-2">
                   <span className="flex items-center gap-3">
                     <Brain className="h-6 w-6 group-hover:rotate-12 transition-transform" />
                     Start Discussing
                   </span>
-                </a>
+                </Link>
                 <a href="https://github.com/MWade09/Live-Code-Editor" target="_blank" rel="noopener noreferrer" className="group border-2 border-gray-600 hover:border-cyan-400 px-10 py-5 rounded-xl text-xl font-bold hover:bg-cyan-400/10 transition-all duration-300">
                   <span className="flex items-center gap-3">
                     <Github className="h-6 w-6 group-hover:scale-110 transition-transform" />

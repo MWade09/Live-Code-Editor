@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 // POST /api/community/projects/[id]/like - Toggle like on project
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -17,7 +17,7 @@ export async function POST(
       )
     }
 
-    const projectId = params.id
+    const { id: projectId } = await params
 
     // Check if already liked
     const { data: existingLike } = await supabase
