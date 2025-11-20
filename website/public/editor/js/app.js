@@ -7,7 +7,7 @@ import { Editor } from './modules/Editor-New.js';
 import { Preview } from './modules/Preview.js';
 import { Resizer } from './modules/Resizer.js';
 import { ThemeManager } from './modules/ThemeManager.js';
-import { DeployManager } from './modules/DeployManager.js';
+import { ModernDeployManager } from './modules/ModernDeployManager.js';
 import { AIManager } from './modules/AIManager.js';
 import { InlineAIManager } from './modules/InlineAIManager.js';
 import { AICodeActionsManager } from './modules/AICodeActionsManager.js';
@@ -80,7 +80,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.chat-pane')
     );
     const themeManager = new ThemeManager();
-    const deployManager = new DeployManager(fileManager);
     
     // Initialize ProjectContextManager for AI context awareness
     const projectContextManager = new ProjectContextManager(fileManager);
@@ -234,6 +233,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const versionControl = new VersionControlManager(projectSync, fileManager);
     const terminalManager = new TerminalManager(projectSync);
     
+    // Initialize Modern Deploy Manager
+    const modernDeployManager = new ModernDeployManager(fileManager, projectSync);
 
     // Global app state
     window.app = {
@@ -242,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
         preview,
         resizer,
         themeManager,
-        deployManager,
+        modernDeployManager,
         aiManager,
         inlineAIManager,
         aiCodeActionsManager,
@@ -651,15 +652,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Note: Preview toggle is now handled by chat-panel.js
         
-        // Deploy functionality
+        // Deploy functionality - Modern deployment system
         document.getElementById('deploy-btn').addEventListener('click', () => {
-            deployManager.showDeployModal();
-        });
-        document.getElementById('confirm-deploy-btn').addEventListener('click', () => {
-            deployManager.deployToNetlify();
-        });
-        document.getElementById('cancel-deploy-btn').addEventListener('click', () => {
-            deployManager.hideDeployModal();
+            modernDeployManager.showDeployModal();
         });
         
         // Community button click

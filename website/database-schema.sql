@@ -694,6 +694,95 @@ INSERT INTO projects (user_id, title, description, content, language, tags, is_p
 */
 
 -- =============================================
+-- DEPLOYMENT TABLES
+-- =============================================
+
+-- Deployments table
+CREATE TABLE deployments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  platform TEXT NOT NULL CHECK (platform IN ('netlify', 'vercel')),
+  status TEXT NOT NULL CHECK (status IN ('pending', 'building', 'success', 'failed')),
+  deploy_url TEXT,
+  site_id TEXT,
+  deployment_id TEXT,
+  build_log TEXT,
+  environment_vars JSONB DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  completed_at TIMESTAMP WITH TIME ZONE,
+  error_message TEXT
+);
+
+-- Deployment tokens table (encrypted tokens for Netlify/Vercel)
+CREATE TABLE deployment_tokens (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  platform TEXT NOT NULL CHECK (platform IN ('netlify', 'vercel')),
+  access_token TEXT NOT NULL, -- Encrypted
+  refresh_token TEXT, -- Encrypted
+  expires_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, platform)
+);
+
+-- Deployment indexes
+CREATE INDEX idx_deployments_project ON deployments(project_id);
+CREATE INDEX idx_deployments_user ON deployments(user_id);
+CREATE INDEX idx_deployments_status ON deployments(status);
+CREATE INDEX idx_deployments_platform ON deployments(platform);
+CREATE INDEX idx_deployments_created_at ON deployments(created_at DESC);
+CREATE INDEX idx_deployment_tokens_user ON deployment_tokens(user_id);
+CREATE INDEX idx_deployment_tokens_platform ON deployment_tokens(platform);
+
+-- Deployment RLS policies
+ALTER TABLE deployments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE deployment_tokens ENABLE ROW LEVEL SECURITY;
+
+-- Users can view their own deployments
+CREATE POLICY "Users can view own deployments"
+  ON deployments FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Users can create deployments for their own projects
+CREATE POLICY "Users can create deployments for own projects"
+  ON deployments FOR INSERT
+  WITH CHECK (
+    auth.uid() = user_id AND
+    EXISTS (SELECT 1 FROM projects WHERE id = project_id AND user_id = auth.uid())
+  );
+
+-- Users can update their own deployments
+CREATE POLICY "Users can update own deployments"
+  ON deployments FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- Users can view their own deployment tokens
+CREATE POLICY "Users can view own deployment tokens"
+  ON deployment_tokens FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Users can insert their own deployment tokens
+CREATE POLICY "Users can insert own deployment tokens"
+  ON deployment_tokens FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own deployment tokens
+CREATE POLICY "Users can update own deployment tokens"
+  ON deployment_tokens FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- Users can delete their own deployment tokens
+CREATE POLICY "Users can delete own deployment tokens"
+  ON deployment_tokens FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Add netlify_site_id and vercel_project_id to projects table
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS netlify_site_id TEXT;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS vercel_project_id TEXT;
+
+-- =============================================
 -- VIEWS FOR COMMON QUERIES
 -- =============================================
 
