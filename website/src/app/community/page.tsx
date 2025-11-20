@@ -305,8 +305,8 @@ export default function CommunityPage() {
                       {feature.description}
                     </p>
                     
-                    <a 
-                      href={index === 0 ? '/community/discussions' : index === 1 ? '/community/showcase' : index === 2 ? '/community/showcase' : '/community/discussions'}
+                    <Link 
+                      href={index === 0 ? '/community/discussions' : index === 1 ? '/projects' : index === 2 ? '/projects' : '/community/discussions'}
                       className="inline-block group/btn bg-gradient-to-r from-blue-600 to-cyan-400 px-6 py-3 rounded-xl font-semibold hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300 hover:-translate-y-1"
                     >
                       <span className="flex items-center gap-2">
