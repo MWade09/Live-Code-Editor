@@ -179,7 +179,7 @@ export default function SettingsPage() {
         },
         body: JSON.stringify({
           platform,
-          token,
+          accessToken: token,
         }),
       })
 
