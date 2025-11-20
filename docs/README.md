@@ -1,6 +1,6 @@
 # 📚 Live Code Editor - Documentation Index
 
-**Last Updated**: October 14, 2025
+**Last Updated**: November 19, 2025
 
 This directory contains all project documentation. Follow this guide to find what you need.
 
@@ -10,8 +10,9 @@ This directory contains all project documentation. Follow this guide to find wha
 
 ### New to the Project?
 1. Read **`PRODUCT_VISION.md`** - Understand the overall product strategy
-2. Read **`PROJECT_STATUS.md`** - See current progress and roadmap
+2. Read **`PHASE_1_ROADMAP_VISUAL.md`** - See current progress and roadmap
 3. Review **`AI_CHAT_QUICK_START.md`** - Get started with AI features
+4. Review **`DEPLOYMENT_USER_GUIDE.md`** - Learn to deploy your projects
 
 ### Looking for Implementation Details?
 - See **Active Technical Documentation** section below
@@ -27,8 +28,16 @@ This directory contains all project documentation. Follow this guide to find wha
 
 | Document | Purpose | Last Updated |
 |----------|---------|--------------|
-| **`PRODUCT_VISION.md`** | Overall product strategy, dual-mode vision, long-term roadmap | Oct 2025 |
-| **`PROJECT_STATUS.md`** | Current progress, completion status, immediate roadmap | Oct 14, 2025 |
+| **`PRODUCT_VISION.md`** | Overall product strategy, dual-mode vision, long-term roadmap | Nov 2025 |
+| **`PHASE_1_ROADMAP_VISUAL.md`** | Visual roadmap and progress tracking for Phase 1 | Nov 19, 2025 |
+
+### 🚀 Deployment Documentation
+
+| Document | Purpose | Status |
+|----------|---------|--------|
+| **`DEPLOYMENT_USER_GUIDE.md`** | Complete user guide for deploying projects | ✅ Active |
+| **`DEPLOYMENT_QUICK_REFERENCE.md`** | One-page cheat sheet for deployment | ✅ Active |
+| **`DEPLOYMENT_INTEGRATION_COMPLETE.md`** | Technical implementation documentation | ✅ Complete |
 
 ### 🤖 AI System Documentation
 
@@ -42,6 +51,7 @@ This directory contains all project documentation. Follow this guide to find wha
 
 | Document | Purpose | Status |
 |----------|---------|--------|
+| **`DEPLOYMENT_INTEGRATION_COMPLETE.md`** | One-click deployment system | ✅ Complete (Nov 19, 2025) |
 | **`MULTI_FILE_PROJECT_DISPLAY_FIX.md`** | Multi-file project display on website | ✅ Complete (Oct 14, 2025) |
 | **`MULTI_FILE_PROJECT_SYNC_FIX.md`** | Multi-file project sync between editor and DB | ✅ Complete |
 | **`INTEGRATION_FIXES_COMPLETE.md`** | Integration fixes (UnifiedAI + HTML IDs) | ✅ Complete (Oct 11, 2025) |
@@ -124,10 +134,13 @@ docs/
 ## 🔍 FINDING WHAT YOU NEED
 
 ### "What's the current status of the project?"
-→ Read **`PROJECT_STATUS.md`**
+→ Read **`PHASE_1_ROADMAP_VISUAL.md`**
 
 ### "What's the long-term vision?"
 → Read **`PRODUCT_VISION.md`**
+
+### "How do I deploy my project?"
+→ Read **`DEPLOYMENT_USER_GUIDE.md`** (full guide) or **`DEPLOYMENT_QUICK_REFERENCE.md`** (quick cheat sheet)
 
 ### "How does the AI system work?"
 → Read **`UNIFIED_AI_IMPLEMENTATION_COMPLETE.md`**
@@ -136,13 +149,13 @@ docs/
 → Read **`AI_CHAT_QUICK_START.md`**
 
 ### "What was recently completed?"
-→ See "Recent Wins" section in **`PROJECT_STATUS.md`**
+→ See "Just Completed" section in **`PHASE_1_ROADMAP_VISUAL.md`**
 
 ### "What's next on the roadmap?"
-→ See "Recommended Focus Areas" in **`PROJECT_STATUS.md`**
+→ See "Next Up" section in **`PHASE_1_ROADMAP_VISUAL.md`**
 
-### "How do I integrate with the chat panel?"
-→ Read **`CHAT_PANEL_INTEGRATION_GUIDE.md`**
+### "How does deployment work technically?"
+→ Read **`DEPLOYMENT_INTEGRATION_COMPLETE.md`**
 
 ---
 
@@ -188,19 +201,20 @@ Archive a document when:
 
 ## 🎯 QUICK REFERENCE
 
-### Phase 1 Priorities (Current - October 2025)
-1. Authentication & User System
-2. Terminal Integration
-3. Deployment Integration
-4. Testing Infrastructure
+### Phase 1 Priorities (Current - November 2025)
+1. ✅ Authentication & User System (Complete)
+2. ✅ Deployment Integration (Complete) 
+3. 📋 Community Page Development (Next)
+4. 📋 Documentation Website (Next)
+5. ⏳ Testing Infrastructure (Upcoming)
 
-See **`PROJECT_STATUS.md`** for detailed breakdown.
+See **`PHASE_1_ROADMAP_VISUAL.md`** for detailed breakdown.
 
 ### Phase 1 Completion Status
-**~75% Complete** (as of Oct 14, 2025)
+**~90% Complete** (as of Nov 19, 2025)
 
 ### Estimated Timeline
-**6-8 weeks to Phase 1 completion** (Late November - Early December 2025)
+**2-3 weeks to Phase 1 completion** (Early December 2025)
 
 ---
 
@@ -214,12 +228,12 @@ See **`PROJECT_STATUS.md`** for detailed breakdown.
 
 ### After Implementation
 1. Create implementation complete doc
-2. Update PROJECT_STATUS.md
+2. Update PHASE_1_ROADMAP_VISUAL.md
 3. Archive any superseded planning docs
 4. Update this README
 
 ### Keeping Docs Fresh
-- Review and update PROJECT_STATUS.md weekly
+- Review and update PHASE_1_ROADMAP_VISUAL.md weekly
 - Archive outdated docs immediately
 - Keep this README current
 - Update "Last Updated" dates
