@@ -313,7 +313,7 @@ export default function CommunityPage() {
                         {feature.action}
                         <ExternalLink className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
                       </span>
-                    </a>
+                    </Link>
                   </div>
                 </div>
               ))}
