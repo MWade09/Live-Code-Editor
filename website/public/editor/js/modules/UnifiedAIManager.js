@@ -10,6 +10,7 @@
  * - Project planning
  * - Special commands (/plan, /create, etc.)
  * - STREAMING RESPONSES for real-time token display
+ * - SEMANTIC CONTEXT - Auto-retrieves relevant files via embeddings
  */
 export class UnifiedAIManager {
     constructor(editor, fileManager, projectContextManager = null) {
@@ -23,6 +24,7 @@ export class UnifiedAIManager {
         this.responseParser = null;  // Will be set by app.js
         this.actionExecutor = null;  // Will be set by app.js
         this.commandParser = null;   // Will be set by app.js (Phase 2)
+        this.embeddingsManager = null; // Will be set by app.js (Phase 2)
         
         // Chat UI elements
         this.chatMessages = document.getElementById('chat-messages');
@@ -34,6 +36,11 @@ export class UnifiedAIManager {
         this.selectedFileIds = new Set();
         this.maxContextSize = 100 * 1024; // 100KB max
         this.warningThreshold = 50 * 1024; // 50KB warning
+        
+        // Auto-context settings
+        this.autoContextEnabled = true; // Enable automatic semantic context
+        this.maxAutoContextFiles = 5;
+        this.autoContextThreshold = 0.4; // Minimum similarity score
         
         // Project context
         this.includeProjectContext = false;
@@ -88,8 +95,8 @@ export class UnifiedAIManager {
                 return await this.handleCommand(userMessage);
             }
             
-            // Build full context
-            const context = this.buildContext();
+            // Build full context (includes auto-context from embeddings)
+            const context = await this.buildContextWithSemanticSearch(userMessage);
             
             // Call AI with streaming or non-streaming based on setting
             if (this.useStreaming) {
@@ -127,6 +134,83 @@ export class UnifiedAIManager {
     }
     
     /**
+     * Build context with semantic search for auto-context
+     */
+    async buildContextWithSemanticSearch(userMessage) {
+        // Start with basic context
+        const context = this.buildContext();
+        
+        // Add auto-context from embeddings if available and enabled
+        if (this.autoContextEnabled && this.embeddingsManager) {
+            try {
+                const suggested = await this.embeddingsManager.getSuggestedContext(userMessage, {
+                    maxFiles: this.maxAutoContextFiles,
+                    maxTotalSize: 50000 // 50KB max for auto-context
+                });
+                
+                if (suggested.files && suggested.files.length > 0) {
+                    // Merge with manually selected files (avoid duplicates)
+                    const existingNames = new Set(context.selectedFiles.map(f => f.name));
+                    
+                    for (const file of suggested.files) {
+                        if (!existingNames.has(file.name)) {
+                            context.selectedFiles.push({
+                                name: file.name,
+                                content: file.content,
+                                type: this.getFileType(file.name),
+                                size: file.content.length,
+                                autoContext: true, // Mark as auto-added
+                                score: file.score
+                            });
+                            existingNames.add(file.name);
+                        }
+                    }
+                    
+                    // Store for UI display
+                    context.autoContextFiles = suggested.files.map(f => ({
+                        name: f.name,
+                        score: f.score,
+                        isPartial: f.isPartial
+                    }));
+                    
+                    console.log(`[UnifiedAI] Auto-context: Added ${suggested.files.length} relevant files`);
+                }
+            } catch (error) {
+                console.warn('[UnifiedAI] Auto-context error:', error);
+                // Continue without auto-context
+            }
+        }
+        
+        return context;
+    }
+    
+    /**
+     * Get file type from filename
+     */
+    getFileType(filename) {
+        const ext = filename.split('.').pop()?.toLowerCase();
+        const typeMap = {
+            'js': 'javascript',
+            'ts': 'typescript',
+            'jsx': 'javascript',
+            'tsx': 'typescript',
+            'html': 'html',
+            'css': 'css',
+            'json': 'json',
+            'md': 'markdown',
+            'py': 'python',
+            'java': 'java',
+            'cpp': 'cpp',
+            'c': 'c',
+            'php': 'php',
+            'rb': 'ruby',
+            'go': 'go',
+            'rs': 'rust'
+        };
+        return typeMap[ext] || 'text';
+    }
+    
+    /**
      * Call AI with streaming response
      */
     async callAIStreaming(userMessage, context) {
@@ -138,6 +222,11 @@ export class UnifiedAIManager {
         const endpoint = isFreeModel ? '/api/ai/free' : '/api/ai/premium';
         
         console.log(`[UnifiedAI] Streaming from ${endpoint} with model: ${selectedModel}`);
+        
+        // Show auto-context indicator if files were auto-added
+        if (context.autoContextFiles && context.autoContextFiles.length > 0) {
+            this.showAutoContextIndicator(context.autoContextFiles);
+        }
         
         // Build messages array
         const messages = [
@@ -293,6 +382,89 @@ export class UnifiedAIManager {
         this.scrollToBottom();
         
         return messageDiv;
+    }
+    
+    /**
+     * Show auto-context indicator for semantically retrieved files
+     */
+    showAutoContextIndicator(autoContextFiles) {
+        if (!this.chatMessages || !autoContextFiles || autoContextFiles.length === 0) return;
+        
+        // Remove any existing indicator
+        const existing = this.chatMessages.querySelector('.auto-context-indicator');
+        if (existing) {
+            existing.remove();
+        }
+        
+        const indicator = document.createElement('div');
+        indicator.className = 'auto-context-indicator';
+        
+        const fileTags = autoContextFiles.map(f => {
+            const scorePercent = Math.round(f.score * 100);
+            const partialClass = f.isPartial ? ' partial' : '';
+            return `<span class="auto-context-file-tag${partialClass}">
+                ${f.name}
+                <span class="score">${scorePercent}%</span>
+            </span>`;
+        }).join('');
+        
+        indicator.innerHTML = `
+            <span class="context-icon">🧠</span>
+            <span class="context-label">Auto-context:</span>
+            <div class="context-files">${fileTags}</div>
+            <button class="auto-context-toggle-btn ${this.autoContextEnabled ? 'active' : ''}" 
+                    title="Toggle auto-context">
+                ${this.autoContextEnabled ? 'ON' : 'OFF'}
+            </button>
+        `;
+        
+        // Add toggle functionality
+        const toggleBtn = indicator.querySelector('.auto-context-toggle-btn');
+        toggleBtn.addEventListener('click', () => {
+            this.autoContextEnabled = !this.autoContextEnabled;
+            toggleBtn.classList.toggle('active', this.autoContextEnabled);
+            toggleBtn.textContent = this.autoContextEnabled ? 'ON' : 'OFF';
+            console.log('[UnifiedAI] Auto-context:', this.autoContextEnabled ? 'enabled' : 'disabled');
+        });
+        
+        this.chatMessages.appendChild(indicator);
+        this.scrollToBottom();
+    }
+    
+    /**
+     * Show embeddings generation progress
+     */
+    showEmbeddingsProgress(progress) {
+        if (!this.chatMessages) return;
+        
+        let progressEl = this.chatMessages.querySelector('.embeddings-progress');
+        
+        if (!progressEl) {
+            progressEl = document.createElement('div');
+            progressEl.className = 'embeddings-progress';
+            progressEl.innerHTML = `
+                <span class="progress-icon">🧠</span>
+                <div class="embeddings-progress-bar">
+                    <div class="embeddings-progress-fill"></div>
+                </div>
+                <span class="embeddings-progress-text"></span>
+            `;
+            this.chatMessages.appendChild(progressEl);
+        }
+        
+        const fill = progressEl.querySelector('.embeddings-progress-fill');
+        const text = progressEl.querySelector('.embeddings-progress-text');
+        const percent = progress.total > 0 ? (progress.current / progress.total) * 100 : 0;
+        
+        fill.style.width = `${percent}%`;
+        text.textContent = `Indexing files... ${progress.current}/${progress.total}`;
+        
+        // Remove when complete
+        if (progress.current >= progress.total) {
+            setTimeout(() => {
+                progressEl.remove();
+            }, 1500);
+        }
     }
     
     /**
@@ -515,7 +687,16 @@ CURRENT CONTEXT:`;
         
         // Add selected files for context
         if (context.selectedFiles && context.selectedFiles.length > 0) {
-            prompt += `\n- Files attached for context: ${context.selectedFiles.map(f => f.name).join(', ')}`;
+            const manualFiles = context.selectedFiles.filter(f => !f.autoContext);
+            const autoFiles = context.selectedFiles.filter(f => f.autoContext);
+            
+            if (manualFiles.length > 0) {
+                prompt += `\n- Files attached by user: ${manualFiles.map(f => f.name).join(', ')}`;
+            }
+            
+            if (autoFiles.length > 0) {
+                prompt += `\n- Files auto-included by semantic relevance: ${autoFiles.map(f => `${f.name} (${Math.round(f.score * 100)}% match)`).join(', ')}`;
+            }
         }
         
         // Add project structure

@@ -15,6 +15,7 @@ import { UnifiedAIManager } from './modules/UnifiedAIManager.js';
 import { ResponseParser } from './modules/ResponseParser.js';
 import { ActionExecutor } from './modules/ActionExecutor.js';
 import { DiffManager } from './modules/DiffManager.js';
+import { EmbeddingsManager } from './modules/EmbeddingsManager.js';
 import { ProjectSyncManager } from './modules/ProjectSyncManager.js';
 import { AuthManager } from './modules/AuthManager.js';
 import { RealtimeSync } from './modules/RealtimeSync.js';
@@ -95,9 +96,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const actionExecutor = new ActionExecutor(fileManager, editor.editor, diffManager);
     const unifiedAI = new UnifiedAIManager(editor.editor, fileManager, projectContextManager);
     
+    // Initialize Embeddings Manager for semantic search
+    console.log('🧠 Initializing Embeddings System...');
+    const embeddingsManager = new EmbeddingsManager(fileManager);
+    
     // Wire up dependencies
     unifiedAI.responseParser = responseParser;
     unifiedAI.actionExecutor = actionExecutor;
+    unifiedAI.embeddingsManager = embeddingsManager;
+    
+    // Make embeddings manager globally available
+    window.embeddingsManager = embeddingsManager;
     
     // Expose globally for chat-panel.js
     window.unifiedAI = unifiedAI;

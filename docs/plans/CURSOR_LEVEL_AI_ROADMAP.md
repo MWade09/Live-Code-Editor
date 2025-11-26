@@ -3,7 +3,7 @@
 > **Goal:** Transform the Live Code Editor's AI Chat into a world-class coding assistant capable of building full applications with complete project context understanding.
 
 **Created:** November 25, 2025  
-**Status:** Planning Phase  
+**Status:** Phase 2 Complete ✅ | Phase 3 Next  
 **Target:** Developer-focused editor experience (Website App Builder will follow with more autonomous approach)
 
 ---
@@ -179,24 +179,33 @@ Project Switching Logic:
 
 ---
 
-### Phase 2: Intelligence (Weeks 4-6)
+### Phase 2: Intelligence (Weeks 4-6) ✅ COMPLETE
 **Goal:** Semantic codebase understanding
 
-#### 2.1 Embeddings Infrastructure
-- [ ] Create `EmbeddingsManager.js` with Web Worker
-- [ ] Set up IndexedDB schema for local embedding storage
-- [ ] Add Supabase `embeddings` table with pgvector
-- [ ] Implement project-keyed storage/retrieval
-- [ ] Build project-switching logic (clean swap)
+#### 2.1 Embeddings Infrastructure ✅
+- [x] Create `EmbeddingsManager.js` with Web Worker
+- [x] Set up IndexedDB schema for local embedding storage
+- [x] Add Supabase `project_embeddings` table with pgvector
+- [x] Implement project-keyed storage/retrieval
+- [x] Build project-switching logic (clean swap)
+
+**Implementation Notes:**
+- `EmbeddingsManager.js` provides hybrid embeddings (IndexedDB + Supabase)
+- Web Worker runs in inline blob for chunking, hashing, similarity computation
+- IndexedDB stores embeddings locally per-project for fast access
+- Supabase pgvector provides cloud persistence and cross-device sync
+- Project switching saves dirty embeddings, clears cache, loads new project
 
 **New files:**
 - `website/public/editor/js/modules/EmbeddingsManager.js`
-- `website/public/editor/js/workers/embeddings-worker.js`
-- `website/src/app/api/embeddings/route.ts`
+- `website/src/app/api/embeddings/route.ts` - Embedding generation API
+- `website/src/app/api/embeddings/sync/route.ts` - Cloud sync API
+- `website/src/app/api/embeddings/search/route.ts` - Semantic search API
+- `website/database-migrations/005_project_embeddings.sql`
 
 **Database migration:**
 ```sql
--- Add to Supabase
+-- Implemented in 005_project_embeddings.sql
 CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE project_embeddings (
@@ -206,6 +215,7 @@ CREATE TABLE project_embeddings (
   chunk_index INTEGER NOT NULL,
   content TEXT NOT NULL,
   embedding vector(1536),
+  content_hash TEXT,
   metadata JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -213,19 +223,29 @@ CREATE TABLE project_embeddings (
 );
 
 CREATE INDEX ON project_embeddings USING ivfflat (embedding vector_cosine_ops);
+
+-- Plus: RLS policies, search functions, trigger for updated_at
 ```
 
-#### 2.2 Semantic Search Integration
-- [ ] Implement similarity search in `EmbeddingsManager.js`
-- [ ] Add automatic context retrieval based on query
-- [ ] Replace manual file selection with smart suggestions
-- [ ] Build relevance scoring for context prioritization
-- [ ] Add "Show retrieved context" transparency toggle
+#### 2.2 Semantic Search Integration ✅
+- [x] Implement similarity search in `EmbeddingsManager.js`
+- [x] Add automatic context retrieval based on query
+- [x] Replace manual file selection with smart suggestions
+- [x] Build relevance scoring for context prioritization
+- [x] Add "Show retrieved context" transparency toggle
 
-**Files to modify:**
-- `website/public/editor/js/modules/UnifiedAIManager.js`
-- `website/public/editor/js/modules/ProjectContextManager.js`
-- `website/public/editor/js/chat-panel.js`
+**Implementation Notes:**
+- `searchRelevantFiles()` computes cosine similarity against query embedding
+- `getSuggestedContext()` returns top-K relevant files with size limits
+- `buildContextWithSemanticSearch()` in UnifiedAIManager auto-adds files
+- Auto-context indicator shows which files were semantically retrieved
+- Toggle button allows user to enable/disable auto-context
+- System prompt distinguishes manually-selected vs auto-included files
+
+**Files modified:**
+- `website/public/editor/js/modules/UnifiedAIManager.js` - Auto-context integration
+- `website/public/editor/js/app.js` - EmbeddingsManager initialization
+- `website/public/editor/css/chat-panel-clean.css` - Auto-context UI styles
 
 ---
 

@@ -1011,6 +1011,150 @@
     }
 }
 
+/* =====================================================
+   Auto-Context Indicator - Shows AI-selected files
+   ===================================================== */
+.auto-context-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: linear-gradient(90deg, rgba(76, 201, 240, 0.1), rgba(67, 97, 238, 0.05));
+    border: 1px solid rgba(76, 201, 240, 0.2);
+    border-radius: 8px;
+    margin: 8px 16px;
+    font-size: 12px;
+    color: var(--secondary-text);
+}
+
+.auto-context-indicator .context-icon {
+    font-size: 14px;
+}
+
+.auto-context-indicator .context-label {
+    font-weight: 600;
+    color: var(--accent-color);
+}
+
+.auto-context-indicator .context-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.auto-context-file-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(76, 201, 240, 0.15);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--primary-text);
+}
+
+.auto-context-file-tag .score {
+    font-size: 10px;
+    color: var(--accent-color);
+    opacity: 0.8;
+}
+
+.auto-context-file-tag.partial {
+    border-left: 2px solid var(--warning-color, #f59e0b);
+}
+
+.auto-context-toggle-btn {
+    padding: 4px 8px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--secondary-text);
+    cursor: pointer;
+    font-size: 11px;
+    margin-left: auto;
+    transition: all 0.2s;
+}
+
+.auto-context-toggle-btn:hover {
+    background: var(--tertiary-bg);
+    border-color: var(--accent-color);
+}
+
+.auto-context-toggle-btn.active {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+/* Embeddings Status Indicator */
+.embeddings-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--tertiary-bg);
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--secondary-text);
+}
+
+.embeddings-status .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success-color, #22c55e);
+}
+
+.embeddings-status .status-dot.generating {
+    background: var(--warning-color, #f59e0b);
+    animation: pulse 1.5s infinite;
+}
+
+.embeddings-status .status-dot.error {
+    background: var(--danger-color, #ef4444);
+}
+
+.embeddings-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: 6px;
+    margin: 8px 16px;
+}
+
+.embeddings-progress-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--tertiary-bg);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.embeddings-progress-fill {
+    height: 100%;
+    background: var(--accent-color);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.embeddings-progress-text {
+    font-size: 11px;
+    color: var(--secondary-text);
+    white-space: nowrap;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
 @keyframes thinkingBounce {
     0%, 80%, 100% {
         transform: scale(0);
