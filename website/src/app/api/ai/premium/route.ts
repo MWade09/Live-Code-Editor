@@ -31,7 +31,6 @@ async function logUsage(record: UsageRecord) {
   try {
     const supabase = await createClient()
     
-    // Create usage table if it doesn't exist
     const { error } = await supabase
       .from('ai_usage')
       .insert({
@@ -53,7 +52,6 @@ async function logUsage(record: UsageRecord) {
 }
 
 function calculateCost(model: string, tokens: number): number {
-  // Simplified cost calculation (you should use actual OpenRouter pricing)
   const costPerMillion: Record<string, number> = {
     'anthropic/claude-3.5-sonnet': 3.00,
     'anthropic/claude-3.5-haiku': 0.80,
@@ -85,7 +83,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { model, messages, apiKey } = body
+    const { model, messages, apiKey, stream = false } = body
+
+    console.log('📥 Premium request for model:', model, 'streaming:', stream)
 
     // Validate model is premium
     if (!PREMIUM_MODELS.some(pm => model.includes(pm.split('/')[1]))) {
@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         model,
         messages,
+        stream,
       }),
     })
 
@@ -122,7 +123,6 @@ export async function POST(request: NextRequest) {
       const errorData = await openrouterResponse.text()
       console.error('OpenRouter API error:', errorData)
       
-      // Check if it's an auth error
       if (openrouterResponse.status === 401 || openrouterResponse.status === 403) {
         return NextResponse.json(
           { error: 'Invalid API key. Please check your OpenRouter API key.' },
@@ -136,6 +136,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Handle streaming response
+    if (stream) {
+      // For streaming, we can't easily track token usage
+      // We'll estimate or track via a separate mechanism later
+      const responseHeaders = new Headers({
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      })
+
+      // Create a TransformStream to intercept and optionally track the stream
+      const { readable, writable } = new TransformStream({
+        transform(chunk, controller) {
+          controller.enqueue(chunk)
+        },
+        flush() {
+          // Could log estimated usage here
+          console.log('Stream completed for user:', user.id)
+        }
+      })
+
+      // Pipe the OpenRouter response through our transform
+      openrouterResponse.body?.pipeTo(writable)
+
+      return new Response(readable, {
+        headers: responseHeaders,
+      })
+    }
+
+    // Non-streaming response
     const data = await openrouterResponse.json()
 
     // Calculate usage and costs

@@ -8,10 +8,32 @@
  * - PLAN markers (project planning)
  * 
  * Separates conversational text from action markers
+ * 
+ * STREAMING SUPPORT:
+ * - detectPartialActions() for real-time marker detection
+ * - Tracks incomplete markers during stream
  */
 export class ResponseParser {
     constructor() {
-        console.log('📝 ResponseParser: Initialized');
+        console.log('📝 ResponseParser: Initialized with streaming support');
+        
+        // Patterns for action markers
+        this.patterns = {
+            fileEdit: /FILE_EDIT:\s*([^\n]+)\n([\s\S]*?)END_FILE_EDIT/gi,
+            fileCreate: /CREATE_FILE:\s*([^\n]+)\n([\s\S]*?)END_CREATE_FILE/gi,
+            terminal: /TERMINAL:\s*([^\n]+)/gi,
+            plan: /PLAN:\n([\s\S]*?)END_PLAN/gi
+        };
+        
+        // Partial marker patterns for streaming detection
+        this.partialPatterns = {
+            fileEditStart: /FILE_EDIT:\s*([^\n]+)\n/i,
+            fileEditEnd: /END_FILE_EDIT/i,
+            fileCreateStart: /CREATE_FILE:\s*([^\n]+)\n/i,
+            fileCreateEnd: /END_CREATE_FILE/i,
+            planStart: /PLAN:\n/i,
+            planEnd: /END_PLAN/i
+        };
     }
     
     /**
@@ -52,6 +74,96 @@ export class ResponseParser {
         });
         
         return { conversation, actions };
+    }
+    
+    /**
+     * Detect partial/in-progress actions during streaming
+     * Used to show visual indicators while markers are being typed
+     * @param {string} partialResponse - Partial response during streaming
+     * @returns {Object} { hasPartialAction: boolean, partialType: string|null, progress: string }
+     */
+    detectPartialActions(partialResponse) {
+        if (!partialResponse) {
+            return { hasPartialAction: false, partialType: null, progress: '' };
+        }
+        
+        // Check for incomplete FILE_EDIT
+        if (this.partialPatterns.fileEditStart.test(partialResponse)) {
+            if (!this.partialPatterns.fileEditEnd.test(partialResponse.split(/FILE_EDIT:/i).pop())) {
+                const match = partialResponse.match(/FILE_EDIT:\s*([^\n]+)/i);
+                return {
+                    hasPartialAction: true,
+                    partialType: 'edit',
+                    progress: `Editing: ${match ? match[1].trim() : 'file'}...`
+                };
+            }
+        }
+        
+        // Check for incomplete CREATE_FILE
+        if (this.partialPatterns.fileCreateStart.test(partialResponse)) {
+            if (!this.partialPatterns.fileCreateEnd.test(partialResponse.split(/CREATE_FILE:/i).pop())) {
+                const match = partialResponse.match(/CREATE_FILE:\s*([^\n]+)/i);
+                return {
+                    hasPartialAction: true,
+                    partialType: 'create',
+                    progress: `Creating: ${match ? match[1].trim() : 'file'}...`
+                };
+            }
+        }
+        
+        // Check for incomplete PLAN
+        if (this.partialPatterns.planStart.test(partialResponse)) {
+            if (!this.partialPatterns.planEnd.test(partialResponse.split(/PLAN:/i).pop())) {
+                return {
+                    hasPartialAction: true,
+                    partialType: 'plan',
+                    progress: 'Generating plan...'
+                };
+            }
+        }
+        
+        return { hasPartialAction: false, partialType: null, progress: '' };
+    }
+    
+    /**
+     * Extract completed actions from partial response (for early execution)
+     * @param {string} partialResponse - Partial response during streaming
+     * @returns {Object} { completedActions: Array, remainingText: string }
+     */
+    extractCompletedActions(partialResponse) {
+        const completedActions = [];
+        let remainingText = partialResponse;
+        
+        // Find completed FILE_EDITs
+        const editPattern = /FILE_EDIT:\s*([^\n]+)\n([\s\S]*?)END_FILE_EDIT/gi;
+        let match;
+        
+        while ((match = editPattern.exec(partialResponse)) !== null) {
+            completedActions.push({
+                type: 'edit',
+                file: match[1].trim(),
+                content: match[2].trim(),
+                raw: match[0],
+                startIndex: match.index,
+                endIndex: match.index + match[0].length
+            });
+        }
+        
+        // Find completed CREATE_FILEs
+        const createPattern = /CREATE_FILE:\s*([^\n]+)\n([\s\S]*?)END_CREATE_FILE/gi;
+        
+        while ((match = createPattern.exec(partialResponse)) !== null) {
+            completedActions.push({
+                type: 'create',
+                file: match[1].trim(),
+                content: match[2].trim(),
+                raw: match[0],
+                startIndex: match.index,
+                endIndex: match.index + match[0].length
+            });
+        }
+        
+        return { completedActions, remainingText };
     }
     
     /**

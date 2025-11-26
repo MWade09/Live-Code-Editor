@@ -2,20 +2,174 @@
  * ActionExecutor - Execute AI-suggested actions with user approval
  * 
  * Handles:
- * - File edits (with diff preview)
+ * - File edits (with SMART DIFF preview)
  * - File creation (with content preview)
  * - Terminal commands (with confirmation)
  * - Project plans (with task list)
  * 
  * All actions require user approval via preview cards
+ * 
+ * PHASE 1 ENHANCEMENTS:
+ * - Uses DiffManager for smart diff visualization
+ * - Conflict detection for concurrent edits
+ * - Undo support for AI changes
  */
 export class ActionExecutor {
-    constructor(fileManager, editor) {
-        console.log('⚡ ActionExecutor: Initialized');
+    constructor(fileManager, editor, diffManager = null) {
+        console.log('⚡ ActionExecutor: Initialized with diff support');
         
         this.fileManager = fileManager;
         this.editor = editor;
+        this.diffManager = diffManager;
         this.chatMessages = document.getElementById('chat-messages');
+        
+        // Track original content for conflict detection
+        this.originalContentCache = new Map();
+        
+        // Inject diff styles if DiffManager is available
+        if (this.diffManager) {
+            this.injectDiffStyles();
+        }
+    }
+    
+    /**
+     * Set the DiffManager (can be set after construction)
+     */
+    setDiffManager(diffManager) {
+        this.diffManager = diffManager;
+        this.injectDiffStyles();
+    }
+    
+    /**
+     * Inject CSS styles for diff display
+     */
+    injectDiffStyles() {
+        if (document.getElementById('diff-manager-styles')) return;
+        
+        const styleEl = document.createElement('style');
+        styleEl.id = 'diff-manager-styles';
+        styleEl.textContent = `
+            .diff-container {
+                font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                font-size: 12px;
+                border: 1px solid var(--border-color, #333);
+                border-radius: 4px;
+                overflow: hidden;
+                background: var(--bg-secondary, #1e1e1e);
+                margin-top: 8px;
+            }
+            
+            .diff-stats {
+                padding: 8px 12px;
+                background: var(--bg-tertiary, #252525);
+                border-bottom: 1px solid var(--border-color, #333);
+                display: flex;
+                gap: 12px;
+            }
+            
+            .diff-stat {
+                font-size: 11px;
+            }
+            
+            .diff-stat.additions {
+                color: #4ade80;
+            }
+            
+            .diff-stat.deletions {
+                color: #f87171;
+            }
+            
+            .diff-stat.unchanged {
+                color: var(--text-muted, #888);
+            }
+            
+            .diff-lines {
+                max-height: 300px;
+                overflow-y: auto;
+            }
+            
+            .diff-line {
+                display: flex;
+                padding: 2px 8px;
+                min-height: 20px;
+                line-height: 20px;
+            }
+            
+            .diff-line.diff-addition {
+                background: rgba(74, 222, 128, 0.15);
+            }
+            
+            .diff-line.diff-deletion {
+                background: rgba(248, 113, 113, 0.15);
+            }
+            
+            .diff-line.diff-collapse {
+                background: var(--bg-tertiary, #252525);
+                color: var(--text-muted, #888);
+                font-style: italic;
+            }
+            
+            .line-number {
+                min-width: 40px;
+                color: var(--text-muted, #666);
+                text-align: right;
+                padding-right: 8px;
+                user-select: none;
+            }
+            
+            .line-prefix {
+                min-width: 16px;
+                font-weight: bold;
+            }
+            
+            .diff-addition .line-prefix {
+                color: #4ade80;
+            }
+            
+            .diff-deletion .line-prefix {
+                color: #f87171;
+            }
+            
+            .line-content {
+                flex: 1;
+                white-space: pre;
+                overflow-x: auto;
+            }
+            
+            .diff-truncated {
+                padding: 8px 12px;
+                text-align: center;
+                color: var(--text-muted, #888);
+                font-style: italic;
+                background: var(--bg-tertiary, #252525);
+            }
+            
+            .conflict-warning {
+                background: rgba(251, 191, 36, 0.2);
+                border: 1px solid #fbbf24;
+                border-radius: 4px;
+                padding: 8px 12px;
+                margin-bottom: 8px;
+                color: #fbbf24;
+                font-size: 12px;
+            }
+            
+            .undo-btn {
+                background: var(--bg-tertiary, #333);
+                color: var(--text-primary, #fff);
+                border: 1px solid var(--border-color, #444);
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 11px;
+                cursor: pointer;
+                margin-left: 8px;
+            }
+            
+            .undo-btn:hover {
+                background: var(--bg-hover, #444);
+            }
+        `;
+        document.head.appendChild(styleEl);
     }
     
     /**
@@ -59,7 +213,7 @@ export class ActionExecutor {
     }
     
     /**
-     * Execute file edit action
+     * Execute file edit action with smart diff
      */
     async executeEdit(action) {
         // Find the file
@@ -70,23 +224,63 @@ export class ActionExecutor {
             return;
         }
         
-        // Create diff preview
-        const diffPreview = this.createDiffPreview(file.content, action.content);
+        // Get original content (cached or current)
+        const originalContent = this.originalContentCache.get(file.id) || file.content;
+        const currentContent = file.content;
+        const newContent = action.content;
+        
+        // Check for conflicts (user edited since AI saw the file)
+        let hasConflict = false;
+        let conflictWarning = '';
+        
+        if (this.diffManager && originalContent !== currentContent) {
+            // User has made changes since AI generated response
+            hasConflict = true;
+            conflictWarning = `
+                <div class="conflict-warning">
+                    ⚠️ You've made changes to this file since the AI saw it. 
+                    Review carefully before applying.
+                </div>
+            `;
+        }
+        
+        // Generate diff preview
+        let diffPreview;
+        if (this.diffManager) {
+            const diff = this.diffManager.generateDiff(currentContent, newContent);
+            diffPreview = this.diffManager.generateDiffHTML(diff, {
+                showLineNumbers: true,
+                contextLines: 3,
+                collapseUnchanged: true,
+                maxLines: 50
+            });
+        } else {
+            // Fallback to simple preview
+            diffPreview = this.createDiffPreview(currentContent, newContent);
+        }
         
         // Show action card with preview
         this.showActionCard({
             type: 'edit',
             title: `Edit: ${action.file}`,
             icon: '✏️',
-            preview: diffPreview,
+            preview: conflictWarning + diffPreview,
             onApply: () => {
+                // Record for undo before applying
+                if (this.diffManager) {
+                    this.diffManager.recordChange(file.name, currentContent, newContent, 'ai');
+                }
+                
+                // Update original content cache
+                this.originalContentCache.set(file.id, newContent);
+                
                 // Update file content
-                file.content = action.content;
+                file.content = newContent;
                 this.fileManager.saveFilesToStorage();
                 
                 // Update editor if this file is currently open
                 if (this.fileManager.getCurrentFile()?.id === file.id) {
-                    this.editor.setValue(action.content);
+                    this.editor.setValue(newContent);
                 }
                 
                 // If using project sync, save to database
@@ -94,7 +288,7 @@ export class ActionExecutor {
                     window.projectSyncManager.saveToWebsite();
                 }
                 
-                this.showSuccessMessage(`✅ Updated ${action.file}`);
+                this.showSuccessMessage(`✅ Updated ${action.file}`, true, file.name);
             },
             onReject: () => {
                 this.showInfoMessage('Edit cancelled');
@@ -393,10 +587,77 @@ export class ActionExecutor {
     }
     
     /**
-     * Show success message
+     * Show success message with optional undo button
      */
-    showSuccessMessage(message) {
-        this.showStatusMessage(message, 'success');
+    showSuccessMessage(message, showUndo = false, filename = null) {
+        if (!this.chatMessages) return;
+        
+        const statusDiv = document.createElement('div');
+        statusDiv.className = 'status-message success-message';
+        
+        let content = message;
+        
+        if (showUndo && filename && this.diffManager) {
+            content += `<button class="undo-btn" data-filename="${this.escapeHtml(filename)}">Undo</button>`;
+        }
+        
+        statusDiv.innerHTML = content;
+        
+        // Wire up undo button
+        const undoBtn = statusDiv.querySelector('.undo-btn');
+        if (undoBtn) {
+            undoBtn.addEventListener('click', () => {
+                this.handleUndo(filename);
+                undoBtn.disabled = true;
+                undoBtn.textContent = 'Undone';
+            });
+        }
+        
+        this.chatMessages.appendChild(statusDiv);
+        this.scrollToBottom();
+        
+        // Auto-remove after 10 seconds (longer for undo option)
+        setTimeout(() => {
+            statusDiv.classList.add('fade-out');
+            setTimeout(() => statusDiv.remove(), 300);
+        }, showUndo ? 10000 : 5000);
+    }
+    
+    /**
+     * Handle undo for a file change
+     */
+    handleUndo(filename) {
+        if (!this.diffManager) {
+            this.showErrorMessage('Undo not available');
+            return;
+        }
+        
+        const undoResult = this.diffManager.undoLastChange(filename);
+        
+        if (undoResult) {
+            // Find the file
+            const file = this.fileManager.files.find(f => f.name === filename);
+            
+            if (file) {
+                // Restore content
+                file.content = undoResult.content;
+                this.fileManager.saveFilesToStorage();
+                
+                // Update editor if open
+                if (this.fileManager.getCurrentFile()?.id === file.id) {
+                    this.editor.setValue(undoResult.content);
+                }
+                
+                // Sync if needed
+                if (window.projectSyncManager?.currentProjectId) {
+                    window.projectSyncManager.saveToWebsite();
+                }
+                
+                this.showInfoMessage(`↩️ Undid changes to ${filename}`);
+            }
+        } else {
+            this.showErrorMessage('Nothing to undo');
+        }
     }
     
     /**

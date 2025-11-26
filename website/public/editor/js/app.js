@@ -14,6 +14,7 @@ import { AICodeActionsManager } from './modules/AICodeActionsManager.js';
 import { UnifiedAIManager } from './modules/UnifiedAIManager.js';
 import { ResponseParser } from './modules/ResponseParser.js';
 import { ActionExecutor } from './modules/ActionExecutor.js';
+import { DiffManager } from './modules/DiffManager.js';
 import { ProjectSyncManager } from './modules/ProjectSyncManager.js';
 import { AuthManager } from './modules/AuthManager.js';
 import { RealtimeSync } from './modules/RealtimeSync.js';
@@ -90,7 +91,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize UNIFIED AI SYSTEM (NEW)
     console.log('🤖 Initializing Unified AI System...');
     const responseParser = new ResponseParser();
-    const actionExecutor = new ActionExecutor(fileManager, editor.editor);
+    const diffManager = new DiffManager();
+    const actionExecutor = new ActionExecutor(fileManager, editor.editor, diffManager);
     const unifiedAI = new UnifiedAIManager(editor.editor, fileManager, projectContextManager);
     
     // Wire up dependencies
@@ -99,9 +101,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Expose globally for chat-panel.js
     window.unifiedAI = unifiedAI;
+    window.diffManager = diffManager;
     window.aiManager = aiManager; // Keep old one for backward compatibility
     
-    console.log('✅ Unified AI System ready');
+    console.log('✅ Unified AI System ready (streaming + smart diffs)');
     
     // Initialize MultiFileEditManager for AI multi-file edits
     const multiFileEditManager = new MultiFileEditManager(fileManager, editor, aiManager);

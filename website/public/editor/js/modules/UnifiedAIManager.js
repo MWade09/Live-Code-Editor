@@ -9,6 +9,7 @@
  * - Terminal commands
  * - Project planning
  * - Special commands (/plan, /create, etc.)
+ * - STREAMING RESPONSES for real-time token display
  */
 export class UnifiedAIManager {
     constructor(editor, fileManager, projectContextManager = null) {
@@ -37,6 +38,10 @@ export class UnifiedAIManager {
         // Project context
         this.includeProjectContext = false;
         
+        // Streaming configuration
+        this.useStreaming = true; // Enable streaming by default
+        this.currentStreamController = null; // For cancelling streams
+        
         // API configuration
         this.apiKey = localStorage.getItem('openrouter_api_key') || '';
         this.platformKey = ''; // Set from environment/config
@@ -62,7 +67,7 @@ export class UnifiedAIManager {
         window.unifiedAI = this;
         window.clearAIChat = () => this.clearChat();
         
-        console.log('✅ UnifiedAIManager: Ready');
+        console.log('✅ UnifiedAIManager: Ready (streaming:', this.useStreaming, ')');
     }
     
     /**
@@ -83,31 +88,32 @@ export class UnifiedAIManager {
                 return await this.handleCommand(userMessage);
             }
             
-            // Show loading indicator
-            this.showLoadingIndicator();
-            
             // Build full context
             const context = this.buildContext();
             
-            // Call AI with unified prompt
-            const aiResponse = await this.callAI(userMessage, context);
-            
-            // Parse response for actions
-            if (this.responseParser) {
-                const { conversation, actions } = this.responseParser.parse(aiResponse);
-                
-                // Display conversational part
-                if (conversation && conversation.trim()) {
-                    this.addMessage('assistant', conversation);
-                }
-                
-                // Execute actions (edits, creates, terminal, etc.)
-                if (actions && actions.length > 0 && this.actionExecutor) {
-                    await this.actionExecutor.executeActions(actions);
-                }
+            // Call AI with streaming or non-streaming based on setting
+            if (this.useStreaming) {
+                await this.callAIStreaming(userMessage, context);
             } else {
-                // Fallback if parser not ready yet
-                this.addMessage('assistant', aiResponse);
+                // Show loading indicator for non-streaming
+                this.showLoadingIndicator();
+                const aiResponse = await this.callAI(userMessage, context);
+                this.hideLoadingIndicator();
+                
+                // Parse response for actions
+                if (this.responseParser) {
+                    const { conversation, actions } = this.responseParser.parse(aiResponse);
+                    
+                    if (conversation && conversation.trim()) {
+                        this.addMessage('assistant', conversation);
+                    }
+                    
+                    if (actions && actions.length > 0 && this.actionExecutor) {
+                        await this.actionExecutor.executeActions(actions);
+                    }
+                } else {
+                    this.addMessage('assistant', aiResponse);
+                }
             }
             
             // Save chat history
@@ -115,9 +121,226 @@ export class UnifiedAIManager {
             
         } catch (error) {
             console.error('UnifiedAI Error:', error);
-            this.addMessage('system', `Error: ${error.message}. Please try again.`);
-        } finally {
             this.hideLoadingIndicator();
+            this.addMessage('system', `Error: ${error.message}. Please try again.`);
+        }
+    }
+    
+    /**
+     * Call AI with streaming response
+     */
+    async callAIStreaming(userMessage, context) {
+        const systemPrompt = this.buildSystemPrompt(context);
+        const selectedModel = this.getSelectedModel();
+        
+        // Determine which API endpoint to use
+        const isFreeModel = this.freeModels.includes(selectedModel);
+        const endpoint = isFreeModel ? '/api/ai/free' : '/api/ai/premium';
+        
+        console.log(`[UnifiedAI] Streaming from ${endpoint} with model: ${selectedModel}`);
+        
+        // Build messages array
+        const messages = [
+            { role: 'system', content: systemPrompt }
+        ];
+        
+        // Add recent conversation history
+        const recentMessages = this.messages.slice(-10);
+        messages.push(...recentMessages.map(m => ({
+            role: m.role,
+            content: m.content
+        })));
+        
+        // Add current user message with file context
+        let userContent = userMessage;
+        
+        if (context.selectedFiles && context.selectedFiles.length > 0) {
+            userContent += '\n\n=== ATTACHED FILES FOR CONTEXT ===\n';
+            for (const file of context.selectedFiles) {
+                userContent += `\n--- ${file.name} ---\n${file.content}\n`;
+            }
+        }
+        
+        if (context.currentFile && !context.selectedFiles.some(f => f.name === context.currentFile.name)) {
+            userContent += `\n\n=== CURRENT FILE: ${context.currentFile.name} ===\n${context.currentFile.content}`;
+        }
+        
+        messages.push({ role: 'user', content: userContent });
+        
+        // Create abort controller for cancellation
+        this.currentStreamController = new AbortController();
+        
+        // Create streaming message element
+        const streamingMessage = this.createStreamingMessage();
+        let fullResponse = '';
+        
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(isFreeModel ? {} : { 'X-API-Key': this.apiKey })
+                },
+                body: JSON.stringify({
+                    model: selectedModel,
+                    messages: messages,
+                    temperature: 0.7,
+                    max_tokens: 4000,
+                    stream: true,
+                    apiKey: isFreeModel ? undefined : this.apiKey
+                }),
+                signal: this.currentStreamController.signal
+            });
+            
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(`API Error: ${response.status} - ${error}`);
+            }
+            
+            // Process the stream
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            
+            while (true) {
+                const { done, value } = await reader.read();
+                
+                if (done) {
+                    break;
+                }
+                
+                // Decode the chunk
+                const chunk = decoder.decode(value, { stream: true });
+                
+                // Parse SSE events
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        
+                        if (data === '[DONE]') {
+                            continue;
+                        }
+                        
+                        try {
+                            const parsed = JSON.parse(data);
+                            const content = parsed.choices?.[0]?.delta?.content;
+                            
+                            if (content) {
+                                fullResponse += content;
+                                this.updateStreamingMessage(streamingMessage, fullResponse);
+                            }
+                        } catch (e) {
+                            // Ignore JSON parse errors for incomplete chunks
+                        }
+                    }
+                }
+            }
+            
+            // Finalize the streaming message
+            this.finalizeStreamingMessage(streamingMessage, fullResponse);
+            
+            // Parse for actions after stream completes
+            if (this.responseParser && fullResponse) {
+                const { conversation, actions } = this.responseParser.parse(fullResponse);
+                
+                // Update the message with cleaned conversation (remove action markers)
+                if (conversation && conversation !== fullResponse) {
+                    this.updateStreamingMessageFinal(streamingMessage, conversation);
+                }
+                
+                // Execute actions
+                if (actions && actions.length > 0 && this.actionExecutor) {
+                    await this.actionExecutor.executeActions(actions);
+                }
+            }
+            
+            // Store in history
+            this.messages.push({
+                role: 'assistant',
+                content: fullResponse,
+                timestamp: new Date().toISOString()
+            });
+            
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.log('[UnifiedAI] Stream cancelled by user');
+                this.finalizeStreamingMessage(streamingMessage, fullResponse + '\n\n[Stream cancelled]');
+            } else {
+                throw error;
+            }
+        } finally {
+            this.currentStreamController = null;
+        }
+    }
+    
+    /**
+     * Create a streaming message element in the chat
+     */
+    createStreamingMessage() {
+        if (!this.chatMessages) return null;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'chat-message assistant-message streaming';
+        messageDiv.innerHTML = `
+            <span class="message-icon">🤖</span>
+            <div class="message-content">
+                <span class="streaming-cursor">▊</span>
+            </div>
+        `;
+        
+        this.chatMessages.appendChild(messageDiv);
+        this.scrollToBottom();
+        
+        return messageDiv;
+    }
+    
+    /**
+     * Update streaming message with new content
+     */
+    updateStreamingMessage(messageDiv, content) {
+        if (!messageDiv) return;
+        
+        const contentDiv = messageDiv.querySelector('.message-content');
+        if (contentDiv) {
+            const formattedContent = this.formatMessageContent(content);
+            contentDiv.innerHTML = formattedContent + '<span class="streaming-cursor">▊</span>';
+            this.scrollToBottom();
+        }
+    }
+    
+    /**
+     * Finalize streaming message (remove cursor)
+     */
+    finalizeStreamingMessage(messageDiv, content) {
+        if (!messageDiv) return;
+        
+        messageDiv.classList.remove('streaming');
+        const contentDiv = messageDiv.querySelector('.message-content');
+        if (contentDiv) {
+            contentDiv.innerHTML = this.formatMessageContent(content);
+        }
+    }
+    
+    /**
+     * Update streaming message with final cleaned content
+     */
+    updateStreamingMessageFinal(messageDiv, content) {
+        if (!messageDiv) return;
+        
+        const contentDiv = messageDiv.querySelector('.message-content');
+        if (contentDiv) {
+            contentDiv.innerHTML = this.formatMessageContent(content);
+        }
+    }
+    
+    /**
+     * Cancel current streaming response
+     */
+    cancelStream() {
+        if (this.currentStreamController) {
+            this.currentStreamController.abort();
+            console.log('[UnifiedAI] Stream cancellation requested');
         }
     }
     

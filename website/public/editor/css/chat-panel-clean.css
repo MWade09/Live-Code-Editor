@@ -966,6 +966,34 @@
     line-height: 1.6;
 }
 
+/* Streaming cursor for real-time token display */
+.streaming-cursor {
+    display: inline-block;
+    color: var(--accent-color);
+    font-weight: bold;
+    animation: streamingCursorBlink 0.7s infinite;
+    margin-left: 1px;
+}
+
+/* Streaming message style */
+.chat-message.streaming {
+    border-left: 3px solid var(--accent-color);
+    background: linear-gradient(90deg, rgba(67, 97, 238, 0.05), transparent);
+}
+
+.chat-message.streaming .message-content {
+    min-height: 24px;
+}
+
+@keyframes streamingCursorBlink {
+    0%, 50% {
+        opacity: 1;
+    }
+    51%, 100% {
+        opacity: 0;
+    }
+}
+
 .typing-cursor {
     display: inline-block;
     color: var(--accent-color);

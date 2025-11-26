@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 // Platform OpenRouter API key for free models
-// TODO: Move to environment variable for security
 const PLATFORM_API_KEY = process.env.OPENROUTER_PLATFORM_KEY || ''
 
 // Rate limiting: simple in-memory store (use Redis in production)
@@ -17,7 +16,6 @@ const FREE_MODELS = [
 ]
 
 function getClientId(request: NextRequest): string {
-  // Use IP address for rate limiting
   const forwarded = request.headers.get('x-forwarded-for')
   const ip = forwarded ? forwarded.split(',')[0] : request.headers.get('x-real-ip') || 'unknown'
   return ip
@@ -28,7 +26,6 @@ function checkRateLimit(clientId: string): { allowed: boolean; remaining: number
   const record = requestCounts.get(clientId)
 
   if (!record || now > record.resetAt) {
-    // New window
     requestCounts.set(clientId, { count: 1, resetAt: now + RATE_WINDOW })
     return { allowed: true, remaining: RATE_LIMIT - 1 }
   }
@@ -51,12 +48,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ Platform API key is set (length:', PLATFORM_API_KEY.length, ')')
-
     const body = await request.json()
-    const { model, messages } = body
+    const { model, messages, stream = false } = body
 
-    console.log('📥 Free tier request for model:', model)
+    console.log('📥 Free tier request for model:', model, 'streaming:', stream)
 
     // Validate model is in free tier
     if (!FREE_MODELS.includes(model)) {
@@ -90,6 +85,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         model,
         messages,
+        stream,
       }),
     })
 
@@ -104,9 +100,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const data = await openrouterResponse.json()
+    // Handle streaming response
+    if (stream) {
+      const responseHeaders = new Headers({
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-RateLimit-Remaining': remaining.toString(),
+        'X-RateLimit-Limit': RATE_LIMIT.toString(),
+      })
 
-    // Add rate limit headers
+      // Stream the response directly from OpenRouter
+      return new Response(openrouterResponse.body, {
+        headers: responseHeaders,
+      })
+    }
+
+    // Non-streaming response
+    const data = await openrouterResponse.json()
     const response = NextResponse.json(data)
     response.headers.set('X-RateLimit-Remaining', remaining.toString())
     response.headers.set('X-RateLimit-Limit', RATE_LIMIT.toString())
