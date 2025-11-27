@@ -16,6 +16,8 @@ import { ResponseParser } from './modules/ResponseParser.js';
 import { ActionExecutor } from './modules/ActionExecutor.js';
 import { DiffManager } from './modules/DiffManager.js';
 import { EmbeddingsManager } from './modules/EmbeddingsManager.js';
+import { AgentOrchestrator } from './modules/AgentOrchestrator.js';
+import { AgentTools } from './modules/AgentTools.js';
 import { ProjectSyncManager } from './modules/ProjectSyncManager.js';
 import { AuthManager } from './modules/AuthManager.js';
 import { RealtimeSync } from './modules/RealtimeSync.js';
@@ -114,6 +116,45 @@ document.addEventListener('DOMContentLoaded', () => {
     window.aiManager = aiManager; // Keep old one for backward compatibility
     
     console.log('✅ Unified AI System ready (streaming + smart diffs)');
+    
+    // Initialize Agent Orchestrator (Phase 3)
+    console.log('🤖 Initializing Agent Orchestrator...');
+    
+    // Create tool sets - will be fully wired after terminal manager is created
+    const fileSystemTools = AgentTools.createFileSystemTools(fileManager);
+    const analysisTools = AgentTools.createAnalysisTools(fileManager, embeddingsManager);
+    
+    // We'll add terminal tools after terminalManager is initialized
+    // For now, merge file system and analysis tools
+    const agentTools = AgentTools.merge(fileSystemTools, analysisTools);
+    
+    // Create agent orchestrator (terminal will be added later)
+    const agentOrchestrator = new AgentOrchestrator(unifiedAI, fileManager, null);
+    
+    // Register tools with agent
+    for (const [id, tool] of agentTools.tools) {
+        agentOrchestrator.registerTool(id, tool);
+    }
+    
+    // Wire up agent events
+    agentOrchestrator.onStateChange = (newState, oldState) => {
+        console.log(`[Agent] State changed: ${oldState} → ${newState}`);
+        // Could update UI here
+    };
+    
+    agentOrchestrator.onPlanReady = (plan) => {
+        console.log('[Agent] Plan ready for approval:', plan.summary);
+        // Show plan UI for approval
+    };
+    
+    agentOrchestrator.onError = (error, action) => {
+        console.error('[Agent] Error:', error, action);
+    };
+    
+    // Make agent globally available
+    window.agentOrchestrator = agentOrchestrator;
+    
+    console.log('✅ Agent Orchestrator ready');
     
     // Initialize MultiFileEditManager for AI multi-file edits
     const multiFileEditManager = new MultiFileEditManager(fileManager, editor, aiManager);
@@ -244,6 +285,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const realtimeSync = new RealtimeSync(projectSync);
     const versionControl = new VersionControlManager(projectSync, fileManager);
     const terminalManager = new TerminalManager(projectSync);
+    
+    // Wire up terminal with agent orchestrator
+    agentOrchestrator.terminalManager = terminalManager;
+    terminalManager.initializeOutputCapture();
+    
+    // Add terminal tools to agent
+    const terminalTools = AgentTools.createTerminalTools(terminalManager);
+    for (const [id, tool] of terminalTools.tools) {
+        agentOrchestrator.registerTool(id, tool);
+    }
+    
+    // Listen for AI fix requests from terminal
+    document.addEventListener('aiFixRequested', async (event) => {
+        const context = event.detail;
+        console.log('[App] AI fix requested from terminal:', context);
+        
+        // Build a prompt for the AI to help fix the error
+        const fixPrompt = `A terminal error occurred and the user is asking for help.
+
+ERROR TYPE: ${context.error?.type || 'unknown'}
+ERROR MESSAGE: ${context.error?.message || 'Unknown error'}
+
+RECENT TERMINAL OUTPUT:
+\`\`\`
+${context.recentOutput || 'No output available'}
+\`\`\`
+
+Please analyze this error and suggest a fix. If it's a code error, provide the corrected code. If it's a command error, suggest the correct command.`;
+
+        // Send to unified AI for help
+        if (window.unifiedAI) {
+            await window.unifiedAI.handleMessage(fixPrompt);
+        }
+    });
+    
+    console.log('✅ Terminal integrated with Agent Orchestrator');
     
     // Initialize Modern Deploy Manager
     const modernDeployManager = new ModernDeployManager(fileManager, projectSync);

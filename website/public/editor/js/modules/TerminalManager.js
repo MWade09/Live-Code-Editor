@@ -614,6 +614,339 @@ export class TerminalManager {
       return { ok: false, error: String(e) }
     }
   }
+
+  // ============================================
+  // AI Integration - Output Capture & Error Detection
+  // ============================================
+
+  /**
+   * Initialize output capture for AI context
+   */
+  initializeOutputCapture() {
+    this.outputBuffer = new Map() // Terminal ID -> output buffer
+    this.commandHistory = new Map() // Terminal ID -> command history with outputs
+    this.maxBufferSize = 50000 // Max characters to keep per terminal
+    this.errorPatterns = this.getErrorPatterns()
+    this.lastErrors = new Map() // Terminal ID -> last detected errors
+    
+    // Event callbacks for AI
+    this.onErrorDetected = null
+    this.onCommandComplete = null
+    
+    console.log('[TerminalManager] Output capture initialized for AI integration')
+  }
+
+  /**
+   * Get common error patterns for detection
+   */
+  getErrorPatterns() {
+    return [
+      // JavaScript/Node errors
+      { pattern: /Error:\s*(.+)/i, type: 'error', language: 'javascript' },
+      { pattern: /TypeError:\s*(.+)/i, type: 'type_error', language: 'javascript' },
+      { pattern: /SyntaxError:\s*(.+)/i, type: 'syntax_error', language: 'javascript' },
+      { pattern: /ReferenceError:\s*(.+)/i, type: 'reference_error', language: 'javascript' },
+      { pattern: /Cannot find module ['"]([^'"]+)['"]/i, type: 'module_not_found', language: 'javascript' },
+      { pattern: /ENOENT:\s*no such file or directory/i, type: 'file_not_found', language: 'system' },
+      
+      // Python errors
+      { pattern: /Traceback \(most recent call last\)/i, type: 'traceback', language: 'python' },
+      { pattern: /IndentationError:\s*(.+)/i, type: 'indentation_error', language: 'python' },
+      { pattern: /NameError:\s*(.+)/i, type: 'name_error', language: 'python' },
+      { pattern: /ImportError:\s*(.+)/i, type: 'import_error', language: 'python' },
+      { pattern: /ModuleNotFoundError:\s*(.+)/i, type: 'module_not_found', language: 'python' },
+      
+      // Build/Compile errors
+      { pattern: /error\s*TS\d+:\s*(.+)/i, type: 'typescript_error', language: 'typescript' },
+      { pattern: /error:\s*(.+)/i, type: 'generic_error', language: 'unknown' },
+      { pattern: /FAILED|FAIL|ERROR/i, type: 'test_failure', language: 'unknown' },
+      
+      // npm/yarn errors
+      { pattern: /npm ERR!/i, type: 'npm_error', language: 'npm' },
+      { pattern: /ERR_PNPM_/i, type: 'pnpm_error', language: 'pnpm' },
+      { pattern: /error Command failed/i, type: 'yarn_error', language: 'yarn' },
+      
+      // Git errors
+      { pattern: /fatal:\s*(.+)/i, type: 'git_fatal', language: 'git' },
+      { pattern: /error:\s*failed to push/i, type: 'git_push_error', language: 'git' },
+      
+      // Network errors
+      { pattern: /ECONNREFUSED/i, type: 'connection_refused', language: 'network' },
+      { pattern: /ETIMEDOUT/i, type: 'timeout', language: 'network' },
+      
+      // Exit codes
+      { pattern: /exited? with code (\d+)/i, type: 'exit_code', language: 'system' },
+      { pattern: /Process exited with code (\d+)/i, type: 'exit_code', language: 'system' }
+    ]
+  }
+
+  /**
+   * Capture output from terminal
+   */
+  captureOutput(terminalId, output) {
+    if (!this.outputBuffer) {
+      this.initializeOutputCapture()
+    }
+    
+    // Get or create buffer for this terminal
+    let buffer = this.outputBuffer.get(terminalId) || ''
+    buffer += output
+    
+    // Trim if too large (keep last part)
+    if (buffer.length > this.maxBufferSize) {
+      buffer = buffer.slice(-this.maxBufferSize)
+    }
+    
+    this.outputBuffer.set(terminalId, buffer)
+    
+    // Check for errors
+    this.detectErrors(terminalId, output)
+  }
+
+  /**
+   * Detect errors in terminal output
+   */
+  detectErrors(terminalId, output) {
+    const detectedErrors = []
+    
+    for (const { pattern, type, language } of this.errorPatterns) {
+      const match = output.match(pattern)
+      if (match) {
+        const error = {
+          type,
+          language,
+          message: match[1] || match[0],
+          fullMatch: match[0],
+          timestamp: new Date().toISOString(),
+          terminalId
+        }
+        detectedErrors.push(error)
+      }
+    }
+    
+    if (detectedErrors.length > 0) {
+      // Store errors
+      let terminalErrors = this.lastErrors.get(terminalId) || []
+      terminalErrors = [...terminalErrors, ...detectedErrors].slice(-20) // Keep last 20
+      this.lastErrors.set(terminalId, terminalErrors)
+      
+      // Notify listeners
+      if (this.onErrorDetected) {
+        for (const error of detectedErrors) {
+          this.onErrorDetected(error)
+        }
+      }
+      
+      // Show AI Fix button
+      this.showAIFixButton(terminalId, detectedErrors[detectedErrors.length - 1])
+    }
+    
+    return detectedErrors
+  }
+
+  /**
+   * Get recent output for a terminal
+   */
+  getRecentOutput(terminalId, lines = 50) {
+    if (!this.outputBuffer) {
+      return ''
+    }
+    
+    const buffer = this.outputBuffer.get(terminalId || this.activeTerminalId)
+    if (!buffer) return ''
+    
+    // Get last N lines
+    const allLines = buffer.split('\n')
+    return allLines.slice(-lines).join('\n')
+  }
+
+  /**
+   * Get last errors for AI context
+   */
+  getLastErrors(terminalId) {
+    if (!this.lastErrors) return []
+    return this.lastErrors.get(terminalId || this.activeTerminalId) || []
+  }
+
+  /**
+   * Clear error buffer
+   */
+  clearErrors(terminalId) {
+    if (this.lastErrors) {
+      this.lastErrors.delete(terminalId || this.activeTerminalId)
+    }
+  }
+
+  /**
+   * Execute command with output capture
+   */
+  async executeCommand(command, options = {}) {
+    const terminalId = options.terminalId || this.activeTerminalId
+    const xtermData = this.xtermInstances.get(terminalId)
+    
+    if (!xtermData) {
+      throw new Error('No active terminal')
+    }
+    
+    return new Promise((resolve) => {
+      const startTime = Date.now()
+      let outputBuffer = ''
+      let exitCode = null
+      let errorOutput = ''
+      
+      // Temporary handler for output
+      const outputHandler = (data) => {
+        outputBuffer += data.data || ''
+        this.captureOutput(terminalId, data.data || '')
+        
+        // Check for exit code
+        const exitMatch = (data.data || '').match(/exited? with code (\d+)/i)
+        if (exitMatch) {
+          exitCode = parseInt(exitMatch[1], 10)
+        }
+      }
+      
+      // Listen for output
+      if (this.socket && this.isConnected) {
+        this.socket.on('output', outputHandler)
+        
+        // Send command
+        this.socket.emit('input', { id: terminalId, input: command + '\r' })
+        
+        // Wait for completion (timeout-based for now)
+        const timeout = options.timeout || 30000
+        setTimeout(() => {
+          this.socket.off('output', outputHandler)
+          
+          resolve({
+            command,
+            output: outputBuffer,
+            exitCode: exitCode ?? (outputBuffer.includes('error') ? 1 : 0),
+            error: errorOutput || null,
+            duration: Date.now() - startTime,
+            terminalId
+          })
+        }, timeout)
+        
+      } else {
+        // Mock execution for non-connected state
+        xtermData.term.writeln(`\r\n$ ${command}`)
+        xtermData.term.writeln('\x1b[33mTerminal not connected - command not executed\x1b[0m')
+        
+        resolve({
+          command,
+          output: 'Terminal not connected',
+          exitCode: 1,
+          error: 'WebSocket not connected',
+          duration: 0,
+          terminalId
+        })
+      }
+    })
+  }
+
+  /**
+   * Show AI Fix button in terminal
+   */
+  showAIFixButton(terminalId, error) {
+    const xtermData = this.xtermInstances.get(terminalId)
+    if (!xtermData) return
+    
+    // Create or update AI fix container
+    let fixContainer = xtermData.container.querySelector('.ai-fix-container')
+    
+    if (!fixContainer) {
+      fixContainer = document.createElement('div')
+      fixContainer.className = 'ai-fix-container'
+      xtermData.container.appendChild(fixContainer)
+    }
+    
+    fixContainer.innerHTML = `
+      <div class="ai-fix-banner">
+        <span class="error-icon">⚠️</span>
+        <span class="error-type">${error.type.replace(/_/g, ' ')}</span>
+        <button class="ai-fix-btn" title="Ask AI to help fix this error">
+          <span>🤖 AI Fix</span>
+        </button>
+        <button class="dismiss-btn" title="Dismiss">×</button>
+      </div>
+    `
+    
+    // Add event listeners
+    const fixBtn = fixContainer.querySelector('.ai-fix-btn')
+    const dismissBtn = fixContainer.querySelector('.dismiss-btn')
+    
+    fixBtn.addEventListener('click', () => {
+      this.requestAIFix(terminalId, error)
+    })
+    
+    dismissBtn.addEventListener('click', () => {
+      fixContainer.remove()
+      this.clearErrors(terminalId)
+    })
+    
+    // Auto-dismiss after 30 seconds
+    setTimeout(() => {
+      if (fixContainer.parentNode) {
+        fixContainer.remove()
+      }
+    }, 30000)
+  }
+
+  /**
+   * Request AI help for fixing an error
+   */
+  async requestAIFix(terminalId, error) {
+    // Get context
+    const recentOutput = this.getRecentOutput(terminalId, 30)
+    const errors = this.getLastErrors(terminalId)
+    
+    // Build context for AI
+    const context = {
+      error: error,
+      recentOutput: recentOutput,
+      allErrors: errors,
+      type: 'terminal_error_fix'
+    }
+    
+    // Dispatch event for UnifiedAI to handle
+    const event = new CustomEvent('aiFixRequested', {
+      detail: context
+    })
+    document.dispatchEvent(event)
+    
+    // Hide the fix button
+    const xtermData = this.xtermInstances.get(terminalId)
+    if (xtermData) {
+      const fixContainer = xtermData.container.querySelector('.ai-fix-container')
+      if (fixContainer) {
+        fixContainer.innerHTML = `
+          <div class="ai-fix-banner processing">
+            <span class="loading-icon">⏳</span>
+            <span>Analyzing error...</span>
+          </div>
+        `
+      }
+    }
+    
+    console.log('[TerminalManager] AI fix requested for error:', error)
+  }
+
+  /**
+   * Get terminal context for AI
+   */
+  getTerminalContextForAI(terminalId) {
+    const id = terminalId || this.activeTerminalId
+    
+    return {
+      terminalId: id,
+      recentOutput: this.getRecentOutput(id, 50),
+      lastErrors: this.getLastErrors(id),
+      isConnected: this.isConnected,
+      cwd: this.cwd
+    }
+  }
 }
+
 
 
