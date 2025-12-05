@@ -11,6 +11,7 @@
  * - Special commands (/plan, /create, etc.)
  * - STREAMING RESPONSES for real-time token display
  * - SEMANTIC CONTEXT - Auto-retrieves relevant files via embeddings
+ * - INTELLIGENT ROUTING - ModelRouter for optimal model selection (Phase 5)
  */
 export class UnifiedAIManager {
     constructor(editor, fileManager, projectContextManager = null) {
@@ -25,6 +26,7 @@ export class UnifiedAIManager {
         this.actionExecutor = null;  // Will be set by app.js
         this.commandParser = null;   // Will be set by app.js (Phase 2)
         this.embeddingsManager = null; // Will be set by app.js (Phase 2)
+        this.modelRouter = null;     // Will be set by app.js (Phase 5)
         
         // Chat UI elements
         this.chatMessages = document.getElementById('chat-messages');
@@ -214,14 +216,41 @@ export class UnifiedAIManager {
      * Call AI with streaming response
      */
     async callAIStreaming(userMessage, context) {
+        const startTime = Date.now();
+        
+        // Use ModelRouter for intelligent model selection if available
+        let selectedModel;
+        let routingResult = null;
+        
+        if (this.modelRouter) {
+            routingResult = await this.modelRouter.route(userMessage, {
+                totalSize: this.modelRouter.calculateContextSize(context),
+                fileCount: context.selectedFiles?.length || 0,
+                userHasApiKey: !!this.apiKey
+            });
+            selectedModel = routingResult.model.id;
+            
+            // Show routing indicator
+            this.showRoutingIndicator(routingResult);
+            
+            // Compress context if needed
+            const maxTokens = routingResult.model.maxTokens || 4000;
+            context = this.modelRouter.compressContext(context, maxTokens);
+        } else {
+            selectedModel = this.getSelectedModel();
+        }
+        
         const systemPrompt = this.buildSystemPrompt(context);
-        const selectedModel = this.getSelectedModel();
         
         // Determine which API endpoint to use
-        const isFreeModel = this.freeModels.includes(selectedModel);
+        const isFreeModel = this.freeModels.includes(selectedModel) || 
+            (routingResult?.model?.free === true);
         const endpoint = isFreeModel ? '/api/ai/free' : '/api/ai/premium';
         
         console.log(`[UnifiedAI] Streaming from ${endpoint} with model: ${selectedModel}`);
+        if (routingResult) {
+            console.log(`[UnifiedAI] Intent: ${routingResult.intent}, Complexity: ${routingResult.complexity.level}, Tier: ${routingResult.tier}`);
+        }
         
         // Show auto-context indicator if files were auto-added
         if (context.autoContextFiles && context.autoContextFiles.length > 0) {
@@ -329,6 +358,14 @@ export class UnifiedAIManager {
             // Finalize the streaming message
             this.finalizeStreamingMessage(streamingMessage, fullResponse);
             
+            // Record success metrics
+            if (this.modelRouter && selectedModel) {
+                const latency = Date.now() - startTime;
+                const inputTokens = this.modelRouter.countTokens(userContent);
+                const outputTokens = this.modelRouter.countTokens(fullResponse);
+                this.modelRouter.recordSuccess(selectedModel, latency, inputTokens, outputTokens);
+            }
+            
             // Parse for actions after stream completes
             if (this.responseParser && fullResponse) {
                 const { conversation, actions } = this.responseParser.parse(fullResponse);
@@ -356,11 +393,49 @@ export class UnifiedAIManager {
                 console.log('[UnifiedAI] Stream cancelled by user');
                 this.finalizeStreamingMessage(streamingMessage, fullResponse + '\n\n[Stream cancelled]');
             } else {
+                // Record failure metrics
+                if (this.modelRouter && selectedModel) {
+                    this.modelRouter.recordFailure(selectedModel, error);
+                }
                 throw error;
             }
         } finally {
             this.currentStreamController = null;
         }
+    }
+    
+    /**
+     * Show routing indicator in chat
+     */
+    showRoutingIndicator(routingResult) {
+        if (!this.chatMessages) return;
+        
+        // Remove any existing indicator
+        const existing = this.chatMessages.querySelector('.routing-indicator');
+        if (existing) existing.remove();
+        
+        const indicator = document.createElement('div');
+        indicator.className = 'routing-indicator';
+        
+        const tierEmoji = {
+            'fast': '⚡',
+            'standard': '🔧',
+            'powerful': '🚀'
+        };
+        
+        indicator.innerHTML = `
+            <span class="routing-tier">${tierEmoji[routingResult.tier] || '🤖'}</span>
+            <span class="routing-model">${routingResult.model.name || routingResult.model.id.split('/').pop()}</span>
+            <span class="routing-intent">${routingResult.intent.replace(/_/g, ' ')}</span>
+        `;
+        
+        this.chatMessages.appendChild(indicator);
+        
+        // Auto-remove after a few seconds
+        setTimeout(() => {
+            indicator.classList.add('fade-out');
+            setTimeout(() => indicator.remove(), 300);
+        }, 3000);
     }
     
     /**

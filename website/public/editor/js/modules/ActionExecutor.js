@@ -6,6 +6,7 @@
  * - File creation (with content preview)
  * - Terminal commands (with confirmation)
  * - Project plans (with task list)
+ * - Multi-file batch operations (via ComposerManager integration)
  * 
  * All actions require user approval via preview cards
  * 
@@ -13,6 +14,11 @@
  * - Uses DiffManager for smart diff visualization
  * - Conflict detection for concurrent edits
  * - Undo support for AI changes
+ * 
+ * PHASE 4 ENHANCEMENTS:
+ * - ComposerManager integration for multi-file operations
+ * - Batch execution support
+ * - Auto-routing to Composer for multiple changes
  */
 export class ActionExecutor {
     constructor(fileManager, editor, diffManager = null) {
@@ -21,15 +27,29 @@ export class ActionExecutor {
         this.fileManager = fileManager;
         this.editor = editor;
         this.diffManager = diffManager;
+        this.composerManager = null; // Set externally for multi-file ops
         this.chatMessages = document.getElementById('chat-messages');
         
         // Track original content for conflict detection
         this.originalContentCache = new Map();
         
+        // Configuration
+        this.config = {
+            useComposerForMultiple: true,  // Route multi-file changes to Composer
+            composerThreshold: 2            // Min files to trigger Composer
+        };
+        
         // Inject diff styles if DiffManager is available
         if (this.diffManager) {
             this.injectDiffStyles();
         }
+    }
+    
+    /**
+     * Set the ComposerManager (for multi-file operations)
+     */
+    setComposerManager(composerManager) {
+        this.composerManager = composerManager;
     }
     
     /**
@@ -174,6 +194,7 @@ export class ActionExecutor {
     
     /**
      * Execute array of actions
+     * Routes to Composer for multi-file operations if enabled
      */
     async executeActions(actions) {
         if (!actions || actions.length === 0) {
@@ -182,6 +203,18 @@ export class ActionExecutor {
         
         console.log('[ActionExecutor] Executing', actions.length, 'actions');
         
+        // Check if we should route to Composer
+        const fileActions = actions.filter(a => a.type === 'edit' || a.type === 'create');
+        
+        if (this.config.useComposerForMultiple && 
+            this.composerManager && 
+            fileActions.length >= this.config.composerThreshold) {
+            
+            console.log('[ActionExecutor] Routing to Composer for', fileActions.length, 'file changes');
+            return this.routeToComposer(actions);
+        }
+        
+        // Execute individually
         for (const action of actions) {
             try {
                 await this.executeAction(action);
@@ -190,6 +223,33 @@ export class ActionExecutor {
                 this.showErrorMessage(`Failed to execute ${action.type}: ${error.message}`);
             }
         }
+    }
+    
+    /**
+     * Route actions to ComposerManager for multi-file preview
+     */
+    async routeToComposer(actions) {
+        // Start a composer session
+        const fileActions = actions.filter(a => a.type === 'edit' || a.type === 'create');
+        this.composerManager.startSession('AI suggested changes');
+        
+        // Add each file action as a change
+        for (const action of fileActions) {
+            this.composerManager.addChange({
+                filename: action.file,
+                type: action.type === 'create' ? 'create' : 'modify',
+                content: action.content,
+                description: action.description || `${action.type} ${action.file}`
+            });
+        }
+        
+        // Handle non-file actions separately (terminal commands, plans)
+        const otherActions = actions.filter(a => a.type !== 'edit' && a.type !== 'create');
+        for (const action of otherActions) {
+            await this.executeAction(action);
+        }
+        
+        this.showInfoMessage(`📝 ${fileActions.length} file changes ready for review in Composer`);
     }
     
     /**

@@ -18,6 +18,8 @@ import { DiffManager } from './modules/DiffManager.js';
 import { EmbeddingsManager } from './modules/EmbeddingsManager.js';
 import { AgentOrchestrator } from './modules/AgentOrchestrator.js';
 import { AgentTools } from './modules/AgentTools.js';
+import { ComposerManager } from './modules/ComposerManager.js';
+import { ModelRouter } from './modules/ModelRouter.js';
 import { ProjectSyncManager } from './modules/ProjectSyncManager.js';
 import { AuthManager } from './modules/AuthManager.js';
 import { RealtimeSync } from './modules/RealtimeSync.js';
@@ -26,6 +28,8 @@ import { VersionControlManager } from './modules/VersionControlManager.js';
 import { ProjectContextManager } from './modules/ProjectContextManager.js';
 import { MultiFileEditManager } from './modules/MultiFileEditManager.js';
 import { AIFileCreationManager } from './modules/AIFileCreationManager.js';
+import { ProjectMemoryManager } from './modules/ProjectMemoryManager.js';
+import { MemoryUI, KeyboardShortcutsManager, ToastManager, OnboardingTooltips } from './modules/PolishUI.js';
 
 // Load chat panel scripts - CSS is now loaded directly in HTML
 (function() {
@@ -102,20 +106,26 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('🧠 Initializing Embeddings System...');
     const embeddingsManager = new EmbeddingsManager(fileManager);
     
+    // Initialize Model Router for intelligent model selection (Phase 5)
+    console.log('🧠 Initializing Model Router...');
+    const modelRouter = new ModelRouter();
+    
     // Wire up dependencies
     unifiedAI.responseParser = responseParser;
     unifiedAI.actionExecutor = actionExecutor;
     unifiedAI.embeddingsManager = embeddingsManager;
+    unifiedAI.modelRouter = modelRouter;
     
     // Make embeddings manager globally available
     window.embeddingsManager = embeddingsManager;
+    window.modelRouter = modelRouter;
     
     // Expose globally for chat-panel.js
     window.unifiedAI = unifiedAI;
     window.diffManager = diffManager;
     window.aiManager = aiManager; // Keep old one for backward compatibility
     
-    console.log('✅ Unified AI System ready (streaming + smart diffs)');
+    console.log('✅ Unified AI System ready (streaming + smart diffs + intelligent routing)');
     
     // Initialize Agent Orchestrator (Phase 3)
     console.log('🤖 Initializing Agent Orchestrator...');
@@ -322,6 +332,105 @@ Please analyze this error and suggest a fix. If it's a code error, provide the c
     
     console.log('✅ Terminal integrated with Agent Orchestrator');
     
+    // Initialize Composer Manager (Phase 4)
+    console.log('🎼 Initializing Composer Manager...');
+    const composerManager = new ComposerManager(fileManager, editor.editor, diffManager, agentOrchestrator);
+    
+    // Wire up composer with agent orchestrator
+    agentOrchestrator.composerManager = composerManager;
+    
+    // Link composer with action executor for batch operations
+    composerManager.actionExecutor = actionExecutor;
+    actionExecutor.setComposerManager(composerManager);
+    
+    // Expose globally
+    window.composerManager = composerManager;
+    
+    // Listen for agent plan changes to populate composer
+    agentOrchestrator.onPlanReady = (plan) => {
+        console.log('[Agent] Plan ready, populating Composer:', plan.summary);
+        
+        // Start a composer session for the plan
+        composerManager.startSession(plan.summary);
+        
+        // Add each action as a change
+        for (const action of plan.actions) {
+            if (action.tool === 'write_file') {
+                composerManager.addChange({
+                    filename: action.params.filename,
+                    type: action.params.create ? 'create' : 'modify',
+                    content: action.params.content,
+                    description: action.description,
+                    dependsOn: action.dependsOn || []
+                });
+            }
+        }
+    };
+    
+    // Listen for composer events
+    document.addEventListener('composerGenerateMore', async (event) => {
+        const context = event.detail;
+        console.log('[App] Composer requesting more changes:', context);
+        
+        // Ask AI to continue the plan
+        if (window.unifiedAI) {
+            const prompt = `Continue the current task. 
+Already done: ${context.appliedChanges.map(c => c.filename).join(', ') || 'none'}
+Pending: ${context.pendingChanges.map(c => c.filename).join(', ') || 'none'}
+Original task: ${context.task}
+
+What additional files need to be created or modified to complete this task?`;
+            
+            await window.unifiedAI.handleMessage(prompt);
+        }
+    });
+    
+    console.log('✅ Composer Manager ready');
+    
+    // Initialize Phase 6: Memory & Polish Systems
+    console.log('🧠 Initializing Project Memory Manager...');
+    const projectMemoryManager = new ProjectMemoryManager(projectSync, embeddingsManager);
+    
+    // Wire up memory with unified AI for context building
+    unifiedAI.memoryManager = projectMemoryManager;
+    
+    // Expose globally
+    window.projectMemoryManager = projectMemoryManager;
+    console.log('✅ Project Memory Manager ready');
+    
+    // Initialize Toast Manager (must come before other UI components)
+    console.log('🔔 Initializing Toast System...');
+    const toastManager = new ToastManager();
+    window.toastManager = toastManager;
+    console.log('✅ Toast System ready');
+    
+    // Initialize Memory UI
+    console.log('🧠 Initializing Memory UI...');
+    const memoryUI = new MemoryUI(projectMemoryManager);
+    window.memoryUI = memoryUI;
+    console.log('✅ Memory UI ready');
+    
+    // Initialize Keyboard Shortcuts Manager
+    console.log('⌨️ Initializing Keyboard Shortcuts...');
+    const keyboardShortcuts = new KeyboardShortcutsManager();
+    window.keyboardShortcuts = keyboardShortcuts;
+    console.log('✅ Keyboard Shortcuts ready');
+    
+    // Initialize Onboarding Tooltips
+    console.log('📚 Initializing Onboarding System...');
+    const onboarding = new OnboardingTooltips();
+    window.onboarding = onboarding;
+    
+    // Start onboarding for new users after a short delay
+    setTimeout(() => {
+        if (onboarding.shouldShowOnboarding()) {
+            onboarding.start();
+        }
+    }, 2000);
+    console.log('✅ Onboarding System ready');
+    
+    console.log('✅ Phase 6: Memory & Polish Systems initialized');
+    
     // Initialize Modern Deploy Manager
     const modernDeployManager = new ModernDeployManager(fileManager, projectSync);
 
@@ -344,7 +453,15 @@ Please analyze this error and suggest a fix. If it's a code error, provide the c
         versionControl,
         terminalManager,
         authManager,
-        realtimeSync
+        realtimeSync,
+        composerManager,
+        agentOrchestrator,
+        // Phase 6 additions
+        projectMemoryManager,
+        memoryUI,
+        keyboardShortcuts,
+        toastManager,
+        onboarding
     };
     
     // Expose inline AI manager globally for debugging
