@@ -13,10 +13,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatApiKey = document.getElementById('chat-api-key');
     const saveApiKeyBtn = document.getElementById('save-api-key-btn');
     
+    // History Elements
+    const historySidebar = document.getElementById('chat-history-sidebar');
+    const toggleHistoryBtn = document.getElementById('toggle-history-btn');
+    const closeHistoryBtn = document.getElementById('close-history-btn');
+    const newChatBtn = document.getElementById('new-chat-btn');
+    const clearHistoryBtn = document.getElementById('clear-history-btn');
+    const historyList = document.getElementById('history-list');
+    
     console.log('UI Elements found:', {
         editorToggle: !!editorToggle,
         previewToggle: !!previewToggle,
-        saveApiKeyBtn: !!saveApiKeyBtn
+        saveApiKeyBtn: !!saveApiKeyBtn,
+        historySidebar: !!historySidebar
     });
     
     // Initialize API key from localStorage
@@ -24,6 +33,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize custom models
     loadCustomModels();
+    
+    // Initialize History
+    initializeHistory();
     
     // Toggle between editor and preview
     if (editorToggle) {
@@ -80,6 +92,39 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
+            }
+        });
+    }
+    
+    // History Event Listeners
+    if (toggleHistoryBtn && historySidebar) {
+        toggleHistoryBtn.addEventListener('click', () => {
+            historySidebar.classList.toggle('hidden');
+            renderHistoryList();
+        });
+    }
+    
+    if (closeHistoryBtn && historySidebar) {
+        closeHistoryBtn.addEventListener('click', () => {
+            historySidebar.classList.add('hidden');
+        });
+    }
+    
+    if (newChatBtn) {
+        newChatBtn.addEventListener('click', () => {
+            createNewChat();
+            if (window.innerWidth < 768) {
+                historySidebar.classList.add('hidden');
+            }
+        });
+    }
+    
+    if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear all chat history?')) {
+                window.chatHistory.clearAll();
+                createNewChat();
+                renderHistoryList();
             }
         });
     }
@@ -212,12 +257,113 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // History Functions
+    function initializeHistory() {
+        if (!window.chatHistory) return;
+        
+        const chats = window.chatHistory.getAllChats();
+        if (chats.length > 0) {
+            // Load most recent chat
+            loadChat(chats[0].id);
+        } else {
+            createNewChat();
+        }
+        
+        renderHistoryList();
+    }
+    
+    function renderHistoryList() {
+        if (!historyList || !window.chatHistory) return;
+        
+        historyList.innerHTML = '';
+        const chats = window.chatHistory.getAllChats();
+        const currentChat = window.chatHistory.getCurrentChat();
+        
+        chats.forEach(chat => {
+            const item = document.createElement('div');
+            item.className = `history-item ${currentChat && currentChat.id === chat.id ? 'active' : ''}`;
+            item.onclick = () => loadChat(chat.id);
+            
+            const title = document.createElement('span');
+            title.className = 'history-item-title';
+            title.textContent = chat.title || 'New Chat';
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'history-item-delete';
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                deleteChat(chat.id);
+            };
+            
+            item.appendChild(title);
+            item.appendChild(deleteBtn);
+            historyList.appendChild(item);
+        });
+    }
+    
+    function loadChat(chatId) {
+        if (!window.chatHistory) return;
+        
+        if (window.chatHistory.setCurrentChat(chatId)) {
+            const chat = window.chatHistory.getCurrentChat();
+            
+            // Update UnifiedAI if available
+            if (window.unifiedAI && window.unifiedAI.loadMessages) {
+                window.unifiedAI.loadMessages(chat.messages);
+            } else {
+                // Fallback manual rendering
+                chatMessages.innerHTML = '';
+                chat.messages.forEach(msg => {
+                    if (msg.role === 'user') addUserMessage(msg.content);
+                    else if (msg.role === 'assistant') addAIMessage(msg.content);
+                    else addSystemMessage(msg.content);
+                });
+            }
+            
+            renderHistoryList();
+        }
+    }
+    
+    function createNewChat() {
+        if (!window.chatHistory) return;
+        
+        const newId = window.chatHistory.createChat();
+        loadChat(newId);
+        
+        // Clear UnifiedAI context if needed
+        if (window.unifiedAI && window.unifiedAI.clearChat) {
+            window.unifiedAI.clearChat(); // This clears messages but we just loaded empty ones so it's fine
+        }
+    }
+    
+    function deleteChat(chatId) {
+        if (!window.chatHistory) return;
+        
+        if (confirm('Delete this chat?')) {
+            const wasActive = window.chatHistory.currentChatId === chatId;
+            window.chatHistory.deleteChat(chatId);
+            
+            if (wasActive) {
+                const chats = window.chatHistory.getAllChats();
+                if (chats.length > 0) {
+                    loadChat(chats[0].id);
+                } else {
+                    createNewChat();
+                }
+            } else {
+                renderHistoryList();
+            }
+        }
+    }
+    
     // Make functions globally accessible
     window.chatPanel = {
         addUserMessage,
         addAIMessage,
         addSystemMessage,
         loadCustomModels,
-        saveApiKey
+        saveApiKey,
+        refreshHistory: renderHistoryList
     };
 });

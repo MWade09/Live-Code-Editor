@@ -886,6 +886,23 @@ CURRENT CONTEXT:`;
         this.messages.push(message);
         this.renderMessage(message);
         this.scrollToBottom();
+        
+        // Sync with global chat history
+        if (window.chatHistory) {
+            window.chatHistory.addMessage(role, content, this.getSelectedModel());
+            // Trigger history list update if chat-panel is listening
+            if (window.chatPanel && window.chatPanel.refreshHistory) {
+                window.chatPanel.refreshHistory();
+            }
+        }
+    }
+
+    /**
+     * Load messages from external source (e.g. history manager)
+     */
+    loadMessages(messages) {
+        this.messages = messages || [];
+        this.renderChatHistory();
     }
     
     /**

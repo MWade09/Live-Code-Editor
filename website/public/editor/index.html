@@ -192,8 +192,29 @@
             </div>
             <div class="resizer" id="dragMe"></div>
             <div class="chat-pane">
+                <div id="chat-history-sidebar" class="chat-history-sidebar hidden">
+                    <div class="history-header">
+                        <h3>Chat History</h3>
+                        <button id="close-history-btn" class="icon-btn"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="history-actions">
+                        <button id="new-chat-btn" class="full-width-btn"><i class="fas fa-plus"></i> New Chat</button>
+                    </div>
+                    <div id="history-list" class="history-list">
+                        <!-- History items will be populated here -->
+                    </div>
+                    <div class="history-footer">
+                        <button id="clear-history-btn" class="danger-btn"><i class="fas fa-trash"></i> Clear All</button>
+                    </div>
+                </div>
+
                 <div class="chat-header">
-                    <div class="chat-title">AI Assistant</div>
+                    <div class="chat-title-area" style="display: flex; align-items: center; gap: 8px;">
+                        <button id="toggle-history-btn" class="icon-btn" title="Chat History" style="background: none; border: none; color: inherit; cursor: pointer;">
+                            <i class="fas fa-history"></i>
+                        </button>
+                        <div class="chat-title">AI Assistant</div>
+                    </div>
                     <div class="chat-controls">
                         <div class="inline-ai-toggle">
                             <button id="inline-ai-toggle-btn" class="toggle-btn active" title="Toggle Inline AI Suggestions (Ctrl+Shift+I)">
@@ -524,6 +545,7 @@
     
     <!-- App JS - Using ES6 modules -->
     <script type="module" src="js/app.js"></script>
+    <script src="js/chat-history.js"></script>
     <script src="js/chat-panel.js"></script>
     <script src="js/model-manager.js"></script>
     <script src="js/chat-panel-integration.js"></script>
