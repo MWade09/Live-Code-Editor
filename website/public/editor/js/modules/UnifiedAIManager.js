@@ -27,6 +27,7 @@ export class UnifiedAIManager {
         this.commandParser = null;   // Will be set by app.js (Phase 2)
         this.embeddingsManager = null; // Will be set by app.js (Phase 2)
         this.modelRouter = null;     // Will be set by app.js (Phase 5)
+        this.memoryManager = null;   // Will be set by app.js (Phase 6)
         
         // Chat UI elements
         this.chatMessages = document.getElementById('chat-messages');
@@ -115,6 +116,14 @@ export class UnifiedAIManager {
                     
                     if (conversation && conversation.trim()) {
                         this.addMessage('assistant', conversation);
+                        
+                        // Track AI response in memory
+                        if (this.memoryManager) {
+                            this.memoryManager.trackMessage({
+                                role: 'assistant',
+                                content: conversation
+                            });
+                        }
                     }
                     
                     if (actions && actions.length > 0 && this.actionExecutor) {
@@ -122,6 +131,14 @@ export class UnifiedAIManager {
                     }
                 } else {
                     this.addMessage('assistant', aiResponse);
+                    
+                    // Track AI response in memory
+                    if (this.memoryManager) {
+                        this.memoryManager.trackMessage({
+                            role: 'assistant',
+                            content: aiResponse
+                        });
+                    }
                 }
             }
             
@@ -141,6 +158,27 @@ export class UnifiedAIManager {
     async buildContextWithSemanticSearch(userMessage) {
         // Start with basic context
         const context = this.buildContext();
+        
+        // Add memory context first (Phase 6)
+        if (this.memoryManager) {
+            try {
+                const memoryContext = await this.memoryManager.buildMemoryContext(userMessage);
+                if (memoryContext) {
+                    context.push({
+                        type: 'memory',
+                        content: memoryContext
+                    });
+                }
+                
+                // Track message for potential summarization
+                this.memoryManager.trackMessage({
+                    role: 'user',
+                    content: userMessage
+                });
+            } catch (error) {
+                console.warn('[UnifiedAI] Memory context failed:', error);
+            }
+        }
         
         // Add auto-context from embeddings if available and enabled
         if (this.autoContextEnabled && this.embeddingsManager) {
@@ -349,7 +387,7 @@ export class UnifiedAIManager {
                                 this.updateStreamingMessage(streamingMessage, fullResponse);
                             }
                         } catch (e) {
-                            // Ignore JSON parse errors for incomplete chunks
+                            void e; // Ignore JSON parse errors for incomplete chunks
                         }
                     }
                 }
@@ -886,22 +924,6 @@ CURRENT CONTEXT:`;
         this.messages.push(message);
         this.renderMessage(message);
         this.scrollToBottom();
-        
-        // Sync with global chat history
-        if (window.chatHistory) {
-            window.chatHistory.addMessage(role, content, this.getSelectedModel());
-            // Trigger history list update if chat-panel is listening
-            if (window.chatPanel && window.chatPanel.refreshHistory) {
-                window.chatPanel.refreshHistory();
-            }
-        }
-    }
-
-    /**
-     * Load messages from external source (e.g. history manager)
-     */
-    loadMessages(messages) {
-        this.messages = messages || [];
         this.renderChatHistory();
     }
     

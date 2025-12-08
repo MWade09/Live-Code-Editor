@@ -891,7 +891,7 @@ export class AICodeActionsManager {
                         }
                         
                     } catch (parseError) {
-                        // Skip invalid JSON chunks - this is normal in streaming
+                        void parseError; // Skip invalid JSON chunks - this is normal in streaming
                         continue;
                     }
                 }

@@ -309,6 +309,7 @@ export class MinimapManager {
         
         const scrollInfo = this.codeMirror.getScrollInfo();
         const lineCount = this.codeMirror.lineCount();
+        void lineCount; // Reserved for future line calculations
         const containerHeight = this.minimapContainer.clientHeight;
         const availableHeight = containerHeight - (this.config.padding * 2);
         

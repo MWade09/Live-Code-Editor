@@ -312,6 +312,7 @@ export class LineHighlightManager {
         // Get scroll information to position guides correctly
         const scrollInfo = this.codeMirror.getScrollInfo();
         const topVisibleLine = this.codeMirror.lineAtHeight(scrollInfo.top, 'local');
+        void topVisibleLine; // Reserved for future scroll position calculations
         
         // Create document fragment for better performance
         const fragment = document.createDocumentFragment();

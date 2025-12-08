@@ -431,6 +431,28 @@ What additional files need to be created or modified to complete this task?`;
     
     console.log('✅ Phase 6: Memory & Polish Systems initialized');
     
+    // Helper function to initialize memory for current project/user
+    window.initializeMemoryForProject = async (projectId, userId) => {
+        if (window.projectMemoryManager && projectId && userId) {
+            try {
+                await window.projectMemoryManager.initializeForProject(projectId, userId);
+                console.log(`✅ Memory initialized for project ${projectId}`);
+            } catch (error) {
+                console.warn('[App] Failed to initialize memory:', error);
+            }
+        }
+    };
+    
+    // Try to initialize memory with current auth state
+    setTimeout(async () => {
+        if (authManager.isAuthenticated()) {
+            const userId = authManager.userId;
+            // For now, use a default project ID - in production this would come from loaded project
+            const projectId = localStorage.getItem('current_project_id') || 'default';
+            await window.initializeMemoryForProject(projectId, userId);
+        }
+    }, 3000);
+    
     // Initialize Modern Deploy Manager
     const modernDeployManager = new ModernDeployManager(fileManager, projectSync);
 
@@ -855,6 +877,33 @@ What additional files need to be created or modified to complete this task?`;
         
         // Inline AI toggle
         document.getElementById('inline-ai-toggle-btn').addEventListener('click', toggleInlineAI);
+        
+        // Memory panel toggle
+        document.getElementById('memory-toggle-btn').addEventListener('click', () => {
+            if (window.memoryUI) {
+                window.memoryUI.toggle();
+            } else {
+                showToast('Memory system is initializing...', 'info');
+            }
+        });
+        
+        // Composer toggle
+        document.getElementById('composer-toggle-btn').addEventListener('click', () => {
+            if (window.composerManager) {
+                window.composerManager.toggle();
+            } else {
+                showToast('Composer is initializing...', 'info');
+            }
+        });
+        
+        // Keyboard shortcuts help
+        document.getElementById('shortcuts-help-btn').addEventListener('click', () => {
+            if (window.keyboardShortcuts) {
+                window.keyboardShortcuts.showHelp();
+            } else {
+                showToast('Keyboard shortcuts system is initializing...', 'info');
+            }
+        });
         
         // Note: Preview toggle is now handled by chat-panel.js
         

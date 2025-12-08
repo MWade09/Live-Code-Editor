@@ -163,6 +163,8 @@ export class InlineAIManager {
     }
     
     handleKeyUp(cm, event) {
+        void cm;
+        void event; // Reserved for future key up handling
         // Additional key handling if needed
     }
     

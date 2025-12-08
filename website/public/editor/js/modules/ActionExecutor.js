@@ -296,6 +296,7 @@ export class ActionExecutor {
         if (this.diffManager && originalContent !== currentContent) {
             // User has made changes since AI generated response
             hasConflict = true;
+            void hasConflict; // Reserved for future conflict UI
             conflictWarning = `
                 <div class="conflict-warning">
                     ⚠️ You've made changes to this file since the AI saw it. 

@@ -1150,6 +1150,7 @@ export class FileExplorerManager {
 
         // Drag end
         fileItem.addEventListener('dragend', (e) => {
+            void e; // Event not needed
             fileItem.classList.remove('dragging');
             // Remove all drop indicators
             this.contentElement.querySelectorAll('.drop-target').forEach(el => {

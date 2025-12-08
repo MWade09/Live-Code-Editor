@@ -57,6 +57,7 @@ export class LintManager {
      * JavaScript linting using JSHint
      */
     async lintJavaScript(text, options) {
+        void options; // Reserved for future lint options
         if (typeof JSHINT === 'undefined') {
             return [];
         }
@@ -123,6 +124,7 @@ export class LintManager {
      * CSS linting using CSSLint
      */
     async lintCSS(text, options) {
+        void options; // Reserved for future lint options
         if (typeof CSSLint === 'undefined') {
             return [];
         }
@@ -197,6 +199,7 @@ export class LintManager {
      * HTML linting - basic validation
      */
     async lintHTML(text, options) {
+        void options; // Reserved for future lint options
         const annotations = [];
         const lines = text.split('\n');
         
@@ -311,6 +314,7 @@ export class LintManager {
      * JSON linting
      */
     async lintJSON(text, options) {
+        void options; // Reserved for future lint options
         const annotations = [];
         
         try {

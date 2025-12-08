@@ -38,6 +38,7 @@ export class SearchManager {
      * Create search dialog with find and replace
      */
     createSearchDialog(mode) {
+        void mode; // Reserved for future search mode implementation
         const selection = this.codeMirror.getSelection();
         
         const dialogHTML = `
@@ -343,7 +344,7 @@ export class SearchManager {
                 try {
                     searchQuery = new RegExp(query, options.caseSensitive ? 'g' : 'gi');
                 } catch (e) {
-                    // Invalid regex, treat as literal text
+                    void e; // Invalid regex, treat as literal text
                     searchQuery = this.escapeRegex(query);
                 }
             } else {
@@ -383,6 +384,7 @@ export class SearchManager {
      * Highlight all matches in the document
      */
     highlightAllMatches(query, options) {
+        void options; // Reserved for future highlight options
         const cursor = this.codeMirror.getSearchCursor(query, CodeMirror.Pos(this.codeMirror.firstLine(), 0));
         const matches = [];
         
@@ -415,6 +417,7 @@ export class SearchManager {
             try {
                 searchQuery = new RegExp(query, options.caseSensitive ? 'g' : 'gi');
             } catch (e) {
+                void e; // Invalid regex
                 searchQuery = this.escapeRegex(query);
             }
         } else {
@@ -509,6 +512,7 @@ export class SearchManager {
      * Create global search dialog (placeholder for future implementation)
      */
     createGlobalSearchDialog(mode) {
+        void mode; // Reserved for future search mode implementation
         // Placeholder for global search across all files
         this.editor.showNotification('Global search across files - Coming soon!');
     }
