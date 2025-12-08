@@ -4,8 +4,7 @@
   publish = ".next"
 
 [build.environment]
-  NODE_VERSION = "18"
-  NPM_VERSION = "10"
+  NODE_VERSION = "20"
 
 # Next.js specific settings
 [[plugins]]
