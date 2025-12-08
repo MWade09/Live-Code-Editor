@@ -247,6 +247,17 @@ export class ComposerManager {
     }
 
     /**
+     * Toggle the Composer panel visibility
+     */
+    toggle() {
+        if (this.isOpen) {
+            this.close();
+        } else {
+            this.open();
+        }
+    }
+
+    /**
      * Start a new composition session
      */
     startSession(taskDescription = '') {
