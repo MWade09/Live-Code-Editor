@@ -1067,8 +1067,19 @@ CURRENT CONTEXT:`;
     renderChatHistory() {
         if (!this.chatMessages) return;
         
+        // Preserve the welcome message if there are no messages
+        const welcomeMessage = this.chatMessages.querySelector('.welcome-message');
+        
         this.chatMessages.innerHTML = '';
-        this.messages.forEach(message => this.renderMessage(message));
+        
+        // Restore welcome message if no chat history
+        if (this.messages.length === 0 && welcomeMessage) {
+            this.chatMessages.appendChild(welcomeMessage);
+        } else {
+            // Render all messages
+            this.messages.forEach(message => this.renderMessage(message));
+        }
+        
         this.scrollToBottom();
     }
     
@@ -1078,9 +1089,8 @@ CURRENT CONTEXT:`;
     clearChat() {
         this.messages = [];
         this.saveChatHistory();
-        if (this.chatMessages) {
-            this.chatMessages.innerHTML = '';
-        }
+        // Use renderChatHistory to restore welcome message
+        this.renderChatHistory();
         console.log('[UnifiedAI] Chat cleared');
     }
     
