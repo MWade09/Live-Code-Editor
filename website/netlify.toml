@@ -5,7 +5,7 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  NPM_VERSION = "9"
+  NPM_VERSION = "10"
 
 # Next.js specific settings
 [[plugins]]
