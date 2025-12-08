@@ -2,7 +2,7 @@
 [build]
   base = "website"
   command = "npm run build"
-  publish = ".next"
+  publish = "website/.next"
 
 [build.environment]
   NODE_VERSION = "20"
