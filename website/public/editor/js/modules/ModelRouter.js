@@ -44,13 +44,13 @@ export class ModelRouter {
         // Model configurations
         this.models = {
             fast: [
-                { id: 'deepseek/deepseek-chat-v3-0324:free', name: 'DeepSeek Chat', free: true, maxTokens: 4000 },
+                { id: 'nex-agi/deepseek-v3.1-nex-n1:free', name: 'DeepSeek Chat', free: true, maxTokens: 4000 },
                 { id: 'google/gemma-3-27b-it:free', name: 'Gemma 3 27B', free: true, maxTokens: 4000 }
             ],
             standard: [
-                { id: 'deepseek/deepseek-chat-v3-0324:free', name: 'DeepSeek Chat', free: true, maxTokens: 8000 },
+                { id: 'nex-agi/deepseek-v3.1-nex-n1:free', name: 'DeepSeek Chat', free: true, maxTokens: 8000 },
                 { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku', free: false, maxTokens: 4000 },
-                { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', free: false, maxTokens: 4000 }
+                { id: 'openai/gpt-5-nano', name: 'GPT-5 Nano', free: false, maxTokens: 4000 }
             ],
             powerful: [
                 { id: 'mistralai/devstral-2512:free', name: 'Mistral Devstral 2512', free: true, maxTokens: 16000 },

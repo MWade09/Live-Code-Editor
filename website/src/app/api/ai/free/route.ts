@@ -15,7 +15,7 @@ const FREE_MODELS = [
   'z-ai/glm-4.5-air:free',
   'openai/gpt-oss-120b:free',
   'deepseek/deepseek-r1-0528:free',
-  'deepseek/deepseek-chat-v3-0324:free',
+  'nex-agi/deepseek-v3.1-nex-n1:free',
   'google/gemma-3-27b-it:free',
 ]
 

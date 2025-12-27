@@ -909,7 +909,7 @@ CURRENT CONTEXT:`;
      */
     getSelectedModel() {
         const modelSelect = document.getElementById('chat-ai-model');
-        return modelSelect ? modelSelect.value : 'deepseek/deepseek-chat-v3-0324:free';
+        return modelSelect ? modelSelect.value : 'mistralai/devstral-2512:free';
     }
     
     /**
