@@ -58,9 +58,10 @@ export class UnifiedAIManager {
         
         // Free models (use platform key)
         this.freeModels = [
-            'deepseek/deepseek-r1-0528:free',
-            'deepseek/deepseek-chat-v3-0324:free',
-            'google/gemma-3-27b-it:free'
+            'mistralai/devstral-2512:free',
+            'kwaipilot/kat-coder-pro:free',
+            'z-ai/glm-4.5-air:free',
+            'openai/gpt-oss-120b:free'
         ];
         
         // Load chat history

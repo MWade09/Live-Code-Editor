@@ -10,6 +10,10 @@ const RATE_WINDOW = 60 * 60 * 1000 // 1 hour in milliseconds
 
 // Allowed free models
 const FREE_MODELS = [
+  'mistralai/devstral-2512:free',
+  'kwaipilot/kat-coder-pro:free',
+  'z-ai/glm-4.5-air:free',
+  'openai/gpt-oss-120b:free',
   'deepseek/deepseek-r1-0528:free',
   'deepseek/deepseek-chat-v3-0324:free',
   'google/gemma-3-27b-it:free',

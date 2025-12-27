@@ -53,6 +53,10 @@ export class ModelRouter {
                 { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', free: false, maxTokens: 4000 }
             ],
             powerful: [
+                { id: 'mistralai/devstral-2512:free', name: 'Mistral Devstral 2512', free: true, maxTokens: 16000 },
+                { id: 'kwaipilot/kat-coder-pro:free', name: 'Kwaipilot Kat Coder Pro', free: true, maxTokens: 16000 },
+                { id: 'z-ai/glm-4.5-air:free', name: 'Z-AI GLM 4.5 Air', free: true, maxTokens: 16000 },
+                { id: 'openai/gpt-oss-120b:free', name: 'OpenAI GPT OSS 120B', free: true, maxTokens: 16000 },
                 { id: 'deepseek/deepseek-r1-0528:free', name: 'DeepSeek R1', free: true, maxTokens: 16000 },
                 { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', free: false, maxTokens: 8000 },
                 { id: 'openai/gpt-4o', name: 'GPT-4o', free: false, maxTokens: 8000 },
