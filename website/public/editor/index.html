@@ -231,27 +231,28 @@
                 </div>
                 
                 <div class="model-selection">
+                    <!-- Architect Mode Toggle -->
+                    <div class="form-group architect-mode-toggle">
+                        <div class="toggle-container">
+                            <label class="toggle-label">
+                                <input type="checkbox" id="architect-mode-toggle" />
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-text">
+                                    <span class="icon">🧠</span>
+                                    <span class="title">Architect Mode</span>
+                                </span>
+                            </label>
+                            <div class="mode-description">
+                                <span id="mode-description-text">Manually select a model from the list below</span>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="form-group">
                         <label for="chat-ai-model">Model:</label>
                         <div class="model-selection-container">
                             <select id="chat-ai-model">
-                                <option value="mistralai/devstral-2512:free">🆓 mistralai/devstral-2512:free</option>
-                                <option value="kwaipilot/kat-coder-pro:free">🆓 kwaipilot/kat-coder-pro:free</option>
-                                <option value="z-ai/glm-4.5-air:free">🆓 z-ai/glm-4.5-air:free</option>
-                                <option value="openai/gpt-oss-120b:free">🆓 openai/gpt-oss-120b:free</option>
-                                <option value="nex-agi/deepseek-v3.1-nex-n1:free">🆓 nex-agi/deepseek-v3.1-nex-n1:free</option>
-                                <option value="google/gemma-3-27b-it:free">🆓 google/gemma-3-27b-it:free</option>
-                                <option value="deepseek/deepseek-r1-0528:free">🆓 deepseek/deepseek-r1-0528:free</option>
-                                <option value="anthropic/claude-3.5-sonnet">🔑 Claude 3.5 Sonnet (Requires API Key)</option>
-                                <option value="anthropic/claude-3.5-haiku">🔑 Claude 3.5 Haiku (Requires API Key)</option>
-                                <option value="anthropic/claude-sonnet-4">🔑 Claude Sonnet 4 (Requires API Key)</option>
-                                <option value="google/google/gemini-2.5-pro-preview">🔑 Gemini 2.5 Pro (Requires API Key)</option>
-                                <option value="google/gemini-2.5-flash-preview-05-2023">🔑 Gemini 2.5 Flash (Requires API Key)</option>
-                                <option value="openai/gpt-4o-mini">🔑 GPT-4o Mini (Requires API Key)</option>
-                                <option value="openai/gpt-4.1">🔑 GPT-4.1 (Requires API Key)</option>
-                                <option value="openai/o3">🔑 OpenAI o3 (Requires API Key)</option>
-                                <option value="x-ai/grok-3-beta">🔑 Grok 3 Beta (Requires API Key)</option>
-                                <!-- Custom models will be added here dynamically -->
+                                <!-- Models populated dynamically from ModelRouter configuration -->
                             </select>
                             <button id="chat-manage-models-btn" type="button" class="small-btn" title="Manage Models">
                                 <i class="fas fa-cog"></i>

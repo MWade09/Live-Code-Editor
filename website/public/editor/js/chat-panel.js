@@ -12,18 +12,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatModelSelect = document.getElementById('chat-ai-model');
     const chatApiKey = document.getElementById('chat-api-key');
     const saveApiKeyBtn = document.getElementById('save-api-key-btn');
+    const architectModeToggle = document.getElementById('architect-mode-toggle');
+    const modeDescriptionText = document.getElementById('mode-description-text');
     
     console.log('UI Elements found:', {
         editorToggle: !!editorToggle,
         previewToggle: !!previewToggle,
-        saveApiKeyBtn: !!saveApiKeyBtn
+        saveApiKeyBtn: !!saveApiKeyBtn,
+        architectModeToggle: !!architectModeToggle
     });
     
     // Initialize API key from localStorage
     initializeApiKey();
     
-    // Initialize custom models
-    loadCustomModels();
+    // Initialize Architect Mode toggle
+    initializeArchitectMode();
+    
+    // Wait for ModelRouter to be available, then initialize model list
+    waitForModelRouter().then(() => {
+        initializeModelList();
+    });
     
     // Toggle between editor and preview
     if (editorToggle) {
@@ -178,44 +186,240 @@ document.addEventListener('DOMContentLoaded', function() {
             .replace(/\n/g, '<br>');
     }
     
+    /**
+     * Wait for ModelRouter to be available (loaded by app.js module)
+     */
+    function waitForModelRouter() {
+        return new Promise((resolve) => {
+            if (window.modelRouter && typeof window.modelRouter.getAllModels === 'function') {
+                resolve();
+            } else {
+                console.log('⏳ Waiting for ModelRouter to load...');
+                const checkInterval = setInterval(() => {
+                    if (window.modelRouter && typeof window.modelRouter.getAllModels === 'function') {
+                        clearInterval(checkInterval);
+                        console.log('✅ ModelRouter loaded');
+                        resolve();
+                    }
+                }, 100); // Check every 100ms
+                
+                // Timeout after 5 seconds
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    console.warn('⚠️ ModelRouter not loaded after 5s, using fallback');
+                    resolve();
+                }, 5000);
+            }
+        });
+    }
+    
+    function initializeModelList() {
+        if (!chatModelSelect) {
+            console.error('Model select element not found');
+            return;
+        }
+        
+        // Clear existing options
+        chatModelSelect.innerHTML = '';
+        
+        // Get models from ModelRouter if available
+        if (window.modelRouter && typeof window.modelRouter.getAllModels === 'function') {
+            const models = window.modelRouter.getAllModels();
+            console.log('📋 Loading', models.length, 'models from ModelRouter');
+            
+            // Group models by free/paid
+            const freeModels = models.filter(m => m.free);
+            const paidModels = models.filter(m => !m.free);
+            
+            // Add free models
+            if (freeModels.length > 0) {
+                freeModels.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = model.displayName;
+                    option.dataset.tier = 'free';
+                    chatModelSelect.appendChild(option);
+                });
+            }
+            
+            // Add separator if we have both types
+            if (freeModels.length > 0 && paidModels.length > 0) {
+                const separator = document.createElement('option');
+                separator.disabled = true;
+                separator.textContent = '─────── Requires API Key ───────';
+                chatModelSelect.appendChild(separator);
+            }
+            
+            // Add paid models
+            if (paidModels.length > 0) {
+                paidModels.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = `${model.displayName} (Requires API Key)`;
+                    option.dataset.tier = 'paid';
+                    chatModelSelect.appendChild(option);
+                });
+            }
+            
+            console.log('✅ Loaded', freeModels.length, 'free and', paidModels.length, 'paid models');
+        } else {
+            console.warn('ModelRouter not available, loading fallback models');
+            // Fallback to a basic model if ModelRouter is not available
+            const fallbackOption = document.createElement('option');
+            fallbackOption.value = 'mistralai/devstral-2512:free';
+            fallbackOption.textContent = '🆓 Mistral Devstral 2512';
+            chatModelSelect.appendChild(fallbackOption);
+        }
+        
+        // Add custom models from localStorage
+        loadCustomModels();
+        
+        // Restore previously selected model
+        const savedModel = localStorage.getItem('selected_model');
+        if (savedModel && chatModelSelect.querySelector(`option[value="${savedModel}"]`)) {
+            chatModelSelect.value = savedModel;
+            console.log('✅ Restored saved model:', savedModel);
+        } else if (chatModelSelect.options.length > 0) {
+            // Select first available model
+            chatModelSelect.selectedIndex = 0;
+            // Save this initial selection
+            if (chatModelSelect.value) {
+                localStorage.setItem('selected_model', chatModelSelect.value);
+            }
+        }
+        
+        // Save model selection when changed
+        chatModelSelect.addEventListener('change', function() {
+            localStorage.setItem('selected_model', chatModelSelect.value);
+            console.log('💾 Model selection saved:', chatModelSelect.value);
+        });
+    }
+    
     function loadCustomModels() {
         if (!chatModelSelect) return;
         
         // Load custom models from localStorage
         const customModels = JSON.parse(localStorage.getItem('custom_models') || '[]');
-        console.log('Loaded custom models:', customModels);
         
-        // Clear existing custom models
-        const options = chatModelSelect.querySelectorAll('option');
-        for (let i = options.length - 1; i >= 0; i--) {
-            if (options[i].dataset.custom === 'true' || options[i].disabled) {
-                chatModelSelect.removeChild(options[i]);
-            }
+        if (customModels.length === 0) return;
+        
+        console.log('📦 Loading custom models:', customModels.length);
+        
+        // Add separator before custom models
+        const separator = document.createElement('option');
+        separator.disabled = true;
+        separator.textContent = '─────── Custom Models ───────';
+        chatModelSelect.appendChild(separator);
+        
+        // Add custom models
+        customModels.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = `⭐ ${model.name}`;
+            option.dataset.custom = 'true';
+            chatModelSelect.appendChild(option);
+        });
+    }
+    
+    function initializeArchitectMode() {
+        if (!architectModeToggle) {
+            console.warn('Architect mode toggle not found');
+            return;
         }
         
-        // Add custom models to dropdown
-        if (customModels.length > 0) {
-            // Add a separator
-            const separator = document.createElement('option');
-            separator.disabled = true;
-            separator.textContent = '──────────';
-            chatModelSelect.appendChild(separator);
+        // Load saved state
+        const architectModeEnabled = localStorage.getItem('architect_mode_enabled') === 'true';
+        architectModeToggle.checked = architectModeEnabled;
+        updateModeDescription(architectModeEnabled);
+        updateModelSelectState(architectModeEnabled);
+        
+        // Set initial state in ModelRouter if available
+        if (window.modelRouter) {
+            window.modelRouter.setRoutingEnabled(architectModeEnabled);
+        }
+        
+        // Add change event listener
+        architectModeToggle.addEventListener('change', function() {
+            const isEnabled = architectModeToggle.checked;
+            console.log('🧠 Architect Mode', isEnabled ? 'ENABLED' : 'DISABLED');
             
-            // Add custom models
-            customModels.forEach(model => {
-                const option = document.createElement('option');
-                option.value = model.id;
-                option.textContent = model.name;
-                option.dataset.custom = 'true';
-                chatModelSelect.appendChild(option);
-            });
+            // Update localStorage
+            localStorage.setItem('architect_mode_enabled', isEnabled ? 'true' : 'false');
+            
+            // Update ModelRouter if available
+            if (window.modelRouter) {
+                window.modelRouter.setRoutingEnabled(isEnabled);
+            }
+            
+            // Update UI
+            updateModeDescription(isEnabled);
+            updateModelSelectState(isEnabled);
+            
+            // Show notification
+            showModeNotification(isEnabled);
+        });
+    }
+    
+    function updateModeDescription(isEnabled) {
+        if (!modeDescriptionText) return;
+        
+        if (isEnabled) {
+            modeDescriptionText.innerHTML = '🧠 <strong>AI automatically selects the best model</strong> based on task complexity';
+            modeDescriptionText.style.color = '#4c9af0';
+        } else {
+            modeDescriptionText.innerHTML = 'Manually select a model from the list below';
+            modeDescriptionText.style.color = '';
         }
+    }
+    
+    function updateModelSelectState(architectModeEnabled) {
+        if (!chatModelSelect) return;
+        
+        if (architectModeEnabled) {
+            chatModelSelect.style.opacity = '0.5';
+            chatModelSelect.style.pointerEvents = 'none';
+            chatModelSelect.title = 'Disabled - Architect Mode is selecting models automatically';
+        } else {
+            chatModelSelect.style.opacity = '1';
+            chatModelSelect.style.pointerEvents = 'auto';
+            chatModelSelect.title = 'Select AI model';
+        }
+    }
+    
+    function showModeNotification(isEnabled) {
+        const notification = document.createElement('div');
+        notification.className = 'mode-notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${isEnabled ? '#4c9af0' : '#666'};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+            font-weight: 500;
+        `;
+        
+        notification.innerHTML = isEnabled 
+            ? '🧠 <strong>Architect Mode</strong> - AI will automatically select the best model for each task'
+            : '👤 <strong>Manual Mode</strong> - You control which model to use';
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
     }
     
     // Make functions globally accessible
     window.chatPanel = {
         addUserMessage,
         addAIMessage,
+        refreshModelList: initializeModelList,  // Allow external refresh of model list
         addSystemMessage,
         loadCustomModels,
         saveApiKey

@@ -44,23 +44,24 @@ export class ModelRouter {
         // Model configurations
         this.models = {
             fast: [
-                { id: 'nex-agi/deepseek-v3.1-nex-n1:free', name: 'DeepSeek Chat', free: true, maxTokens: 4000 },
-                { id: 'google/gemma-3-27b-it:free', name: 'Gemma 3 27B', free: true, maxTokens: 4000 }
+                { id: 'google/gemma-3-27b-it:free', name: 'Gemma 3 27B', free: true, maxTokens: 4000 },
+                { id: 'z-ai/glm-4.5-air:free', name: 'Z-AI GLM 4.5 Air', free: true, maxTokens: 4000 }
             ],
             standard: [
-                { id: 'nex-agi/deepseek-v3.1-nex-n1:free', name: 'DeepSeek Chat', free: true, maxTokens: 8000 },
-                { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku', free: false, maxTokens: 4000 },
-                { id: 'openai/gpt-5-nano', name: 'GPT-5 Nano', free: false, maxTokens: 4000 }
+                { id: 'openai/gpt-oss-120b:free', name: 'OpenAI GPT OSS 120B', free: true, maxTokens: 8000 },
+                { id: 'anthropic/claude-3.5-haiku', name: 'Claude 3.5 Haiku', free: false, maxTokens: 8000 },
+                { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', free: false, maxTokens: 8000 }
             ],
             powerful: [
                 { id: 'mistralai/devstral-2512:free', name: 'Mistral Devstral 2512', free: true, maxTokens: 16000 },
                 { id: 'kwaipilot/kat-coder-pro:free', name: 'Kwaipilot Kat Coder Pro', free: true, maxTokens: 16000 },
-                { id: 'z-ai/glm-4.5-air:free', name: 'Z-AI GLM 4.5 Air', free: true, maxTokens: 16000 },
-                { id: 'openai/gpt-oss-120b:free', name: 'OpenAI GPT OSS 120B', free: true, maxTokens: 16000 },
                 { id: 'deepseek/deepseek-r1-0528:free', name: 'DeepSeek R1', free: true, maxTokens: 16000 },
-                { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', free: false, maxTokens: 8000 },
-                { id: 'openai/gpt-4o', name: 'GPT-4o', free: false, maxTokens: 8000 },
-                { id: 'anthropic/claude-3-opus', name: 'Claude 3 Opus', free: false, maxTokens: 4000 }
+                { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', free: false, maxTokens: 16000 },
+                { id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4', free: false, maxTokens: 16000 },
+                { id: 'google/gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro', free: false, maxTokens: 16000 },
+                { id: 'openai/gpt-4.1', name: 'GPT-4.1', free: false, maxTokens: 16000 },
+                { id: 'openai/o3', name: 'OpenAI o3', free: false, maxTokens: 16000 },
+                { id: 'x-ai/grok-3-beta', name: 'Grok 3 Beta', free: false, maxTokens: 16000 }
             ]
         };
 
@@ -79,7 +80,7 @@ export class ModelRouter {
         
         // Configuration
         this.config = {
-            enableRouting: true,           // Use intelligent routing
+            enableRouting: localStorage.getItem('architect_mode_enabled') === 'true',  // Load saved state
             preferFreeModels: true,        // Prefer free models when possible
             maxRetries: 3,                 // Max retries on failure
             retryDelay: 1000,              // Delay between retries (ms)
@@ -254,10 +255,17 @@ export class ModelRouter {
      */
     async route(message, context = {}) {
         if (!this.config.enableRouting) {
-            return this.getDefaultModel();
+            console.log('[ModelRouter] Routing disabled - using manual selection');
+            return {
+                model: this.getDefaultModel(),
+                intent: null,
+                complexity: null,
+                tier: null,
+                routingDisabled: true
+            };
         }
 
-        console.log('[ModelRouter] Routing request...');
+        console.log('[ModelRouter] 🧠 Architect Mode ACTIVE - Intelligent routing...');
 
         // Classify intent
         const intent = this.classifyIntent(message);
@@ -279,8 +287,56 @@ export class ModelRouter {
             model,
             intent,
             complexity,
-            tier
+            tier,
+            routingDisabled: false
         };
+    }
+    
+    /**
+     * Toggle intelligent routing on/off
+     */
+    setRoutingEnabled(enabled) {
+        this.config.enableRouting = enabled;
+        localStorage.setItem('architect_mode_enabled', enabled ? 'true' : 'false');
+        console.log(`[ModelRouter] Routing ${enabled ? 'ENABLED' : 'DISABLED'}`);
+    }
+    
+    /**
+     * Get current routing state
+     */
+    isRoutingEnabled() {
+        return this.config.enableRouting;
+    }
+    
+    /**
+     * Get all available models as a flat list for UI display
+     */
+    getAllModels() {
+        const allModels = [];
+        
+        // Add models from all tiers, removing duplicates
+        const seenIds = new Set();
+        
+        for (const tier of Object.values(this.models)) {
+            for (const model of tier) {
+                if (!seenIds.has(model.id)) {
+                    allModels.push({
+                        ...model,
+                        displayName: model.free ? `🆓 ${model.name}` : `🔑 ${model.name}`,
+                        requiresKey: !model.free
+                    });
+                    seenIds.add(model.id);
+                }
+            }
+        }
+        
+        // Sort: free models first, then by name
+        allModels.sort((a, b) => {
+            if (a.free !== b.free) return b.free ? 1 : -1;
+            return a.name.localeCompare(b.name);
+        });
+        
+        return allModels;
     }
 
     /**

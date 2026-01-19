@@ -136,11 +136,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update UI
             updateCustomModelsList();
             
-            // Update model dropdown
-            if (window.chatPanel && window.chatPanel.loadCustomModels) {
-                window.chatPanel.loadCustomModels();
+            // Refresh entire model dropdown (includes built-in + custom models)
+            if (window.chatPanel && window.chatPanel.refreshModelList) {
+                window.chatPanel.refreshModelList();
             } else {
-                console.error('chatPanel.loadCustomModels is not available');
+                console.warn('chatPanel.refreshModelList is not available');
             }
             
             // Clear inputs
@@ -217,11 +217,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update UI
                 updateCustomModelsList();
                 
-                // Update model dropdown
-                if (window.chatPanel && window.chatPanel.loadCustomModels) {
-                    window.chatPanel.loadCustomModels();
+                // Refresh entire model dropdown (includes built-in + custom models)
+                if (window.chatPanel && window.chatPanel.refreshModelList) {
+                    window.chatPanel.refreshModelList();
                 } else {
-                    console.error('chatPanel.loadCustomModels is not available');
+                    console.warn('chatPanel.refreshModelList is not available');
                 }
             }
         }

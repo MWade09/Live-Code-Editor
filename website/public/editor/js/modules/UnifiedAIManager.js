@@ -257,11 +257,12 @@ export class UnifiedAIManager {
     async callAIStreaming(userMessage, context) {
         const startTime = Date.now();
         
-        // Use ModelRouter for intelligent model selection if available
+        // Use ModelRouter for intelligent model selection if available and enabled
         let selectedModel;
         let routingResult = null;
         
-        if (this.modelRouter) {
+        if (this.modelRouter && this.modelRouter.isRoutingEnabled()) {
+            // Architect Mode is ENABLED - use intelligent routing
             routingResult = await this.modelRouter.route(userMessage, {
                 totalSize: this.modelRouter.calculateContextSize(context),
                 fileCount: context.selectedFiles?.length || 0,
@@ -275,8 +276,12 @@ export class UnifiedAIManager {
             // Compress context if needed
             const maxTokens = routingResult.model.maxTokens || 4000;
             context = this.modelRouter.compressContext(context, maxTokens);
+            
+            console.log('🧠 [Architect Mode] Auto-selected model:', selectedModel);
         } else {
+            // Manual mode - use user's selected model
             selectedModel = this.getSelectedModel();
+            console.log('👤 [Manual Mode] User selected model:', selectedModel);
         }
         
         const systemPrompt = this.buildSystemPrompt(context);
@@ -447,7 +452,7 @@ export class UnifiedAIManager {
      * Show routing indicator in chat
      */
     showRoutingIndicator(routingResult) {
-        if (!this.chatMessages) return;
+        if (!this.chatMessages || !routingResult || routingResult.routingDisabled) return;
         
         // Remove any existing indicator
         const existing = this.chatMessages.querySelector('.routing-indicator');
@@ -462,10 +467,14 @@ export class UnifiedAIManager {
             'powerful': '🚀'
         };
         
+        const intentDisplay = routingResult.intent ? routingResult.intent.replace(/_/g, ' ') : '';
+        const complexityLevel = routingResult.complexity ? ` (${routingResult.complexity.level} complexity)` : '';
+        
         indicator.innerHTML = `
+            <span class="routing-label">🧠 Architect Mode:</span>
             <span class="routing-tier">${tierEmoji[routingResult.tier] || '🤖'}</span>
             <span class="routing-model">${routingResult.model.name || routingResult.model.id.split('/').pop()}</span>
-            <span class="routing-intent">${routingResult.intent.replace(/_/g, ' ')}</span>
+            ${intentDisplay ? `<span class="routing-intent">${intentDisplay}${complexityLevel}</span>` : ''}
         `;
         
         this.chatMessages.appendChild(indicator);
@@ -474,7 +483,7 @@ export class UnifiedAIManager {
         setTimeout(() => {
             indicator.classList.add('fade-out');
             setTimeout(() => indicator.remove(), 300);
-        }, 3000);
+        }, 5000);
     }
     
     /**

@@ -95,6 +95,122 @@
     flex-shrink: 0;
 }
 
+/* Architect Mode Toggle */
+.architect-mode-toggle {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.toggle-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    position: relative;
+}
+
+.toggle-label input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: relative;
+    width: 48px;
+    height: 24px;
+    background-color: var(--tertiary-bg);
+    border-radius: 24px;
+    transition: background-color 0.3s ease;
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.toggle-slider:before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 3px;
+    top: 2px;
+    background-color: var(--secondary-text);
+    border-radius: 50%;
+    transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+.toggle-label input[type="checkbox"]:checked + .toggle-slider {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.toggle-label input[type="checkbox"]:checked + .toggle-slider:before {
+    transform: translateX(24px);
+    background-color: white;
+}
+
+.toggle-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary-text);
+    flex: 1;
+}
+
+.toggle-text .icon {
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+}
+
+.toggle-text .title {
+    font-weight: 600;
+}
+
+.mode-description {
+    font-size: 12px;
+    color: var(--secondary-text);
+    line-height: 1.4;
+    padding-left: 60px;
+    transition: color 0.3s ease;
+}
+
+.mode-description strong {
+    font-weight: 600;
+}
+
+/* Animations for notification */
+@keyframes slideIn {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+}
+
 .form-group {
     margin-bottom: 12px;
 }
@@ -1093,13 +1209,13 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 12px;
-    background: linear-gradient(90deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05));
-    border: 1px solid rgba(99, 102, 241, 0.2);
+    padding: 8px 12px;
+    background: linear-gradient(90deg, rgba(76, 154, 240, 0.15), rgba(76, 154, 240, 0.05));
+    border: 1px solid rgba(76, 154, 240, 0.3);
     border-radius: 6px;
     margin: 6px 16px;
-    font-size: 11px;
-    color: var(--secondary-text);
+    font-size: 12px;
+    color: var(--primary-text);
     animation: slideInFade 0.3s ease;
 }
 
@@ -1120,22 +1236,34 @@
     }
 }
 
+.routing-indicator .routing-label {
+    font-weight: 600;
+    color: var(--accent-color);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 .routing-indicator .routing-tier {
-    font-size: 14px;
+    font-size: 16px;
 }
 
 .routing-indicator .routing-model {
     font-weight: 600;
-    color: #8b5cf6;
+    color: var(--accent-color);
+    background: rgba(76, 154, 240, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
 }
 
 .routing-indicator .routing-intent {
-    padding: 2px 6px;
-    background: rgba(139, 92, 246, 0.15);
+    padding: 2px 8px;
+    background: rgba(76, 154, 240, 0.1);
     border-radius: 4px;
-    font-size: 10px;
+    font-size: 11px;
     text-transform: capitalize;
-    color: var(--primary-text);
+    color: var(--secondary-text);
+    margin-left: auto;
 }
 
 /* Token Budget Indicator */
